@@ -114,3 +114,12 @@ None. `ThisWeekSidebar` renders hardcoded content by design (per UI-SPEC's Illus
 ---
 *Phase: 01-ui-redesign*
 *Completed: 2026-08-18*
+
+## Self-Check: PASSED
+
+- FOUND: frontend/src/components/ThisWeekSidebar.jsx
+- FOUND: frontend/src/App.jsx
+- FOUND: .planning/phases/01-ui-redesign/01-02-SUMMARY.md
+- FOUND: 750c09c (Task 1 commit)
+- FOUND: 03f23df (Task 2 commit)
+- FOUND: c56db09 (docs commit)
