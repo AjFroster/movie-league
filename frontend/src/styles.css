@@ -169,3 +169,202 @@ body {
 
 /* -- Leaderboard -- */
 .leaderboard { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+/* -- Player Card -- */
+.player-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.player-card.rank-1 { border-top: 2px solid var(--accent); }
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.player-rank {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: var(--fs-heading);
+  line-height: var(--lh-heading);
+  width: 40px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+.player-card.rank-1 .player-rank { color: var(--accent); }
+.player-identity { flex: 1; min-width: 200px; }
+.player-meta-line {
+  font-family: var(--font-label);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-xs);
+}
+.player-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: var(--lh-display);
+  color: var(--text);
+}
+.player-stats {
+  display: flex;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+/* -- Stat block (reused: player header + movie detail stat strip) -- */
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 64px;
+}
+.stat-block-label {
+  font-family: var(--font-label);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.stat-block-value {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: var(--fs-heading);
+  line-height: var(--lh-heading);
+  color: var(--text);
+}
+.stat-block-value.positive { color: var(--accent); }
+.stat-block-value.negative { color: var(--destructive); }
+.stat-block-caption {
+  font-family: var(--font-label);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+/* -- Roster table -- */
+.roster-table { display: flex; flex-direction: column; }
+.roster-header-row, .roster-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 160px 64px 72px;
+  column-gap: var(--space-md);
+  align-items: center;
+  min-height: var(--row-min-height);
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--border);
+}
+.roster-header-row {
+  font-family: var(--font-label);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.roster-header-row > span:nth-child(4),
+.roster-header-row > span:nth-child(5) { text-align: right; }
+
+.roster-row { cursor: pointer; }
+.roster-row:not(.pending):hover { background: var(--surface-raised); }
+.roster-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.roster-row.expanded { background: var(--surface-raised); border-bottom-color: var(--border-bright); }
+
+.roster-col-round { font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); }
+.roster-col-title { font-family: var(--font-body); font-weight: 700; font-size: var(--fs-body); color: var(--text); }
+.roster-col-title.dim { color: var(--text-faint); font-weight: 400; font-style: italic; }
+.roster-col-pts { font-family: var(--font-label); font-weight: 700; font-size: var(--fs-heading); line-height: var(--lh-heading); text-align: right; }
+.roster-col-pts.positive { color: var(--accent); }
+.roster-col-pts.negative { color: var(--destructive); }
+.roster-col-pts.zero { color: var(--text-dim); }
+.roster-col-watched { font-family: var(--font-body); font-size: var(--fs-body); color: var(--text-dim); text-align: right; }
+
+/* pending rows are dimmed; each column sets its own color, so target the columns
+   directly — a color declaration on .roster-row.pending alone would never win */
+.roster-row.pending { cursor: default; }
+.roster-row.pending .roster-col-round,
+.roster-row.pending .roster-col-title,
+.roster-row.pending .roster-col-pts,
+.roster-row.pending .roster-col-watched,
+.roster-row.pending .status-label { color: var(--text-faint); }
+
+/* -- Status pill -- */
+.status-pill { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.status-dot { width: var(--dot-size); height: var(--dot-size); border-radius: 50%; flex-shrink: 0; }
+.status-dot.no-pick { background: var(--text-dim); }
+.status-dot.awaiting { background: var(--status-info); }
+.status-dot.at-risk { background: var(--destructive); }
+.status-dot.scored { background: var(--accent); }
+.status-label { font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* -- Movie detail (expanded) -- */
+.movie-detail { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-lg); }
+.movie-hero { height: 120px; background: linear-gradient(135deg, var(--surface), var(--surface-raised)); }
+.movie-detail-title { font-family: var(--font-display); font-size: var(--fs-display); font-weight: 700; line-height: var(--lh-display); color: var(--text); margin: var(--space-md) 0 0; }
+.movie-detail-meta { font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: var(--space-xs); }
+
+.stat-strip { display: flex; flex-wrap: wrap; }
+.stat-strip .stat-block { padding: 0 var(--space-lg); border-right: 1px solid var(--border); }
+.stat-strip .stat-block:first-child { padding-left: 0; }
+.stat-strip .stat-block:last-child { border-right: none; }
+
+.detail-columns { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-lg); }
+.detail-col { display: flex; flex-direction: column; min-width: 0; }
+.detail-section-title {
+  font-family: var(--font-label);
+  font-size: var(--fs-heading);
+  font-weight: 700;
+  line-height: var(--lh-heading);
+  color: var(--text-dim);
+  margin-bottom: var(--space-sm);
+}
+
+.points-ledger { display: flex; flex-direction: column; gap: var(--space-sm); }
+.ledger-row { display: grid; grid-template-columns: 100px 1fr 64px; align-items: center; gap: var(--space-sm); }
+.ledger-label { font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.ledger-bar-track { display: block; height: 6px; background: var(--border); overflow: hidden; }
+.ledger-bar-fill { display: block; height: 100%; }
+.ledger-bar-fill.positive { background: var(--accent); }
+.ledger-bar-fill.negative { background: var(--destructive); }
+.ledger-value { font-family: var(--font-label); font-weight: 700; font-size: var(--fs-body); text-align: right; }
+.ledger-value.positive { color: var(--accent); }
+.ledger-value.negative { color: var(--destructive); }
+
+/* penalty explanation text under the ledger — Body role per UI-SPEC Typography */
+.penalty-note {
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--text-dim);
+  margin-top: var(--space-sm);
+}
+
+.campaign-tracker { display: flex; flex-direction: column; gap: var(--space-md); }
+.tracker-item { display: flex; gap: var(--space-sm); }
+.tracker-dot { width: var(--dot-size); height: var(--dot-size); border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.tracker-dot.amber { background: var(--accent); }
+.tracker-dot.blue { background: var(--status-info); }
+.tracker-dot.gray { background: var(--text-faint); }
+.tracker-headline { font-weight: 700; color: var(--text); font-size: var(--fs-body); }
+.tracker-detail { color: var(--text-dim); font-size: var(--fs-label); line-height: var(--lh-label); font-family: var(--font-label); }
+
+.ownership-callout { border: 1px solid var(--accent); padding: var(--space-md); background: var(--surface-raised); font-size: var(--fs-body); color: var(--text); }
+.ownership-callout strong { color: var(--accent); }
+
+.card-error { padding: var(--space-md) var(--space-lg); color: var(--destructive); font-family: var(--font-label); font-size: var(--fs-label); }
+
+/* -- Responsive -- */
+@media (max-width: 600px) {
+  .player-name, .movie-detail-title { font-size: 28px; }
+  .roster-header-row, .roster-row { grid-template-columns: 48px 1fr 120px 56px 56px; padding: 0 var(--space-md); }
+  .stat-strip { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+  .stat-strip .stat-block { border-right: none; padding: 0; }
+  .detail-columns { grid-template-columns: 1fr; }
+}
