@@ -2,23 +2,17 @@ import { useEffect, useState } from 'react'
 import MovieCard from './MovieCard.jsx'
 import { api } from '../api.js'
 
-const RANK_COLORS = {
-  1: '#fbbf24',
-  2: '#67e8f9',
-  3: '#fb923c',
+const ORDINALS = ['', '1ST', '2ND', '3RD', '4TH', '5TH', '6TH', '7TH', '8TH', '9TH', '10TH']
+
+function ordinal(n) {
+  return ORDINALS[n] || `${n}TH`
 }
 
-const MAX_SCORE = 120 // approximate season max for progress bar
-
-function ScoreChip({ label, value, type }) {
-  return (
-    <span className={`score-chip ${type}`}>
-      {label} <strong>{value > 0 ? `+${value}` : value}</strong>
-    </span>
-  )
+function signed(v) {
+  return v > 0 ? `+${v}` : `${v}`
 }
 
-export default function PlayerCard({ summary }) {
+export default function PlayerCard({ summary, ownerCount }) {
   const [movies, setMovies] = useState(null)
   const [error, setError] = useState(null)
 
@@ -28,52 +22,56 @@ export default function PlayerCard({ summary }) {
       .catch(e => setError(e.message))
   }, [summary.owner])
 
-  const rankColor = RANK_COLORS[summary.rank]
-  const scorePct = `${Math.min(Math.max(summary.total, 0) / MAX_SCORE * 100, 100).toFixed(1)}%`
-
   return (
-    <div
-      className={`player-card rank-${summary.rank}`}
-      style={rankColor ? { '--rank-color': rankColor } : undefined}
-    >
+    <div className={`player-card${summary.rank === 1 ? ' rank-1' : ''}`}>
       <div className="player-header">
         <div className="player-rank">#{summary.rank}</div>
-
-        <div className="player-meta">
+        <div className="player-identity">
+          <div className="player-meta-line">
+            {ordinal(summary.rank)} OF {ownerCount} · {summary.rounds_played} ROUND{summary.rounds_played === 1 ? '' : 'S'}
+          </div>
           <div className="player-name">{summary.owner}</div>
-          <div className="player-chips">
-            <ScoreChip label="★ Rating"   value={summary.rating_score}    type="rating" />
-            <ScoreChip label="$ Finance"  value={summary.financial_score} type="financial" />
-            <ScoreChip label="👁 Watch"   value={summary.watch_points}    type="watch" />
-            {summary.penalties !== 0 && (
-              <ScoreChip label="⚠ Penalty" value={summary.penalties} type="penalty" />
-            )}
-            <span className="rounds-badge">{summary.rounds_played}/6 rounds</span>
-          </div>
-          <div className="player-score-bar">
-            <div
-              className="player-score-bar-fill"
-              style={{ '--score-pct': scorePct }}
-            />
-          </div>
         </div>
-
-        <div
-          className={`player-total ${summary.total > 0 ? 'positive' : summary.total < 0 ? 'negative' : 'zero'}`}
-          style={rankColor ? { '--rank-color': rankColor } : undefined}
-        >
-          {summary.total > 0 ? `+${summary.total}` : summary.total}
-          <span className="total-label">pts</span>
+        <div className="player-stats">
+          <div className="stat-block">
+            <span className="stat-block-label">TOTAL</span>
+            <span className={`stat-block-value ${summary.total > 0 ? 'positive' : summary.total < 0 ? 'negative' : ''}`}>
+              {signed(summary.total)}
+            </span>
+          </div>
+          <div className="stat-block">
+            <span className="stat-block-label">RATING</span>
+            <span className="stat-block-value">{signed(summary.rating_score)}</span>
+          </div>
+          <div className="stat-block">
+            <span className="stat-block-label">FINANCIAL</span>
+            <span className="stat-block-value">{signed(summary.financial_score)}</span>
+          </div>
+          <div className="stat-block">
+            <span className="stat-block-label">WATCH</span>
+            <span className="stat-block-value">+{summary.watch_points}</span>
+          </div>
+          {summary.penalties !== 0 && (
+            <div className="stat-block">
+              <span className="stat-block-label">PENALTIES</span>
+              <span className="stat-block-value negative">{signed(summary.penalties)}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="movie-grid">
+      <div className="roster-table">
+        <div className="roster-header-row">
+          <span>ROUND</span>
+          <span>TITLE</span>
+          <span>STATUS</span>
+          <span>PTS</span>
+          <span>WATCHED</span>
+        </div>
         {error && <div className="card-error" role="alert">{error}</div>}
-        {!movies && !error && (
-          [1,2,3,4,5,6].map(n => <div key={n} className="movie-card skeleton" />)
-        )}
+        {!movies && !error && <div className="state-msg">Loading rounds…</div>}
         {movies && movies.map(m => (
-          <MovieCard key={m.round} movie={m} />
+          <MovieCard key={m.round} movie={m} ownerCount={ownerCount} />
         ))}
       </div>
     </div>
