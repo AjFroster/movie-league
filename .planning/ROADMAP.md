@@ -22,7 +22,7 @@ Existing app (React/Vite frontend, FastAPI backend, JSON data store) gets a visu
 **Plans**: 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Design tokens, fonts, and full component CSS contract (styles.css + index.html)
+- [x] 01-01-PLAN.md — Design tokens, fonts, and full component CSS contract (styles.css + index.html)
 - [ ] 01-02-PLAN.md — App shell: header restyle, two-column layout, static THIS WEEK sidebar, empty/error copy
 - [ ] 01-03-PLAN.md — Roster table shell: Leaderboard/PlayerCard stat header + ROUND/TITLE/STATUS/PTS/WATCHED columns
 - [ ] 01-04-PLAN.md — Movie detail: status pill roster row + expanded hero/stat-strip/points-ledger/campaign-tracker/ownership panel
