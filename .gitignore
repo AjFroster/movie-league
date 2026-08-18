@@ -1,0 +1,23 @@
+# Secrets — never commit
+backend/.env
+.env
+.env.local
+
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+*.log
+
+# WSL / Windows artifacts
+*:Zone.Identifier
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
