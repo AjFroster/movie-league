@@ -6,7 +6,9 @@ Existing app (React/Vite frontend, FastAPI backend, JSON data store) gets a visu
 
 ## Phases
 
-- [ ] **Phase 1: UI Redesign** - Reskin frontend to match new mockups (team/roster view + movie detail view), preserving existing functionality
+- [x] **Phase 1: UI Redesign** - Reskin frontend to match new mockups (team/roster view + movie detail view), preserving existing functionality
+
+- [ ] **Phase 2: Live API Enrichment** - Fetch ratings/financials from free APIs (OMDb + TMDB), cached and non-destructive
 
 ## Phase Details
 
@@ -27,11 +29,31 @@ Plans:
 - [x] 01-03-PLAN.md — Roster table shell: Leaderboard/PlayerCard stat header + ROUND/TITLE/STATUS/PTS/WATCHED columns
 - [x] 01-04-PLAN.md — Movie detail: status pill roster row + expanded hero/stat-strip/points-ledger/campaign-tracker/ownership panel
 
+### Phase 2: Live API Enrichment
+**Goal**: Film ratings and financials populate from free public APIs on a manual refresh trigger, cached so repeat runs cost no API calls, and never overwriting hand-entered values
+**Depends on**: Nothing (backend-only; independent of Phase 1)
+**Requirements**: API-01, API-02, API-03, API-04, API-05
+**Success Criteria** (what must be TRUE):
+  1. A manually-triggered bulk enrich fills `imdb` (real IMDb rating) and `rt_crit` from OMDb, and `budget`/`gross` from TMDB, for films that have no hand-entered value
+  2. Re-running enrichment immediately after a first run makes zero outbound API calls (all served from cache)
+  3. A hand-entered value is never silently overwritten — provenance distinguishes `manual` from `fetched`, and overwriting requires an explicit force flag
+  4. A single bulk run cannot exceed a configured per-run call cap, so the OMDb 1,000/day free quota cannot be exhausted by accident
+  5. Both API keys are documented in `.env.example` and never appear in logs
+**Non-goals** (explicitly out of scope):
+  - `rt_aud` and `letterboxd` — no free API exists for either; they stay manual
+  - `compute_movie_scores()` — the scoring formula lives in the user's spreadsheet; without it the standings will NOT change even after enrichment (see 02-RESEARCH.md §3)
+  - Scheduled/background refresh — manual trigger only
+**Plans**: TBD
+
+Plans:
+- [ ] 02-01: TBD (created during /gsd-plan-phase)
+
 ## Progress
 
 **Execution Order:**
-Phase 1 only (single-phase scaffold).
+Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. UI Redesign | 4/4 | Complete | 2026-08-18 |
+| 2. Live API Enrichment | 0/TBD | Not started | - |
