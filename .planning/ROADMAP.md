@@ -23,9 +23,9 @@ Existing app (React/Vite frontend, FastAPI backend, JSON data store) gets a visu
 
 Plans:
 - [x] 01-01-PLAN.md — Design tokens, fonts, and full component CSS contract (styles.css + index.html)
-- [ ] 01-02-PLAN.md — App shell: header restyle, two-column layout, static THIS WEEK sidebar, empty/error copy
-- [ ] 01-03-PLAN.md — Roster table shell: Leaderboard/PlayerCard stat header + ROUND/TITLE/STATUS/PTS/WATCHED columns
-- [ ] 01-04-PLAN.md — Movie detail: status pill roster row + expanded hero/stat-strip/points-ledger/campaign-tracker/ownership panel
+- [x] 01-02-PLAN.md — App shell: header restyle, two-column layout, static THIS WEEK sidebar, empty/error copy
+- [x] 01-03-PLAN.md — Roster table shell: Leaderboard/PlayerCard stat header + ROUND/TITLE/STATUS/PTS/WATCHED columns
+- [x] 01-04-PLAN.md — Movie detail: status pill roster row + expanded hero/stat-strip/points-ledger/campaign-tracker/ownership panel
 
 ## Progress
 
@@ -34,4 +34,4 @@ Phase 1 only (single-phase scaffold).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. UI Redesign | 0/4 | Not started | - |
+| 1. UI Redesign | 4/4 | Complete | 2026-08-18 |

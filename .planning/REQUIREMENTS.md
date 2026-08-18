@@ -9,10 +9,10 @@ Requirements for the UI redesign phase.
 
 ### UI Redesign
 
-- [ ] **UI-01**: Team/roster view (`Leaderboard`/`PlayerCard`/`OwnerDetail`) matches the new "Movie League" mockup layout — slot table with status pill, pts, proj, owned%
-- [ ] **UI-02**: Movie detail view (`MovieCard` expanded state) matches the new mockup layout — hero header, points ledger with progress bars, campaign tracker timeline, ownership/similar sidebar
+- [x] **UI-01**: Team/roster view (`Leaderboard`/`PlayerCard`/`OwnerDetail`) matches the new "Movie League" mockup layout — slot table with status pill, pts, proj, owned%
+- [x] **UI-02**: Movie detail view (`MovieCard` expanded state) matches the new mockup layout — hero header, points ledger with progress bars, campaign tracker timeline, ownership/similar sidebar
 - [x] **UI-03**: Design tokens (color palette, type scale, spacing scale, status-pill colors) extracted from mockups and applied consistently across `styles.css` and all components
-- [ ] **UI-04**: Existing functionality (data fetch, expand/collapse score breakdown, TMDB enrich trigger) still works after the redesign
+- [x] **UI-04**: Existing functionality (data fetch, expand/collapse score breakdown, TMDB enrich trigger) still works after the redesign
 
 ## v2 Requirements
 
@@ -36,10 +36,10 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | Phase 1 | Pending |
-| UI-02 | Phase 1 | Pending |
+| UI-01 | Phase 1 | Complete |
+| UI-02 | Phase 1 | Complete |
 | UI-03 | Phase 1 | Complete |
-| UI-04 | Phase 1 | Pending |
+| UI-04 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 4 total
