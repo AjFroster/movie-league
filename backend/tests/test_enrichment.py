@@ -1,0 +1,464 @@
+"""Tests for the enrichment engine: cached provider fetches, the no-clobber merge, ROI
+derivation, and (once Task 2 lands) the sequential bulk runner.
+
+Every provider call in this suite is monkeypatched -- no network, no real API keys (the
+autouse `no_real_api_keys` fixture in conftest.py strips both provider keys before every
+test). The three tests carried over verbatim from PLAN.md are the regression tests for this
+phase's headline guarantees: a repeat run costs zero calls, TMDB's vote_average never leaks
+into `imdb`, and a keyless run never poisons the cache.
+"""
+import httpx
+import pytest
+
+from app import enrichment, provenance
+from app.redaction import ProviderError
+from app.services import cache, omdb, tmdb
+
+TMDB_PAYLOAD = {"tmdb_id": 1, "budget_millions": 170.0, "gross_millions": 100.5,
+                "vote_average": 9.9, "imdb_id": "tt0111161", "release_date": "2001-04-01"}
+OMDB_PAYLOAD = {"imdb_id": "tt0111161", "imdb": 6.1, "rt_crit": 54.0}
+
+# Fields no automated enrichment run may ever touch -- hand-entered, watch-tracking, or
+# purely derived-from-hand-entry. RESEARCH section 3: there is no scoring formula in code.
+INVARIANT_FIELDS = ("rating_score", "financial_score", "penalties", "watch_points", "total",
+                    "letterboxd", "rt_aud", "who_watched", "penalty_notes")
+
+
+@pytest.fixture
+def fake_providers(monkeypatch):
+    """Replace both provider modules with counting fakes. No network, no keys."""
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+    calls = {"tmdb": 0, "omdb": 0}
+
+    async def fake_tmdb(title, year=None, *, client=None):
+        calls["tmdb"] += 1
+        return dict(TMDB_PAYLOAD)
+
+    async def fake_omdb(imdb_id, *, client=None):
+        calls["omdb"] += 1
+        return dict(OMDB_PAYLOAD)
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake_tmdb)
+    monkeypatch.setattr(omdb, "fetch_ratings", fake_omdb)
+    return calls
+
+
+# ---------------------------------------------------------------------------
+# CallBudget
+# ---------------------------------------------------------------------------
+
+def test_call_budget_available_becomes_false_after_max_calls():
+    budget = enrichment.CallBudget(2)
+    assert budget.available() is True
+    assert budget.exhausted is False
+
+    budget.spend()
+    assert budget.available() is True
+    assert budget.exhausted is False
+
+    budget.spend()
+    assert budget.available() is False
+    assert budget.exhausted is True
+    assert budget.used == 2
+
+
+# ---------------------------------------------------------------------------
+# fetch_tmdb
+# ---------------------------------------------------------------------------
+
+async def test_fetch_tmdb_cold_cache_calls_provider_once_and_caches(tmp_cache, monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    calls = {"n": 0}
+
+    async def fake(title, year=None, *, client=None):
+        calls["n"] += 1
+        return dict(TMDB_PAYLOAD)
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_tmdb("Some Movie", budget=budget)
+    assert payload == TMDB_PAYLOAD
+    assert outcome == enrichment.OUTCOME_FETCHED
+    assert calls["n"] == 1
+    assert budget.used == 1
+
+    payload2, outcome2 = await enrichment.fetch_tmdb("Some Movie", budget=budget)
+    assert payload2 == TMDB_PAYLOAD
+    assert outcome2 == enrichment.OUTCOME_CACHE
+    assert calls["n"] == 1  # no further provider call
+
+
+async def test_fetch_tmdb_force_true_skips_cache_and_calls_again(tmp_cache, monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    calls = {"n": 0}
+
+    async def fake(title, year=None, *, client=None):
+        calls["n"] += 1
+        return dict(TMDB_PAYLOAD)
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake)
+    budget = enrichment.CallBudget(10)
+
+    await enrichment.fetch_tmdb("Some Movie", budget=budget)
+    assert calls["n"] == 1
+
+    payload, outcome = await enrichment.fetch_tmdb("Some Movie", budget=budget, force=True)
+    assert outcome == enrichment.OUTCOME_FETCHED
+    assert payload == TMDB_PAYLOAD
+    assert calls["n"] == 2
+
+
+async def test_fetch_tmdb_no_match_writes_negative_cache_entry(tmp_cache, monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    calls = {"n": 0}
+
+    async def fake(title, year=None, *, client=None):
+        calls["n"] += 1
+        return None
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_tmdb("Unknown Movie", budget=budget)
+    assert payload is None
+    assert outcome == enrichment.OUTCOME_MISS
+    assert calls["n"] == 1
+
+    payload2, outcome2 = await enrichment.fetch_tmdb("Unknown Movie", budget=budget)
+    assert payload2 is None
+    assert outcome2 == enrichment.OUTCOME_CACHE
+    assert calls["n"] == 1
+
+
+async def test_fetch_tmdb_no_key_spends_no_budget_and_writes_nothing(tmp_cache, monkeypatch):
+    monkeypatch.delenv("TMDB_API_KEY", raising=False)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_tmdb("Some Movie", budget=budget)
+
+    assert payload is None
+    assert outcome == enrichment.OUTCOME_NO_KEY
+    assert budget.used == 0
+    assert cache.load_cache() == {}
+
+
+async def test_fetch_tmdb_capped_when_budget_exhausted(tmp_cache, monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    calls = {"n": 0}
+
+    async def fake(title, year=None, *, client=None):
+        calls["n"] += 1
+        return dict(TMDB_PAYLOAD)
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake)
+    budget = enrichment.CallBudget(0)
+
+    payload, outcome = await enrichment.fetch_tmdb("Some Movie", budget=budget)
+
+    assert payload is None
+    assert outcome == enrichment.OUTCOME_CAPPED
+    assert calls["n"] == 0
+
+
+async def test_fetch_tmdb_provider_error_spends_budget_writes_no_cache(tmp_cache, monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+
+    async def fake(title, year=None, *, client=None):
+        raise httpx.ConnectError("boom talking to tmdb")
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_tmdb("Some Movie", budget=budget)
+
+    assert payload is None
+    assert outcome.startswith(enrichment.ERROR_PREFIX)
+    assert budget.used == 1
+    assert cache.load_cache() == {}
+
+
+# ---------------------------------------------------------------------------
+# fetch_omdb -- same contract as fetch_tmdb, keyed on imdb_id, TTL from release_date
+# ---------------------------------------------------------------------------
+
+async def test_fetch_omdb_cold_cache_calls_once_and_caches(tmp_cache, monkeypatch):
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+    calls = {"n": 0}
+
+    async def fake(imdb_id, *, client=None):
+        calls["n"] += 1
+        return dict(OMDB_PAYLOAD)
+
+    monkeypatch.setattr(omdb, "fetch_ratings", fake)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_omdb(
+        "tt0111161", release_date="2001-04-01", budget=budget)
+    assert payload == OMDB_PAYLOAD
+    assert outcome == enrichment.OUTCOME_FETCHED
+    assert calls["n"] == 1
+
+    payload2, outcome2 = await enrichment.fetch_omdb(
+        "tt0111161", release_date="2001-04-01", budget=budget)
+    assert payload2 == OMDB_PAYLOAD
+    assert outcome2 == enrichment.OUTCOME_CACHE
+    assert calls["n"] == 1
+
+
+async def test_fetch_omdb_cache_key_is_provider_prefixed_imdb_id(tmp_cache, monkeypatch):
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+
+    async def fake(imdb_id, *, client=None):
+        return dict(OMDB_PAYLOAD)
+
+    monkeypatch.setattr(omdb, "fetch_ratings", fake)
+    budget = enrichment.CallBudget(10)
+
+    await enrichment.fetch_omdb("tt0111161", release_date="2001-04-01", budget=budget)
+
+    assert "omdb:tt0111161" in cache.load_cache()
+
+
+async def test_fetch_omdb_no_key_spends_no_budget_and_writes_nothing(tmp_cache, monkeypatch):
+    monkeypatch.delenv("OMDB_API_KEY", raising=False)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_omdb(
+        "tt0111161", release_date=None, budget=budget)
+
+    assert payload is None
+    assert outcome == enrichment.OUTCOME_NO_KEY
+    assert budget.used == 0
+    assert cache.load_cache() == {}
+
+
+async def test_fetch_omdb_capped_when_budget_exhausted(tmp_cache, monkeypatch):
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+    budget = enrichment.CallBudget(0)
+
+    payload, outcome = await enrichment.fetch_omdb(
+        "tt0111161", release_date=None, budget=budget)
+
+    assert payload is None
+    assert outcome == enrichment.OUTCOME_CAPPED
+
+
+async def test_fetch_omdb_provider_error_is_redacted_and_spends_budget(tmp_cache, monkeypatch):
+    monkeypatch.setenv("OMDB_API_KEY", "SUPERSECRETOMDBKEY")
+
+    async def fake(imdb_id, *, client=None):
+        raise ProviderError(
+            "failed for https://www.omdbapi.com/?apikey=SUPERSECRETOMDBKEY", provider="omdb")
+
+    monkeypatch.setattr(omdb, "fetch_ratings", fake)
+    budget = enrichment.CallBudget(10)
+
+    payload, outcome = await enrichment.fetch_omdb(
+        "tt0111161", release_date=None, budget=budget)
+
+    assert payload is None
+    assert outcome.startswith(enrichment.ERROR_PREFIX)
+    assert "SUPERSECRETOMDBKEY" not in outcome
+    assert budget.used == 1
+    assert cache.load_cache() == {}
+
+
+async def test_fetch_omdb_ttl_derived_from_release_date_argument(tmp_cache, monkeypatch):
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+
+    async def fake(imdb_id, *, client=None):
+        return dict(OMDB_PAYLOAD)
+
+    monkeypatch.setattr(omdb, "fetch_ratings", fake)
+    budget = enrichment.CallBudget(10)
+
+    await enrichment.fetch_omdb("tt0111161", release_date="2001-04-01", budget=budget)
+
+    entry = cache.load_cache()["omdb:tt0111161"]
+    assert entry["ttl_seconds"] == cache.TTL_RELEASED
+
+
+# ---------------------------------------------------------------------------
+# compute_roi
+# ---------------------------------------------------------------------------
+
+def test_compute_roi_sets_value_and_provenance(sample_movie):
+    entry = dict(sample_movie)
+    entry["budget"] = 170.0
+    entry["gross"] = 100.5
+
+    result = enrichment.compute_roi(entry)
+
+    assert result is True
+    assert entry["roi"] == round(100.5 / 170.0, 3)
+    source = provenance.get_source(entry, "roi")
+    assert source["origin"] == provenance.FETCHED
+    assert source["provider"] == "derived"
+
+
+@pytest.mark.parametrize("budget,gross", [(0, 10), (-5, 10), (None, 10), ("bad", 10)])
+def test_compute_roi_false_for_bad_budget(sample_movie, budget, gross):
+    entry = dict(sample_movie)
+    entry["budget"] = budget
+    entry["gross"] = gross
+    assert enrichment.compute_roi(entry) is False
+
+
+def test_compute_roi_respects_manual_and_force(sample_movie):
+    entry = dict(sample_movie)
+    entry["budget"] = 170.0
+    entry["gross"] = 100.5
+    provenance.mark_manual(entry, "roi")
+
+    assert enrichment.compute_roi(entry) is False
+    assert entry.get("roi") in (None, 0)
+    assert enrichment.compute_roi(entry, force=True) is True
+    assert entry["roi"] == round(100.5 / 170.0, 3)
+
+
+# ---------------------------------------------------------------------------
+# enrich_entry
+# ---------------------------------------------------------------------------
+
+async def test_enrich_entry_fills_all_fields_on_empty_row(tmp_cache, fake_providers, sample_movie):
+    entry = dict(sample_movie)
+
+    report = await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+
+    assert entry["budget"] == TMDB_PAYLOAD["budget_millions"]
+    assert entry["gross"] == TMDB_PAYLOAD["gross_millions"]
+    assert entry["imdb"] == OMDB_PAYLOAD["imdb"]
+    assert entry["rt_crit"] == OMDB_PAYLOAD["rt_crit"]
+    assert entry["roi"] == round(TMDB_PAYLOAD["gross_millions"] / TMDB_PAYLOAD["budget_millions"], 3)
+    assert set(report["updated"]) == {"budget", "gross", "imdb", "rt_crit", "roi"}
+    assert report["protected"] == []
+    assert report["errors"] == []
+    assert report["owner"] == entry["owner"]
+    assert report["round"] == entry["round"]
+    assert report["movie"] == entry["movie"]
+
+
+async def test_enrich_entry_protects_manual_field_and_reports_it(tmp_cache, fake_providers, sample_movie):
+    entry = dict(sample_movie)
+    entry["rt_crit"] = 98
+    provenance.mark_manual(entry, "rt_crit")
+
+    report = await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+
+    assert entry["rt_crit"] == 98
+    assert "rt_crit" in report["protected"]
+    assert "rt_crit" not in report["updated"]
+
+
+async def test_enrich_entry_overwrites_unknown_field_and_preserves_legacy_value(
+        tmp_cache, fake_providers, sample_movie):
+    entry = dict(sample_movie)
+    entry["imdb"] = 9.9  # legacy TMDB vote_average, pre-provenance
+    provenance.set_source(entry, "imdb", provenance.UNKNOWN, legacy_value=9.9)
+
+    report = await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+
+    assert entry["imdb"] == OMDB_PAYLOAD["imdb"]
+    assert "imdb" in report["updated"]
+    source = provenance.get_source(entry, "imdb")
+    assert source["origin"] == provenance.FETCHED
+    assert source["legacy_value"] == 9.9
+
+
+async def test_enrich_entry_no_imdb_id_skips_omdb_call(tmp_cache, monkeypatch, sample_movie):
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+    omdb_calls = {"n": 0}
+
+    async def fake_tmdb(title, year=None, *, client=None):
+        payload = dict(TMDB_PAYLOAD)
+        payload["imdb_id"] = None
+        return payload
+
+    async def fake_omdb(imdb_id, *, client=None):
+        omdb_calls["n"] += 1
+        return dict(OMDB_PAYLOAD)
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake_tmdb)
+    monkeypatch.setattr(omdb, "fetch_ratings", fake_omdb)
+
+    entry = dict(sample_movie)
+    report = await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+
+    assert report["omdb"] == enrichment.OUTCOME_NO_IMDB_ID
+    assert omdb_calls["n"] == 0
+    assert entry["imdb"] is None
+    assert entry["rt_crit"] is None
+
+
+async def test_enrich_entry_never_touches_scoring_or_manual_only_fields(
+        tmp_cache, fake_providers, sample_movie):
+    entry = dict(sample_movie)
+    entry["rating_score"] = 12
+    entry["financial_score"] = 7
+    entry["penalties"] = 1
+    entry["watch_points"] = 3
+    entry["total"] = 20
+    entry["who_watched"] = ["Liam"]
+    entry["penalty_notes"] = "late watch"
+    before = {k: entry[k] for k in INVARIANT_FIELDS}
+
+    await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+
+    after = {k: entry[k] for k in INVARIANT_FIELDS}
+    assert before == after
+
+
+async def test_enrich_entry_provider_error_is_redacted_in_report(tmp_cache, monkeypatch, sample_movie):
+    monkeypatch.setenv("TMDB_API_KEY", "SUPERSECRETTMDBKEY")
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+
+    async def failing_tmdb(title, year=None, *, client=None):
+        raise httpx.HTTPError(
+            "Client error for url https://api.themoviedb.org/3/search/movie?query=X "
+            "Authorization: Bearer SUPERSECRETTMDBKEY")
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", failing_tmdb)
+
+    entry = dict(sample_movie)
+    report = await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+
+    assert len(report["errors"]) == 1
+    assert "SUPERSECRETTMDBKEY" not in report["errors"][0]
+    assert report["omdb"] == enrichment.OUTCOME_NO_IMDB_ID  # tmdb failed, so no imdb_id to chase
+
+
+# ---------------------------------------------------------------------------
+# Verbatim regression tests from PLAN.md -- the phase's headline guarantees
+# ---------------------------------------------------------------------------
+
+async def test_second_run_costs_zero_api_calls(tmp_cache, fake_providers, sample_movie):
+    entry = dict(sample_movie)
+    await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+    assert fake_providers == {"tmdb": 1, "omdb": 1}
+
+    await enrichment.enrich_entry(dict(sample_movie), budget=enrichment.CallBudget(10))
+    assert fake_providers == {"tmdb": 1, "omdb": 1}  # served entirely from cache
+
+
+async def test_tmdb_vote_average_never_becomes_the_imdb_rating(tmp_cache, fake_providers,
+                                                               sample_movie):
+    entry = dict(sample_movie)
+    await enrichment.enrich_entry(entry, budget=enrichment.CallBudget(10))
+    assert entry["imdb"] == 6.1                       # OMDb's imdbRating
+    assert entry["imdb"] != TMDB_PAYLOAD["vote_average"]
+    assert provenance.get_source(entry, "imdb")["provider"] == "omdb"
+
+
+async def test_keyless_run_writes_no_negative_cache_entry(tmp_cache, monkeypatch, sample_movie):
+    monkeypatch.delenv("TMDB_API_KEY", raising=False)
+    monkeypatch.delenv("OMDB_API_KEY", raising=False)
+    budget = enrichment.CallBudget(10)
+
+    report = await enrichment.enrich_entry(dict(sample_movie), budget=budget)
+
+    assert report["tmdb"] == enrichment.OUTCOME_NO_KEY
+    assert budget.used == 0
+    assert cache.load_cache() == {}   # nothing poisoned; adding a key later works immediately
