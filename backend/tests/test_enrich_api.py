@@ -213,3 +213,91 @@ def test_put_explicit_roi_is_kept_and_stamped_manual(api):
     body = response.json()
     assert body["roi"] == 9.99
     assert body["sources"]["roi"]["origin"] == "manual"
+
+
+# ---------------------------------------------------------------------------
+# Task 2: bulk POST /api/enrich-all
+# ---------------------------------------------------------------------------
+
+def test_enrich_all_returns_run_summary(api):
+    client, calls = api
+    response = client.post("/api/enrich-all")
+    assert response.status_code == 200
+    body = response.json()
+    expected_keys = {"movies_processed", "api_calls_used", "max_calls", "cap_reached",
+                      "forced", "fields_updated", "fields_protected", "reports"}
+    assert expected_keys.issubset(body.keys())
+
+
+def test_enrich_all_persists_results(api):
+    client, calls = api
+    client.post("/api/enrich-all")
+    movies = client.get("/api/movies").json()
+    assert movies[0]["budget"] == TMDB_PAYLOAD["budget_millions"]
+    assert movies[0]["imdb"] == OMDB_PAYLOAD["imdb"]
+
+
+def test_enrich_all_second_run_costs_zero_calls(api):
+    client, calls = api
+    client.post("/api/enrich-all")
+    second = client.post("/api/enrich-all")
+    assert second.json()["api_calls_used"] == 0
+
+
+def test_enrich_all_force_true_reports_forced(api):
+    client, calls = api
+    client.post("/api/enrich-all")
+    response = client.post("/api/enrich-all?force=true")
+    assert response.status_code == 200
+    assert response.json()["forced"] is True
+
+
+def test_enrich_all_max_calls_two_caps_the_run(api):
+    client, calls = api
+    response = client.post("/api/enrich-all?max_calls=2")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["api_calls_used"] == 2
+    assert body["cap_reached"] is True
+    assert calls == {"tmdb": 1, "omdb": 1}
+
+
+@pytest.mark.parametrize("bad", [0, -1, 99999])
+def test_max_calls_is_clamped_before_any_outbound_call(api, bad):
+    client, calls = api
+    response = client.post(f"/api/enrich-all?max_calls={bad}")
+    assert response.status_code == 422
+    assert calls == {"tmdb": 0, "omdb": 0}
+
+
+def test_enrich_all_max_calls_non_numeric_returns_422(api):
+    client, calls = api
+    response = client.post("/api/enrich-all?max_calls=abc")
+    assert response.status_code == 422
+
+
+def test_enrichment_never_moves_the_standings(api):
+    client, _calls = api
+
+    before = client.get("/api/leaderboard").json()
+    summary = client.post("/api/enrich-all").json()
+    after = client.get("/api/leaderboard").json()
+
+    assert summary["movies_processed"] >= 1
+    assert summary["fields_updated"] >= 1        # data really did change
+    assert before == after                        # ...but no score did
+
+
+def test_enrich_all_counts_protected_manual_fields(api):
+    client, calls = api
+    movie = client.get("/api/movies").json()[0]
+    movie["rt_crit"] = 71.0
+    client.put("/api/movies/Liam/2", json=movie)
+
+    response = client.post("/api/enrich-all")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["fields_protected"] >= 1
+
+    after = client.get("/api/movies").json()[0]
+    assert after["rt_crit"] == 71.0
