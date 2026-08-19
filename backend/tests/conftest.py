@@ -16,6 +16,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app import storage  # noqa: E402
+from app.services import cache  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -44,4 +45,12 @@ def tmp_league(tmp_path, monkeypatch, sample_movie):
     path = tmp_path / "league_data.json"
     path.write_text(json.dumps({"owners": ["Liam"], "movies": [dict(sample_movie)]}, indent=2))
     monkeypatch.setattr(storage, "DATA_PATH", path)
+    return path
+
+
+@pytest.fixture
+def tmp_cache(tmp_path, monkeypatch):
+    """Redirect the API cache at a throwaway file so tests never share cache state."""
+    path = tmp_path / "api_cache.json"
+    monkeypatch.setattr(cache, "CACHE_PATH", path)
     return path
