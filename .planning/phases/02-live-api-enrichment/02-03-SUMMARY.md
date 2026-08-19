@@ -126,3 +126,24 @@ None for this plan's own tasks -- everything is tested via `httpx.MockTransport`
 ---
 *Phase: 02-live-api-enrichment*
 *Completed: 2026-08-19*
+
+## Self-Check: PASSED
+
+**Files verified present on disk:**
+- FOUND: backend/app/services/omdb.py
+- FOUND: backend/tests/test_omdb.py
+- FOUND: backend/tests/test_tmdb.py
+- FOUND: backend/app/services/tmdb.py
+- FOUND: backend/app/services/critic_scores_stub.py
+- FOUND: .planning/phases/02-live-api-enrichment/02-03-SUMMARY.md
+
+**Commits verified in git log:**
+- FOUND: 37862f7 (Task 1 RED)
+- FOUND: b113e30 (Task 1 GREEN)
+- FOUND: da09cef (Task 2 RED)
+- FOUND: e397602 (Task 2 GREEN)
+
+**Re-ran plan-level verification:** `backend/.venv/bin/python -m pytest backend/tests -q` -> 108 passed, exit 0.
+**Re-ran all Task 1 and Task 2 acceptance-criteria greps and inline Python scripts:** all pass, including the Rule-1-fixed `tmdb._vote_average(7.35) == 7.4`.
+**Re-ran the plan's overall `<verification>` section:** suite green; `MockTransport` present in both new test files with no bare untransported `httpx.AsyncClient()`; `no_real_api_keys` autouse fixture confirmed in `conftest.py`; the one `apikey` grep hit outside `params=`/`redaction.py` is the benign `apikey.aspx` docstring URL fragment in `omdb.py` (see Deviations).
+**TDD gate sequence confirmed:** both tasks show `test(...)` before `feat(...)` in git log (RED before GREEN); no REFACTOR commit was needed.
