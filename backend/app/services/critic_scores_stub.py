@@ -1,13 +1,18 @@
-"""
-Rotten Tomatoes and Letterboxd have no public API. This is a stub so the rest
-of the pipeline has a consistent shape to call into whenever scraping (or a
-future data source) gets wired up. Until then, these two fields stay manual
-entry in the app.
+"""Placeholder for the two rating fields that still have no free API.
+
+As of Phase 2, `rt_crit` (Rotten Tomatoes CRITIC score) is fetched for real by
+services/omdb.py -- OMDb exposes it in its Ratings[] array. What remains genuinely
+unavailable is the Rotten Tomatoes AUDIENCE score and the Letterboxd rating: Letterboxd's
+API is request-only with no guaranteed approval, and scraping either site is against ToS
+and was rejected in HANDOFF.md. Both stay manual entry.
+
+These functions are not called by any endpoint.
 """
 
 
 async def fetch_rt_scores(title: str, year: int | None = None) -> dict | None:
-    """Return {'rt_crit': int, 'rt_aud': int} once implemented. Currently a no-op."""
+    """Return {'rt_aud': int} once implemented -- rt_crit now has a real source in omdb.py.
+    Currently a no-op."""
     return None
 
 
