@@ -43,13 +43,13 @@ Plans:
   - `rt_aud` and `letterboxd` — no free API exists for either; they stay manual
   - `compute_movie_scores()` — the scoring formula lives in the user's spreadsheet; without it the standings will NOT change even after enrichment (see 02-RESEARCH.md §3)
   - Scheduled/background refresh — manual trigger only
-**Plans**: 6 plans
+**Plans**: 4/6 plans executed
 
 Plans:
 - [x] 02-01-PLAN.md — Test harness (pytest via uv), secret redaction, persistent JSON API cache
 - [x] 02-02-PLAN.md — Field provenance + no-clobber rule + evidence-based migration of the 30 existing rows
 - [x] 02-03-PLAN.md — OMDb client (real IMDb rating + RT critic score by IMDb ID); TMDB release_date
-- [ ] 02-04-PLAN.md — Enrichment engine: cache-first fetches, no-clobber merge, ROI, capped/paced bulk runner
+- [x] 02-04-PLAN.md — Enrichment engine: cache-first fetches, no-clobber merge, ROI, capped/paced bulk runner
 - [ ] 02-05-PLAN.md — Endpoints: rewired /enrich (no clobber, no key leak), provenance-stamping PUT, POST /api/enrich-all
 - [ ] 02-06-PLAN.md — Both keys in .env.example + README, static secret-hygiene guards
 
@@ -61,4 +61,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. UI Redesign | 4/4 | Complete | 2026-08-18 |
-| 2. Live API Enrichment | 1/6 | In Progress|  |
+| 2. Live API Enrichment | 4/6 | In Progress|  |
