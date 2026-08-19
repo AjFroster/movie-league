@@ -43,7 +43,7 @@ Plans:
   - `rt_aud` and `letterboxd` — no free API exists for either; they stay manual
   - `compute_movie_scores()` — the scoring formula lives in the user's spreadsheet; without it the standings will NOT change even after enrichment (see 02-RESEARCH.md §3)
   - Scheduled/background refresh — manual trigger only
-**Plans**: 4/6 plans executed
+**Plans**: 6 plans (5 executed)
 
 Plans:
 - [x] 02-01-PLAN.md — Test harness (pytest via uv), secret redaction, persistent JSON API cache
@@ -61,4 +61,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. UI Redesign | 4/4 | Complete | 2026-08-18 |
-| 2. Live API Enrichment | 4/6 | In Progress|  |
+| 2. Live API Enrichment | 5/6 | In Progress | - |
