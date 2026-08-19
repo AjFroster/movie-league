@@ -1,0 +1,5 @@
+# Dev-only. Runtime deps stay in requirements.txt.
+# Install with:  uv pip install --python .venv/bin/python -r requirements-dev.txt
+# (this project's venv has no pip; uv is the package manager)
+pytest==9.1.1
+pytest-asyncio==1.4.0
