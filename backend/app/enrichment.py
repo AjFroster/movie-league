@@ -182,3 +182,38 @@ async def enrich_entry(entry: dict, *, budget: CallBudget, force: bool = False,
         report["updated"].append("roi")
 
     return report
+
+
+async def enrich_all(data: dict, *, force: bool = False, max_calls: int = DEFAULT_MAX_CALLS,
+                     delay: float = PACING_DELAY_SECONDS, sleep=asyncio.sleep,
+                     tmdb_client: httpx.AsyncClient | None = None,
+                     omdb_client: httpx.AsyncClient | None = None) -> dict:
+    """Enrich every row in `data["movies"]` in place and return a run summary.
+
+    Rows are processed strictly sequentially with a delay between them -- concurrency (a
+    fan-out that gathers every row's coroutine at once) is never used here. That, plus the
+    CallBudget, is the rate discipline from RESEARCH section 5: a bulk run is bounded both
+    in requests-per-second and in total requests, so it cannot exhaust OMDb's 1,000/day
+    free quota by accident.
+
+    `sleep` is injectable purely so tests can assert the pacing happened without actually
+    waiting; production callers use the default.
+    """
+    budget = CallBudget(max_calls)
+    reports = []
+    for entry in data.get("movies", []):
+        reports.append(await enrich_entry(
+            entry, budget=budget, force=force,
+            tmdb_client=tmdb_client, omdb_client=omdb_client))
+        await sleep(delay)
+    return {
+        "movies_processed": len(reports),
+        "api_calls_used": budget.used,
+        "max_calls": budget.max_calls,
+        "cap_reached": budget.exhausted,
+        "forced": force,
+        "fields_updated": sum(len(r["updated"]) for r in reports),
+        "fields_protected": sum(len(r["protected"]) for r in reports),
+        "errors": [e for r in reports for e in r["errors"]],
+        "reports": reports,
+    }

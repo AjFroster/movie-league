@@ -482,37 +482,70 @@ def _bulk_rows(n=3):
              "budget": None, "gross": None, "roi": None, "sources": {}} for i in range(1, n + 1)]
 
 
-async def test_enrich_all_processes_every_row_with_generous_cap(tmp_cache, fake_providers):
+@pytest.fixture
+def fake_providers_distinct(monkeypatch):
+    """Like `fake_providers`, but each title resolves to its own imdb_id.
+
+    `fake_providers` returns the same TMDB_PAYLOAD (and therefore the same imdb_id) no
+    matter the title -- correct for the single-movie Task 1 tests, but wrong for a bulk
+    test over several genuinely different films: OMDb's cache is keyed on imdb_id, so
+    reusing one fake id across rows would make row 2 and row 3 hit row 1's cache entry
+    (correct caching behaviour, but not what "3 rows -> 3 OMDb calls" is meant to prove).
+    """
+    monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+    calls = {"tmdb": 0, "omdb": 0}
+
+    async def fake_tmdb(title, year=None, *, client=None):
+        calls["tmdb"] += 1
+        index = title.rsplit(" ", 1)[-1]
+        payload = dict(TMDB_PAYLOAD)
+        payload["imdb_id"] = f"tt{int(index):07d}"
+        return payload
+
+    async def fake_omdb(imdb_id, *, client=None):
+        calls["omdb"] += 1
+        payload = dict(OMDB_PAYLOAD)
+        payload["imdb_id"] = imdb_id
+        return payload
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", fake_tmdb)
+    monkeypatch.setattr(omdb, "fetch_ratings", fake_omdb)
+    return calls
+
+
+async def test_enrich_all_processes_every_row_with_generous_cap(tmp_cache, fake_providers_distinct):
     data = {"owners": ["Liam"], "movies": _bulk_rows(3)}
 
     summary = await enrichment.enrich_all(data, max_calls=100, sleep=_noop_sleep)
 
-    assert fake_providers == {"tmdb": 3, "omdb": 3}
+    assert fake_providers_distinct == {"tmdb": 3, "omdb": 3}
     assert summary["movies_processed"] == 3
-    assert summary["api_calls_used"] == fake_providers["tmdb"] + fake_providers["omdb"]
+    assert summary["api_calls_used"] == (
+        fake_providers_distinct["tmdb"] + fake_providers_distinct["omdb"])
     assert summary["cap_reached"] is False
 
 
-async def test_enrich_all_second_run_costs_zero_api_calls(tmp_cache, fake_providers):
+async def test_enrich_all_second_run_costs_zero_api_calls(tmp_cache, fake_providers_distinct):
     await enrichment.enrich_all({"owners": ["Liam"], "movies": _bulk_rows(3)}, sleep=_noop_sleep)
-    assert fake_providers == {"tmdb": 3, "omdb": 3}
+    assert fake_providers_distinct == {"tmdb": 3, "omdb": 3}
 
     summary = await enrichment.enrich_all(
         {"owners": ["Liam"], "movies": _bulk_rows(3)}, sleep=_noop_sleep)
 
     assert summary["api_calls_used"] == 0
-    assert fake_providers == {"tmdb": 3, "omdb": 3}   # unchanged -- served entirely from cache
+    assert fake_providers_distinct == {"tmdb": 3, "omdb": 3}  # unchanged -- all from cache
 
 
-async def test_enrich_all_force_true_refetches_every_row(tmp_cache, fake_providers):
+async def test_enrich_all_force_true_refetches_every_row(tmp_cache, fake_providers_distinct):
     await enrichment.enrich_all({"owners": ["Liam"], "movies": _bulk_rows(3)}, sleep=_noop_sleep)
-    assert fake_providers == {"tmdb": 3, "omdb": 3}
+    assert fake_providers_distinct == {"tmdb": 3, "omdb": 3}
 
     summary = await enrichment.enrich_all(
         {"owners": ["Liam"], "movies": _bulk_rows(3)}, force=True, sleep=_noop_sleep)
 
     assert summary["forced"] is True
-    assert fake_providers == {"tmdb": 6, "omdb": 6}
+    assert fake_providers_distinct == {"tmdb": 6, "omdb": 6}
     assert summary["api_calls_used"] == 6
 
 
