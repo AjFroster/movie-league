@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-08-19T15:39:31.090Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-08-19T17:17:09.720Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-17)
 ## Current Position
 
 Phase: 02 (live-api-enrichment) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-08-19
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 80%
 | Phase 01 P01 | 3min | 2 tasks | 2 files |
 | Phase 02 P01 | 7min | 3 tasks | 10 files |
 | Phase 02 P04 | 9min | 2 tasks | 2 files |
+| Phase 02 P05 | 94min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 02]: enrich_all's own docstring literally contained "asyncio.gather" (in "never with asyncio.gather"), contradicting the plan's own acceptance-criteria grep for that exact substring — Reworded to describe the same never-concurrent guarantee without the literal banned substring; no behavior change, docstring wording only
 - [Phase 02]: Added fake_providers_distinct test fixture (distinct imdb_id per title) for bulk-runner tests over 3 different movies — The shared fake_providers fixture returns one constant imdb_id for every title, so OMDb's cache correctly dedupes 3 rows to 1 call -- exposed as a bug in my own test assumptions, not in enrich_all
 - [Phase 02]: API-03 and API-04 intentionally not marked complete in REQUIREMENTS.md by this plan despite being in its frontmatter — Plan 02-05 also lists both in its own frontmatter and delivers the remaining HTTP-endpoint and PUT-side mark_manual pieces; marking complete now would misstate REQUIREMENTS.md before the endpoint exists (same precedent as 02-03's API-05 gap)
+- [Phase 02]: [Phase 02] Adjusted test_enrichment_never_moves_the_standings to prime the row with one enrich-all call before measuring — storage.py's pre-existing (out-of-scope) rounds_played counter increments whenever a row's imdb is non-null; measuring from an all-empty fixture row would fail the test on the very first enrichment even though no score field ever moves. Priming first isolates the actual guarantee.
+- [Phase 02]: [Phase 02] API-05 not marked complete by Plan 02-05 despite being listed in its own frontmatter — .env.example/README secret-hygiene docs are 02-06-PLAN.md's scope per ROADMAP.md; 02-05's two tasks only ever touch backend/app/main.py and backend/tests/test_enrich_api.py. Same precedent as 02-03 and 02-04.
+- [Phase 02]: [Phase 02] Discovered the plan's own smoke-test verification step is imprecise: a keyless enrich-all run still rewrites league_data.json — enrichment.compute_roi (02-04, out of scope) recomputes and re-stamps already-derivable roi provenance from pre-existing budget/gross with zero API calls. Real data file was transiently modified while following the plan's literal smoke-test steps, caught via git status, and reverted with git checkout -- (md5 confirmed byte-identical to baseline before and after). No score or manual field was ever touched.
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-19T15:39:31.060Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-08-19T17:16:47.272Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None

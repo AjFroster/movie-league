@@ -50,7 +50,7 @@ Plans:
 - [x] 02-02-PLAN.md — Field provenance + no-clobber rule + evidence-based migration of the 30 existing rows
 - [x] 02-03-PLAN.md — OMDb client (real IMDb rating + RT critic score by IMDb ID); TMDB release_date
 - [x] 02-04-PLAN.md — Enrichment engine: cache-first fetches, no-clobber merge, ROI, capped/paced bulk runner
-- [ ] 02-05-PLAN.md — Endpoints: rewired /enrich (no clobber, no key leak), provenance-stamping PUT, POST /api/enrich-all
+- [x] 02-05-PLAN.md — Endpoints: rewired /enrich (no clobber, no key leak), provenance-stamping PUT, POST /api/enrich-all
 - [ ] 02-06-PLAN.md — Both keys in .env.example + README, static secret-hygiene guards
 
 ## Progress
