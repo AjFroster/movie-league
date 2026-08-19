@@ -21,6 +21,7 @@ class Movie(BaseModel):
     penalty_notes: str = ""
     watch_points: float = 0
     total: float = 0
+    sources: dict[str, dict] = {}
 
 
 class LeagueData(BaseModel):
