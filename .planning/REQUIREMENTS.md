@@ -20,7 +20,7 @@ Requirements for the UI redesign phase.
 - [x] **API-02**: Persistent JSON file cache with tiered TTL and negative caching, so repeat enrichment does not re-hit the APIs
 - [ ] **API-03**: Per-field provenance (`manual` vs `fetched`) with a no-clobber rule — automatic enrichment never overwrites a hand-entered value unless explicitly forced
 - [ ] **API-04**: Bulk enrich endpoint, manually triggered, with sequential pacing and a per-run call cap so the OMDb daily quota cannot be exhausted
-- [x] **API-05**: Both API keys documented in `.env.example` and README, never logged
+- [ ] **API-05**: Both API keys documented in `.env.example` and README, never logged
 
 ## v2 Requirements
 
@@ -52,7 +52,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | API-02 | Phase 2 | Complete |
 | API-03 | Phase 2 | Pending |
 | API-04 | Phase 2 | Pending |
-| API-05 | Phase 2 | Complete |
+| API-05 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 9 total
