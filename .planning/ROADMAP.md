@@ -46,7 +46,7 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Test harness (pytest via uv), secret redaction, persistent JSON API cache
+- [x] 02-01-PLAN.md — Test harness (pytest via uv), secret redaction, persistent JSON API cache
 - [ ] 02-02-PLAN.md — Field provenance + no-clobber rule + evidence-based migration of the 30 existing rows
 - [ ] 02-03-PLAN.md — OMDb client (real IMDb rating + RT critic score by IMDb ID); TMDB release_date
 - [ ] 02-04-PLAN.md — Enrichment engine: cache-first fetches, no-clobber merge, ROI, capped/paced bulk runner
@@ -61,4 +61,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. UI Redesign | 4/4 | Complete | 2026-08-18 |
-| 2. Live API Enrichment | 0/6 | Planned | - |
+| 2. Live API Enrichment | 1/6 | In Progress|  |
