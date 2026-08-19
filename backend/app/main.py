@@ -115,6 +115,34 @@ async def enrich_movie(owner: str, round_number: int, force: bool = False):
     raise HTTPException(status_code=404, detail="Movie entry not found")
 
 
+@app.post("/api/enrich-all")
+async def enrich_all_movies(force: bool = False,
+                            max_calls: int = enrichment.DEFAULT_MAX_CALLS):
+    """Manually-triggered bulk enrichment across every movie row.
+
+    There is no scheduler and no refresh-on-page-load by design -- this runs only when
+    called. Rows are processed sequentially with a delay, and `max_calls` hard-caps total
+    outbound requests so an accidental loop cannot exhaust OMDb's 1,000/day free tier.
+    Hand-entered values are protected unless ?force=true.
+    """
+    if not 1 <= max_calls <= enrichment.HARD_MAX_CALLS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"max_calls must be between 1 and {enrichment.HARD_MAX_CALLS}")
+
+    data = load_data()
+    try:
+        summary = await enrichment.enrich_all(data, force=force, max_calls=max_calls)
+    except (ProviderError, httpx.HTTPError) as e:
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+
+    try:
+        save_data(data)
+    except Exception:
+        raise HTTPException(status_code=507, detail="Failed to persist enrichment results")
+    return summary
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
