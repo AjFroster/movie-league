@@ -1,12 +1,16 @@
 """Tests for the enrichment engine: cached provider fetches, the no-clobber merge, ROI
-derivation, and (once Task 2 lands) the sequential bulk runner.
+derivation, and the sequentially-paced, hard-capped bulk runner.
 
 Every provider call in this suite is monkeypatched -- no network, no real API keys (the
 autouse `no_real_api_keys` fixture in conftest.py strips both provider keys before every
 test). The three tests carried over verbatim from PLAN.md are the regression tests for this
 phase's headline guarantees: a repeat run costs zero calls, TMDB's vote_average never leaks
-into `imdb`, and a keyless run never poisons the cache.
+into `imdb`, and a keyless run never poisons the cache. `test_cap_stops_the_run_from_burning_
+quota` and `test_rows_are_paced_sequentially_never_concurrently` (also verbatim) are the
+regression tests for ROADMAP success criterion 4 -- the per-run call cap.
 """
+from pathlib import Path
+
 import httpx
 import pytest
 
@@ -462,3 +466,141 @@ async def test_keyless_run_writes_no_negative_cache_entry(tmp_cache, monkeypatch
     assert report["tmdb"] == enrichment.OUTCOME_NO_KEY
     assert budget.used == 0
     assert cache.load_cache() == {}   # nothing poisoned; adding a key later works immediately
+
+
+# ---------------------------------------------------------------------------
+# enrich_all -- sequential pacing and the enforced per-run cap
+# ---------------------------------------------------------------------------
+
+async def _noop_sleep(_delay):
+    """Recording-free fake sleep so the bulk-runner tests stay instant."""
+    return None
+
+
+def _bulk_rows(n=3):
+    return [{"owner": "Liam", "round": i, "movie": f"Film {i}", "imdb": None, "rt_crit": None,
+             "budget": None, "gross": None, "roi": None, "sources": {}} for i in range(1, n + 1)]
+
+
+async def test_enrich_all_processes_every_row_with_generous_cap(tmp_cache, fake_providers):
+    data = {"owners": ["Liam"], "movies": _bulk_rows(3)}
+
+    summary = await enrichment.enrich_all(data, max_calls=100, sleep=_noop_sleep)
+
+    assert fake_providers == {"tmdb": 3, "omdb": 3}
+    assert summary["movies_processed"] == 3
+    assert summary["api_calls_used"] == fake_providers["tmdb"] + fake_providers["omdb"]
+    assert summary["cap_reached"] is False
+
+
+async def test_enrich_all_second_run_costs_zero_api_calls(tmp_cache, fake_providers):
+    await enrichment.enrich_all({"owners": ["Liam"], "movies": _bulk_rows(3)}, sleep=_noop_sleep)
+    assert fake_providers == {"tmdb": 3, "omdb": 3}
+
+    summary = await enrichment.enrich_all(
+        {"owners": ["Liam"], "movies": _bulk_rows(3)}, sleep=_noop_sleep)
+
+    assert summary["api_calls_used"] == 0
+    assert fake_providers == {"tmdb": 3, "omdb": 3}   # unchanged -- served entirely from cache
+
+
+async def test_enrich_all_force_true_refetches_every_row(tmp_cache, fake_providers):
+    await enrichment.enrich_all({"owners": ["Liam"], "movies": _bulk_rows(3)}, sleep=_noop_sleep)
+    assert fake_providers == {"tmdb": 3, "omdb": 3}
+
+    summary = await enrichment.enrich_all(
+        {"owners": ["Liam"], "movies": _bulk_rows(3)}, force=True, sleep=_noop_sleep)
+
+    assert summary["forced"] is True
+    assert fake_providers == {"tmdb": 6, "omdb": 6}
+    assert summary["api_calls_used"] == 6
+
+
+async def test_enrich_all_mutates_rows_in_place(tmp_cache, fake_providers):
+    data = {"owners": ["Liam"], "movies": _bulk_rows(1)}
+    row = data["movies"][0]
+    assert row["imdb"] is None
+
+    await enrichment.enrich_all(data, sleep=_noop_sleep)
+
+    assert data["movies"][0] is row               # same object, mutated -- not replaced
+    assert row["imdb"] == OMDB_PAYLOAD["imdb"]
+
+
+async def test_enrich_all_summary_totals_match_per_row_reports(tmp_cache, fake_providers):
+    data = {"owners": ["Liam"], "movies": _bulk_rows(2)}
+
+    summary = await enrichment.enrich_all(data, sleep=_noop_sleep)
+
+    assert summary["fields_updated"] == sum(len(r["updated"]) for r in summary["reports"])
+    assert summary["fields_protected"] == sum(len(r["protected"]) for r in summary["reports"])
+    assert summary["fields_updated"] == 10   # 5 fields x 2 rows, all empty going in
+    assert summary["fields_protected"] == 0
+
+
+async def test_enrich_all_one_row_error_does_not_abort_run(tmp_cache, monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "SECRETTMDBKEY12345")
+    monkeypatch.setenv("OMDB_API_KEY", "OMDBSENTINEL")
+    calls = {"tmdb": 0, "omdb": 0}
+
+    async def flaky_tmdb(title, year=None, *, client=None):
+        calls["tmdb"] += 1
+        if title == "Film 1":
+            raise httpx.HTTPError(f"boom for {title} key=SECRETTMDBKEY12345")
+        return dict(TMDB_PAYLOAD)
+
+    async def fake_omdb(imdb_id, *, client=None):
+        calls["omdb"] += 1
+        return dict(OMDB_PAYLOAD)
+
+    monkeypatch.setattr(tmdb, "fetch_movie_financials", flaky_tmdb)
+    monkeypatch.setattr(omdb, "fetch_ratings", fake_omdb)
+
+    data = {"owners": ["Liam"], "movies": _bulk_rows(3)}
+    summary = await enrichment.enrich_all(data, sleep=_noop_sleep)
+
+    assert summary["movies_processed"] == 3       # every row still reported
+    assert calls["tmdb"] == 3                      # every row still attempted
+    assert len(summary["errors"]) == 1
+    assert "SECRETTMDBKEY12345" not in summary["errors"][0]
+    # rows after the failing one were still processed
+    assert data["movies"][1]["imdb"] == OMDB_PAYLOAD["imdb"]
+    assert data["movies"][2]["imdb"] == OMDB_PAYLOAD["imdb"]
+    assert data["movies"][0]["imdb"] is None       # the failing row itself got nothing
+
+
+def test_enrichment_module_never_uses_asyncio_gather():
+    source = Path(enrichment.__file__).read_text()
+    assert "asyncio.gather" not in source
+
+
+# --- Verbatim from PLAN.md ---------------------------------------------------------
+
+async def test_cap_stops_the_run_from_burning_quota(tmp_cache, fake_providers):
+    data = {"owners": ["Liam"], "movies": [
+        {"owner": "Liam", "round": n, "movie": f"Film {n}", "imdb": None, "rt_crit": None,
+         "budget": None, "gross": None, "roi": None, "sources": {}} for n in (1, 2, 3)]}
+
+    summary = await enrichment.enrich_all(data, max_calls=2, sleep=_noop_sleep)
+
+    assert fake_providers["tmdb"] + fake_providers["omdb"] == 2
+    assert summary["api_calls_used"] == 2
+    assert summary["cap_reached"] is True
+    assert summary["movies_processed"] == 3          # every row is still reported
+    assert any(r["tmdb"] == enrichment.OUTCOME_CAPPED
+               or r["omdb"] == enrichment.OUTCOME_CAPPED for r in summary["reports"])
+
+
+async def test_rows_are_paced_sequentially_never_concurrently(tmp_cache, fake_providers):
+    order = []
+
+    async def recording_sleep(_delay):
+        order.append(len(order))
+
+    data = {"owners": ["Liam"], "movies": [
+        {"owner": "Liam", "round": n, "movie": f"Film {n}", "imdb": None, "rt_crit": None,
+         "budget": None, "gross": None, "roi": None, "sources": {}} for n in (1, 2, 3)]}
+
+    await enrichment.enrich_all(data, sleep=recording_sleep)
+
+    assert len(order) == 3          # one delay per row
