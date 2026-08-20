@@ -28,3 +28,6 @@ backend/data/api_cache.json
 backend/data/api_cache.tmp
 # Pre-migration rollback copies (Plan 02-02 writes league_data.json.bak)
 backend/data/*.bak
+# Local preview instance (enriched copy served for manual testing)
+backend/data/preview_league_data.json
+backend/data/preview_cache.json
