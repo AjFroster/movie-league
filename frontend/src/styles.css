@@ -316,7 +316,7 @@ body {
 .stat-strip .stat-block:first-child { padding-left: 0; }
 .stat-strip .stat-block:last-child { border-right: none; }
 
-.detail-columns { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-lg); }
+.detail-columns { display: grid; grid-template-columns: 2.6fr 1fr 1fr; gap: var(--space-lg); }
 .detail-col { display: flex; flex-direction: column; min-width: 0; }
 .detail-section-title {
   font-family: var(--font-label);
@@ -327,18 +327,33 @@ body {
   margin-bottom: var(--space-sm);
 }
 
-.points-ledger { display: flex; flex-direction: column; gap: var(--space-sm); }
-.ledger-row { display: grid; grid-template-columns: 100px 1fr 64px; align-items: center; gap: var(--space-sm); }
-.ledger-label { font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
-.ledger-bar-track { display: block; height: 6px; background: var(--border); overflow: hidden; }
-.ledger-bar-fill { display: block; height: 100%; }
-.ledger-bar-fill.positive { background: var(--accent); }
-.ledger-bar-fill.negative { background: var(--destructive); }
-.ledger-value { font-family: var(--font-label); font-weight: 700; font-size: var(--fs-body); text-align: right; }
-.ledger-value.positive { color: var(--accent); }
-.ledger-value.negative { color: var(--destructive); }
+/* Score breakdown table -- replaces the old bar-chart ledger. A table is the honest form
+   here: the reader is comparing a value against a threshold and checking the arithmetic,
+   which bars cannot show. Column widths are content-driven so the Tier column can hold
+   ">= 1000M" without wrapping. */
+.breakdown-table { width: 100%; border-collapse: collapse; font-family: var(--font-label);
+  font-size: var(--fs-label); line-height: var(--lh-label); }
+.breakdown-table th { text-align: left; padding: 0 var(--space-sm) var(--space-sm) 0;
+  color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 400; border-bottom: 1px solid var(--border-bright); }
+.breakdown-table td { padding: var(--space-sm) var(--space-sm) var(--space-sm) 0;
+  border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+.breakdown-table .num { text-align: right; white-space: nowrap; }
+.breakdown-table th.num { text-align: right; }
+.breakdown-table .val { color: var(--text); white-space: nowrap; }
+.breakdown-table .tier { color: var(--text-faint); white-space: nowrap; }
+/* A source contributing nothing is context, not signal -- dim it so the eye lands on the
+   rows that actually scored. */
+.breakdown-table tr.zero td { color: var(--text-faint); }
+.breakdown-table tr.subtotal td { color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 0.06em; border-bottom: 1px solid var(--border-bright); }
+.breakdown-table tr.grand-total td { color: var(--text); text-transform: uppercase;
+  letter-spacing: 0.06em; font-weight: 700; border-bottom: none;
+  padding-top: var(--space-md); }
+.breakdown-table .positive { color: var(--accent); }
+.breakdown-table .negative { color: var(--destructive); }
 
-/* penalty explanation text under the ledger — Body role per UI-SPEC Typography */
+/* penalty explanation text under the breakdown — Body role per UI-SPEC Typography */
 .penalty-note {
   font-family: var(--font-body);
   font-size: var(--fs-body);

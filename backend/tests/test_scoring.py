@@ -172,3 +172,38 @@ def test_the_two_known_stale_rows_are_still_stale():
         m = by_key[key]
         assert scoring.financial_score(m) != m["financial_score"], (
             f"{key} now agrees with the formula -- remove it from KNOWN_STALE_FINANCIAL")
+
+
+# ---------------------------------------------------------------------------
+# score_breakdown -- the per-row explanation rendered in the detail panel
+# ---------------------------------------------------------------------------
+
+def test_breakdown_points_sum_to_the_stored_total():
+    """The table must reconcile: if it does not, the UI is lying about the arithmetic."""
+    entry = _entry(owner="A", who_watched=["A"], imdb=8.5, letterboxd=4.6,
+                   rt_crit=96, rt_aud=80, gross=1200.0, roi=6.0)
+    scoring.compute_movie_scores(entry)
+    assert sum(r["points"] for r in scoring.score_breakdown(entry)) == entry["total"]
+
+
+def test_breakdown_covers_every_scoring_input():
+    rows = scoring.score_breakdown(_entry())
+    labels = [r["label"] for r in rows]
+    assert labels == ["IMDb", "Letterboxd", "RT Critics", "RT Audience",
+                      "Worldwide gross", "Return on budget", "Penalties", "Owner watched"]
+
+
+def test_breakdown_distinguishes_missing_data_from_a_zero_score():
+    """"no data" and "below the lowest tier" both score 0 but mean different things."""
+    rows = {r["label"]: r for r in scoring.score_breakdown(_entry(imdb=None, rt_crit=10))}
+    assert rows["IMDb"]["value"] == "—" and rows["IMDb"]["tier"] == "no data"
+    assert rows["RT Critics"]["value"] == "10%" and rows["RT Critics"]["tier"] == "< 75%"
+
+
+def test_breakdown_reconciles_across_the_whole_real_dataset():
+    data = json.loads(DATA_PATH.read_text())
+    for m in data["movies"]:
+        scored = dict(m)
+        scoring.compute_movie_scores(scored)
+        assert sum(r["points"] for r in scoring.score_breakdown(scored)) == scored["total"], \
+            f"breakdown does not reconcile for {m['owner']} R{m['round']}"

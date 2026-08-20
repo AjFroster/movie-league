@@ -34,7 +34,12 @@ def get_owner(owner: str):
     if owner not in data["owners"]:
         raise HTTPException(status_code=404, detail=f"No owner named {owner}")
     movies = [m for m in data["movies"] if m["owner"] == owner]
-    return {"owner": owner, "movies": sorted(movies, key=lambda m: m["round"])}
+    # The per-row score breakdown is attached here rather than stored: it is a view of the
+    # scoring rules, so it must never go stale against them or be editable via PUT.
+    enriched = []
+    for m in sorted(movies, key=lambda m: m["round"]):
+        enriched.append({**m, "breakdown": scoring.score_breakdown(m)})
+    return {"owner": owner, "movies": enriched}
 
 
 @app.get("/api/rounds/{round_number}")

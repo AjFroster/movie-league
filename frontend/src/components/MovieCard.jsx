@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 function statusFor(m) {
   if (!m.movie) return { dot: 'no-pick', label: 'NO PICK' }
@@ -8,6 +8,9 @@ function statusFor(m) {
 }
 
 function MovieDetail({ m, ownerCount }) {
+  // Supplied by GET /api/owners/{owner}; absent means an older payload, so render nothing
+  // rather than recomputing the tiers here and risking drift from scoring.py.
+  const breakdown = m.breakdown || []
   const ratingCaption = [
     m.rt_crit !== null ? `RT ${m.rt_crit}%` : null,
     m.rt_aud !== null ? `RT AUD ${m.rt_aud}%` : null,
@@ -19,13 +22,6 @@ function MovieDetail({ m, ownerCount }) {
     : `BUDGET $${m.budget ?? '—'}M / GROSS $${m.gross ?? '—'}M`
 
   const watchedNames = m.who_watched.length > 0 ? m.who_watched.join(', ') : 'Not yet watched'
-
-  const ledgerRows = [
-    { key: 'rating', label: 'RATING', value: m.rating_score, cap: 40 },
-    { key: 'financial', label: 'FINANCIAL', value: m.financial_score, cap: 15 },
-    { key: 'watch', label: 'WATCH', value: m.watch_points, cap: 10 },
-    { key: 'penalty', label: 'PENALTIES', value: m.penalties, cap: 30 },
-  ].filter(row => row.value !== 0)
 
   return (
     <div className="movie-detail">
@@ -62,25 +58,49 @@ function MovieDetail({ m, ownerCount }) {
 
       <div className="detail-columns">
         <div className="detail-col">
-          <div className="detail-section-title">POINTS LEDGER</div>
-          <div className="points-ledger">
-            {ledgerRows.map(row => {
-              const isNegative = row.key === 'penalty'
-              const pct = Math.min(Math.abs(row.value) / row.cap * 100, 100)
-              return (
-                <div className="ledger-row" key={row.key}>
-                  <span className="ledger-label">{row.label}</span>
-                  <span className="ledger-bar-track">
-                    <span className={`ledger-bar-fill ${isNegative ? 'negative' : 'positive'}`} style={{ width: `${pct}%` }} />
-                  </span>
-                  <span className={`ledger-value ${isNegative ? 'negative' : 'positive'}`}>
-                    {row.value > 0 ? `+${row.value}` : row.value}
-                  </span>
-                </div>
-              )
-            })}
-            {ledgerRows.length === 0 && <div className="stat-block-caption">No score entered yet.</div>}
-          </div>
+          <div className="detail-section-title">SCORE BREAKDOWN</div>
+          {breakdown.length === 0 ? (
+            <div className="stat-block-caption">No score entered yet.</div>
+          ) : (
+            <table className="breakdown-table">
+              <thead>
+                <tr><th>Source</th><th>Value</th><th>Tier</th><th className="num">Pts</th></tr>
+              </thead>
+              <tbody>
+                {GROUPS.map(g => {
+                  const rows = breakdown.filter(r => r.group === g.key)
+                  if (rows.length === 0) return null
+                  const subtotal = rows.reduce((n, r) => n + r.points, 0)
+                  return (
+                    <Fragment key={g.key}>
+                      {rows.map(r => (
+                        <tr key={r.label} className={r.points === 0 ? 'zero' : ''}>
+                          <td>{r.label}</td>
+                          <td className="val">{r.value}</td>
+                          <td className="tier">{r.tier}</td>
+                          <td className={`num ${r.points > 0 ? 'positive' : r.points < 0 ? 'negative' : ''}`}>
+                            {r.points > 0 ? `+${r.points}` : r.points}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="subtotal">
+                        <td colSpan={3}>{g.label}</td>
+                        <td className={`num ${subtotal > 0 ? 'positive' : subtotal < 0 ? 'negative' : ''}`}>
+                          {subtotal > 0 ? `+${subtotal}` : subtotal}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  )
+                })}
+                <tr className="grand-total">
+                  <td colSpan={3}>ROUND TOTAL</td>
+                  <td className={`num ${m.total > 0 ? 'positive' : m.total < 0 ? 'negative' : ''}`}>
+                    {m.total > 0 ? `+${m.total}` : m.total}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
           {m.penalties !== 0 && m.penalty_notes && (
             <div className="penalty-note">{m.penalty_notes}</div>
           )}
@@ -124,6 +144,13 @@ function MovieDetail({ m, ownerCount }) {
     </div>
   )
 }
+
+const GROUPS = [
+  { key: 'rating', label: 'Rating subtotal' },
+  { key: 'financial', label: 'Financial subtotal' },
+  { key: 'penalty', label: 'Penalties' },
+  { key: 'watch', label: 'Watch points' },
+]
 
 export default function MovieCard({ movie: m, ownerCount }) {
   const [open, setOpen] = useState(false)

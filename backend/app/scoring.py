@@ -84,6 +84,71 @@ def watch_points(entry: dict) -> int:
     return WATCH_POINTS if entry.get("owner") in watched else 0
 
 
+def _tier_label(value, tiers: list[tuple[float, int]], unit: str = "") -> str:
+    """Which threshold a value cleared, for display: ">= 8.5", or "-" when it cleared none."""
+    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "no data"
+    for threshold, _ in tiers:
+        if value >= threshold:
+            return f">= {threshold:g}{unit}"
+    return f"< {tiers[-1][0]:g}{unit}"
+
+
+RATING_LABELS = {"imdb": "IMDb", "letterboxd": "Letterboxd",
+                 "rt_crit": "RT Critics", "rt_aud": "RT Audience"}
+
+
+def score_breakdown(entry: dict) -> list[dict]:
+    """Row-per-input explanation of how this entry's total was reached.
+
+    Computed here rather than in the frontend so the tier tables have exactly one
+    definition -- a second copy in JavaScript would drift the moment the rules change.
+    Each row is {group, label, value, tier, points}; `value` is display-ready text.
+    """
+    rows: list[dict] = []
+
+    for field, label in RATING_LABELS.items():
+        value = entry.get(field)
+        tiers = RATING_TIERS[field]
+        unit = "%" if field.startswith("rt_") else ""
+        rows.append({
+            "group": "rating", "label": label,
+            "value": f"{value:g}{unit}" if isinstance(value, (int, float)) else "—",
+            "tier": _tier_label(value, tiers, unit),
+            "points": _tier(value, tiers),
+        })
+
+    gross, roi = entry.get("gross"), entry.get("roi")
+    rows.append({
+        "group": "financial", "label": "Worldwide gross",
+        "value": f"${gross:,.1f}M" if isinstance(gross, (int, float)) else "—",
+        "tier": _tier_label(gross, GROSS_TIERS, "M"),
+        "points": _tier(gross, GROSS_TIERS),
+    })
+    rows.append({
+        "group": "financial", "label": "Return on budget",
+        "value": f"{roi:.2f}x" if isinstance(roi, (int, float)) else "—",
+        "tier": _tier_label(roi, ROI_TIERS, "x"),
+        "points": _tier(roi, ROI_TIERS),
+    })
+
+    penalty_points, notes = penalties(entry)
+    rows.append({
+        "group": "penalty", "label": "Penalties",
+        "value": notes or "None", "tier": "", "points": penalty_points,
+    })
+
+    watched = entry.get("who_watched") or []
+    owner_watched = entry.get("owner") in watched
+    rows.append({
+        "group": "watch", "label": "Owner watched",
+        "value": "Yes" if owner_watched else "No",
+        "tier": f"+{WATCH_POINTS} when owner watches",
+        "points": WATCH_POINTS if owner_watched else 0,
+    })
+    return rows
+
+
 def compute_movie_scores(entry: dict) -> dict:
     """Recompute every score on `entry` in place and return it.
 
