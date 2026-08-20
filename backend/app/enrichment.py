@@ -1,11 +1,9 @@
 """Enrichment engine: cached provider calls, the no-clobber merge, and the per-run call cap.
 
-Deliberately NOT here: any scoring formula. RESEARCH section 3 -- rating_score,
-financial_score, penalties, watch_points, and total are hand-entered from the user's
-spreadsheet, and storage.compute_leaderboard only sums them. Phase 2 is a data-layer phase
-by explicit user decision: enrichment updates imdb / rt_crit / budget / gross / roi and
-nothing else, so league standings will not move. compute_movie_scores() is API-06 and is
-blocked on the spreadsheet formula.
+Deliberately NOT here: the scoring formula, which lives in scoring.py. This module's job
+ends at populating imdb / rt_crit / budget / gross / roi; callers recompute scores from
+those values afterwards. Keeping the two apart means enrichment can be tested without
+reasoning about scoring, and the formula can change without touching provider code.
 
 Layering: services/tmdb.py and services/omdb.py are pure HTTP clients. Caching, budgeting,
 provenance, and error normalisation all live here, so there is exactly one place to reason

@@ -23,7 +23,8 @@ TMDB_PAYLOAD = {"tmdb_id": 1, "budget_millions": 170.0, "gross_millions": 100.5,
 OMDB_PAYLOAD = {"imdb_id": "tt0111161", "imdb": 6.1, "rt_crit": 54.0}
 
 # Fields no automated enrichment run may ever touch -- hand-entered, watch-tracking, or
-# purely derived-from-hand-entry. RESEARCH section 3: there is no scoring formula in code.
+# purely derived. The scoring formula lives in scoring.py and is applied by main.py's
+# handlers, never by the engine -- so the engine must still leave these untouched.
 INVARIANT_FIELDS = ("rating_score", "financial_score", "penalties", "watch_points", "total",
                     "letterboxd", "rt_aud", "who_watched", "penalty_notes")
 

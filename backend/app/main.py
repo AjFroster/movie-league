@@ -9,7 +9,7 @@ load_dotenv()
 
 from .storage import load_data, save_data, compute_leaderboard
 from .models import Movie
-from . import enrichment, provenance
+from . import enrichment, provenance, scoring
 from .redaction import ProviderError, redact_secrets
 
 app = FastAPI(title="Fantasy Movie League API")
@@ -76,6 +76,11 @@ def update_movie(owner: str, round_number: int, movie: Movie):
                     entry["roi"] = round(g / b, 3)
                     provenance.set_source(entry, "roi", provenance.MANUAL)
 
+            # A hand-edited rating or financial changes the derived scores too. Scores are
+            # always recomputed rather than accepted from the request body: they are a
+            # cached calculation, not data a client gets to assert.
+            scoring.compute_movie_scores(entry)
+
             data["movies"][i] = entry
             try:
                 save_data(data)
@@ -91,8 +96,8 @@ async def enrich_movie(owner: str, round_number: int, force: bool = False):
 
     Hand-entered values are protected; pass ?force=true to overwrite them. Results are
     served from backend/data/api_cache.json when fresh, so a repeat call costs no API
-    calls. Scores are NOT recomputed -- there is no scoring formula in this codebase
-    (02-RESEARCH.md section 3), so the leaderboard will not move.
+    calls. Scores ARE recomputed from the new values (see scoring.py), so the leaderboard
+    reflects the fetched data.
     """
     data = load_data()
     for i, m in enumerate(data["movies"]):
@@ -106,6 +111,8 @@ async def enrich_movie(owner: str, round_number: int, force: bool = False):
                 # Passing the raw exception text through unredacted would leak OMDB_API_KEY
                 # into this 502 body.
                 raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+            # Fresh ratings/financials mean the derived scores are now stale.
+            scoring.compute_movie_scores(m)
             data["movies"][i] = m
             try:
                 save_data(data)
@@ -135,6 +142,11 @@ async def enrich_all_movies(force: bool = False,
         summary = await enrichment.enrich_all(data, force=force, max_calls=max_calls)
     except (ProviderError, httpx.HTTPError) as e:
         raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+
+    # Rescore every row, not just the enriched ones: watch_points depends on who_watched,
+    # which enrichment never touches, so a row can need rescoring without being fetched.
+    for m in data["movies"]:
+        scoring.compute_movie_scores(m)
 
     try:
         save_data(data)

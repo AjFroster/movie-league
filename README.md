@@ -100,14 +100,41 @@ costs zero API calls. Entries expire on a sliding scale — 30 days for films re
 year ago, 7 days for recent releases, 24 hours for films with no match yet. `?force=true`
 bypasses the cache.
 
-### Enrichment does not change the standings
+### Scoring
 
-There is no scoring formula in this codebase. `rating_score`, `financial_score`, `penalties`,
-`watch_points`, and `total` are entered by hand from your spreadsheet, and the leaderboard
-only sums them. Enrichment updates the *inputs* — `imdb`, `rt_crit`, `budget`, `gross`, `roi`
-— but recomputes no score, so your rankings will look identical after a run. Making scores
-live means transcribing the spreadsheet formula into a `compute_movie_scores()` function;
-that is tracked as `BACK-01` in `.planning/REQUIREMENTS.md`.
+Scores are computed from the enrichment inputs by `backend/app/scoring.py`, so a run that
+updates ratings or box office also updates the standings. Every score is derived — editing
+one directly has no effect, because it is recomputed on the next write.
+
+**Ratings** — each source scores independently and they stack:
+
+| Source | 4 pts | 7 pts | 12 pts |
+|---|---|---|---|
+| IMDb | 7.5–7.9 | 8.0–8.4 | 8.5+ |
+| Letterboxd | 3.5–3.9 | 4.0–4.4 | 4.5+ |
+| RT Critics | 75–84 | 85–94 | 95+ |
+| RT Audience | 75–84 | 85–94 | 95+ |
+
+**Financials** — gross tier plus ROI tier:
+
+| Worldwide gross ($M) | 50 | 100 | 250 | 500 | 1000 |
+|---|---|---|---|---|---|
+| Points | 1 | 3 | 5 | 7 | 9 |
+
+| ROI (gross ÷ budget) | 2× | 3× | 5× | 10× |
+|---|---|---|---|---|
+| Points | 3 | 5 | 8 | 12 |
+
+**Penalties** (they stack, so a film that recoups under 75% takes −25):
+
+- ROI < 1.0 → −10, ROI < 0.75 → −15
+- Letterboxd < 2.5 → −10
+- RT Critics < 50% → −10
+
+**Watch points** — a flat +5 when the owner has watched their own pick. Not per viewer.
+
+`total` is the plain sum of the four. A field with no data scores nothing, and a film with
+no recorded ROI is not treated as having failed to recoup.
 
 ## Editing scores
 

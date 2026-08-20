@@ -10,6 +10,8 @@ Existing app (React/Vite frontend, FastAPI backend, JSON data store) gets a visu
 
 - [x] **Phase 2: Live API Enrichment** - Fetch ratings/financials from free APIs (OMDb + TMDB), cached and non-destructive
 
+- [x] **Phase 3: Scoring Formula** - Derive all scores from enrichment inputs so standings update from live data
+
 ## Phase Details
 
 ### Phase 1: UI Redesign
@@ -52,6 +54,17 @@ Plans:
 - [x] 02-04-PLAN.md — Enrichment engine: cache-first fetches, no-clobber merge, ROI, capped/paced bulk runner
 - [x] 02-05-PLAN.md — Endpoints: rewired /enrich (no clobber, no key leak), provenance-stamping PUT, POST /api/enrich-all
 - [x] 02-06-PLAN.md — Both keys in .env.example + README, static secret-hygiene guards
+
+### Phase 3: Scoring Formula
+**Goal**: Every score is derived from the enrichment inputs, so live ratings and box office move the standings
+**Depends on**: Phase 2 (needs the enriched inputs)
+**Requirements**: SCORE-01, SCORE-02, SCORE-03
+**Success Criteria** (what must be TRUE):
+  1. `compute_movie_scores()` reproduces the commissioner's tier tables for ratings, financials, penalties and watch points
+  2. The formula reproduces every hand-scored row before being adopted (2 rows exempted as confirmed-stale)
+  3. Scores recompute on enrich, bulk enrich, and manual PUT — a stored score is a cached calculation, not data a client can assert
+  4. Standings change when live data changes
+**Plans**: implemented directly with the user (no plan files — formula supplied, scope small)
 
 ## Progress
 

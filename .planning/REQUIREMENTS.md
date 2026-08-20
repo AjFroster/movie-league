@@ -14,6 +14,12 @@ Requirements for the UI redesign phase.
 - [x] **UI-03**: Design tokens (color palette, type scale, spacing scale, status-pill colors) extracted from mockups and applied consistently across `styles.css` and all components
 - [x] **UI-04**: Existing functionality (data fetch, expand/collapse score breakdown, TMDB enrich trigger) still works after the redesign
 
+### Scoring
+
+- [x] **SCORE-01**: `compute_movie_scores()` derives rating_score, financial_score, penalties, watch_points and total from the enrichment inputs, using the commissioner's tier tables
+- [x] **SCORE-02**: Scores recompute automatically on enrich, bulk enrich, and manual PUT, so standings reflect live data
+- [x] **SCORE-03**: Formula validated against every hand-scored row before adoption (rating 16/16, penalties 30/30, watch points 30/30)
+
 ### Live API Enrichment
 
 - [x] **API-01**: OMDb service module fetches real IMDb rating and RT critic score, looked up by IMDb ID (via TMDB) rather than fuzzy title match
@@ -28,7 +34,7 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Backend
 
-- **BACK-01**: Automatic scoring formula (`compute_movie_scores`) instead of manual entry — **required before standings can update dynamically**; blocked on the formula, which lives in the user's spreadsheet
+- ~~**BACK-01**: Automatic scoring formula~~ — delivered in Phase 3 as `SCORE-01`
 - **BACK-02**: Scheduled/background refresh of stale cache entries (current scope is manual trigger only)
 - **BACK-03**: `rt_aud` and `letterboxd` automation — no free API exists for either; stays manual entry
 
@@ -53,10 +59,13 @@ Deferred to future release. Tracked but not in current roadmap.
 | API-03 | Phase 2 | Complete |
 | API-04 | Phase 2 | Complete |
 | API-05 | Phase 2 | Complete |
+| SCORE-01 | Phase 3 | Complete |
+| SCORE-02 | Phase 3 | Complete |
+| SCORE-03 | Phase 3 | Complete |
 
 **Coverage:**
-- v1 requirements: 9 total
-- Mapped to phases: 9
+- v1 requirements: 12 total
+- Mapped to phases: 12
 - Unmapped: 0 ✓
 
 ---
