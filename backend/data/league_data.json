@@ -32,7 +32,7 @@
     {
       "owner": "Liam",
       "round": 2,
-      "movie": "Super Girl",
+      "movie": "Supergirl",
       "imdb": 6.1,
       "letterboxd": 3.1,
       "rt_crit": 54,
@@ -94,7 +94,7 @@
     {
       "owner": "Liam",
       "round": 3,
-      "movie": "Nirvana the Band the Show the Movie",
+      "movie": "Nirvanna the Band the Show the Movie",
       "imdb": 8,
       "letterboxd": 4.3,
       "rt_crit": 98,
@@ -957,7 +957,7 @@
     {
       "owner": "Jaq",
       "round": 2,
-      "movie": "Werewolf",
+      "movie": "Werwulf",
       "imdb": null,
       "letterboxd": null,
       "rt_crit": null,
