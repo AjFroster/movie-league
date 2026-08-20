@@ -310,6 +310,42 @@ def test_compute_roi_false_for_bad_budget(sample_movie, budget, gross):
     assert enrichment.compute_roi(entry) is False
 
 
+def test_compute_roi_is_a_noop_when_the_value_is_unchanged(sample_movie):
+    """A second derivation of the identical value must not report an update.
+
+    Guards the keyless-run case: with no API keys set, enrich_all makes zero calls, so
+    nothing about a row has changed and league_data.json must not be rewritten.
+    """
+    entry = dict(sample_movie)
+    entry["budget"] = 170.0
+    entry["gross"] = 100.5
+
+    assert enrichment.compute_roi(entry) is True          # first pass stamps provenance
+    stamped_at = provenance.get_source(entry, "roi")["at"]
+
+    assert enrichment.compute_roi(entry) is False         # second pass is a true no-op
+    assert provenance.get_source(entry, "roi")["at"] == stamped_at
+    assert enrichment.compute_roi(entry, force=True) is True   # force still overrides
+
+
+def test_compute_roi_leaves_an_unrecorded_existing_value_alone(sample_movie):
+    """An existing value with no provenance record is never touched.
+
+    `can_write` is fail-closed here -- an unrecorded value is treated as a human's until
+    proven otherwise -- so the no-op guard is never even reached. Asserted explicitly so a
+    future relaxation of that rule has to break a test rather than silently rewrite data.
+    """
+    entry = dict(sample_movie)
+    entry["budget"] = 170.0
+    entry["gross"] = 100.5
+    entry["roi"] = 99.9          # deliberately NOT the derivable value
+    entry["sources"] = {}
+
+    assert enrichment.compute_roi(entry) is False
+    assert entry["roi"] == 99.9
+    assert provenance.get_source(entry, "roi") is None
+
+
 def test_compute_roi_respects_manual_and_force(sample_movie):
     entry = dict(sample_movie)
     entry["budget"] = 170.0

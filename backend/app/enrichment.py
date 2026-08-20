@@ -133,7 +133,16 @@ def compute_roi(entry: dict, *, force: bool = False) -> bool:
         return False
     if not provenance.can_write(entry, "roi", force=force):
         return False
-    entry["roi"] = round(gross_m / budget_m, 3)
+    value = round(gross_m / budget_m, 3)
+    # No-op guard: re-deriving the identical value is not an update. Without this, a
+    # keyless run (zero API calls, nothing fetched) still rewrites league_data.json for
+    # every row that already has budget/gross -- churning provenance timestamps and
+    # relabelling `unknown` as `fetched`, which asserts an origin we cannot actually know.
+    # Skip only once a provenance record exists, so a first pass still stamps one and
+    # every run after that is a true no-op.
+    if not force and entry.get("roi") == value and provenance.get_source(entry, "roi"):
+        return False
+    entry["roi"] = value
     provenance.set_source(entry, "roi", provenance.FETCHED, provider="derived")
     return True
 
