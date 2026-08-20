@@ -160,3 +160,24 @@ def test_unknown_legacy_value_is_corrected_but_never_lost(sample_movie):
     assert source["origin"] == provenance.FETCHED
     assert source["provider"] == "omdb"
     assert source["legacy_value"] == 6.1
+
+
+def test_apply_fetched_is_a_noop_when_the_value_is_unchanged(sample_movie):
+    """Re-applying an identical provider value must not report an update.
+
+    Guards the cached-repeat-run case: when every field is served from cache the run makes
+    zero outbound calls, so league_data.json must not be rewritten with fresh timestamps.
+    Mirrors the same guard on enrichment.compute_roi.
+    """
+    entry = dict(sample_movie)
+
+    assert provenance.apply_fetched(entry, "imdb", 7.4, provider="omdb") is True
+    stamped_at = provenance.get_source(entry, "imdb")["at"]
+
+    assert provenance.apply_fetched(entry, "imdb", 7.4, provider="omdb") is False
+    assert provenance.get_source(entry, "imdb")["at"] == stamped_at
+
+    # a genuinely different value still lands, and force still overrides
+    assert provenance.apply_fetched(entry, "imdb", 7.9, provider="omdb") is True
+    assert entry["imdb"] == 7.9
+    assert provenance.apply_fetched(entry, "imdb", 7.9, provider="omdb", force=True) is True

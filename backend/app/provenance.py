@@ -85,6 +85,13 @@ def apply_fetched(entry: dict, field: str, value, *, provider: str,
         return False
     if not can_write(entry, field, force=force):
         return False
+    # No-op guard: re-writing the identical value is not an update. Without this, a repeat
+    # run that made zero outbound calls (everything served from cache) still rewrites
+    # league_data.json with fresh `at` timestamps. Skip only once a provenance record
+    # exists, so a first pass still stamps one and every run after that is a true no-op.
+    # Mirrors the same guard in enrichment.compute_roi.
+    if not force and entry.get(field) == value and get_source(entry, field):
+        return False
     entry[field] = value
     set_source(entry, field, FETCHED, provider=provider)
     return True
