@@ -131,7 +131,10 @@ def test_mark_manual_sets_origin_manual_with_empty_provider(sample_movie):
 
 
 def test_enrichable_fields_constant():
-    assert provenance.ENRICHABLE_FIELDS == ("imdb", "rt_crit", "budget", "gross", "roi")
+    """rt_aud and letterboxd became fetchable when MDBList replaced OMDb as the ratings
+    source; before that no free provider carried either."""
+    assert provenance.ENRICHABLE_FIELDS == (
+        "imdb", "rt_crit", "rt_aud", "letterboxd", "budget", "gross", "roi")
 
 
 # --- Verbatim regression tests from PLAN.md (RESEARCH section 4) ---

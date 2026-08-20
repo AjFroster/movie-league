@@ -17,7 +17,7 @@ import httpx
 
 from . import provenance
 from .redaction import ProviderError, redact_secrets
-from .services import cache, omdb, tmdb
+from .services import cache, mdblist, omdb, tmdb
 
 DEFAULT_MAX_CALLS = 60      # 30 rows x 2 providers = one full cold run
 HARD_MAX_CALLS = 200        # ceiling for a caller-supplied cap; OMDb's free tier is 1,000/day
@@ -118,6 +118,32 @@ async def fetch_omdb(imdb_id: str, *, release_date: str | None, budget: CallBudg
     return payload, OUTCOME_FETCHED if payload else OUTCOME_MISS
 
 
+async def fetch_mdblist(imdb_id: str, *, release_date: str | None, budget: CallBudget,
+                        force: bool = False,
+                        client: httpx.AsyncClient | None = None) -> tuple[dict | None, str]:
+    """Cache-first MDBList lookup, keyed on the exact IMDb ID TMDB supplied."""
+    if not os.environ.get("MDBLIST_API_KEY"):
+        return None, OUTCOME_NO_KEY
+
+    key = cache.make_key("mdblist", imdb_id=imdb_id)
+    if not force:
+        entry = cache.get(key)
+        if entry is not None:
+            return entry.get("payload"), OUTCOME_CACHE
+
+    if not budget.available():
+        return None, OUTCOME_CAPPED
+    budget.spend()
+
+    try:
+        payload = await mdblist.fetch_ratings(imdb_id, client=client)
+    except (httpx.HTTPError, ProviderError, ValueError) as e:
+        return None, _error(e)
+
+    cache.put(key, payload, cache.ttl_for(release_date, matched=payload is not None))
+    return payload, OUTCOME_FETCHED if payload else OUTCOME_MISS
+
+
 def _norm(title: str | None) -> str:
     """Loose title key for match comparison: case, spacing and punctuation insensitive."""
     return re.sub(r"[^a-z0-9]", "", (title or "").lower())
@@ -153,11 +179,12 @@ def compute_roi(entry: dict, *, force: bool = False) -> bool:
 
 async def enrich_entry(entry: dict, *, budget: CallBudget, force: bool = False,
                        tmdb_client: httpx.AsyncClient | None = None,
-                       omdb_client: httpx.AsyncClient | None = None) -> dict:
+                       omdb_client: httpx.AsyncClient | None = None,
+                       mdblist_client: httpx.AsyncClient | None = None) -> dict:
     """Merge provider data into `entry` in place. Returns a per-row report."""
     report = {
         "owner": entry.get("owner"), "round": entry.get("round"), "movie": entry.get("movie"),
-        "tmdb": "", "omdb": "", "matched_title": None,
+        "tmdb": "", "omdb": "", "mdblist": "", "matched_title": None,
         "updated": [], "protected": [], "errors": [],
     }
 
@@ -177,21 +204,43 @@ async def enrich_entry(entry: dict, *, budget: CallBudget, force: bool = False,
 
     imdb_id = (financials or {}).get("imdb_id")
     release_date = (financials or {}).get("release_date")
+    ratings: dict = {}
     if imdb_id:
-        ratings, report["omdb"] = await fetch_omdb(
-            imdb_id, release_date=release_date, budget=budget, force=force, client=omdb_client)
-        if report["omdb"].startswith(ERROR_PREFIX):
-            report["errors"].append(report["omdb"])
-    else:
-        ratings, report["omdb"] = None, OUTCOME_NO_IMDB_ID
+        # MDBList first: it carries all four rating inputs, where OMDb has no Letterboxd or
+        # RT audience score at all and only patchy RT critics on recent releases.
+        primary, report["mdblist"] = await fetch_mdblist(
+            imdb_id, release_date=release_date, budget=budget, force=force,
+            client=mdblist_client)
+        if report["mdblist"].startswith(ERROR_PREFIX):
+            report["errors"].append(report["mdblist"])
+        ratings.update(primary or {})
 
-    # `imdb` is sourced from OMDb's imdbRating ONLY. TMDB's vote_average is a different
-    # number on the same 0-10 scale (HANDOFF.md line 43) and is never written here.
+        # OMDb is a fallback, not a second opinion: it is only called when MDBList left one
+        # of the fields it can supply empty, so a complete MDBList response costs no extra
+        # request and MDBList's value is never overwritten by OMDb's.
+        if not all(ratings.get(f) is not None for f in ("imdb", "rt_crit")):
+            secondary, report["omdb"] = await fetch_omdb(
+                imdb_id, release_date=release_date, budget=budget, force=force,
+                client=omdb_client)
+            if report["omdb"].startswith(ERROR_PREFIX):
+                report["errors"].append(report["omdb"])
+            for field, value in (secondary or {}).items():
+                ratings.setdefault(field, value)
+        else:
+            report["omdb"] = "skipped-mdblist-complete"
+    else:
+        report["mdblist"] = report["omdb"] = OUTCOME_NO_IMDB_ID
+
+    # `imdb` is the real IMDb rating from MDBList or OMDb. TMDB's vote_average is a
+    # different number on the same 0-10 scale (HANDOFF.md line 43) and is never written.
+    ratings_provider = "mdblist" if report["mdblist"] in (OUTCOME_FETCHED, OUTCOME_CACHE) else "omdb"
     candidates = (
         ("budget", (financials or {}).get("budget_millions"), "tmdb"),
         ("gross", (financials or {}).get("gross_millions"), "tmdb"),
-        ("imdb", (ratings or {}).get("imdb"), "omdb"),
-        ("rt_crit", (ratings or {}).get("rt_crit"), "omdb"),
+        ("imdb", ratings.get("imdb"), ratings_provider),
+        ("rt_crit", ratings.get("rt_crit"), ratings_provider),
+        ("rt_aud", ratings.get("rt_aud"), ratings_provider),
+        ("letterboxd", ratings.get("letterboxd"), ratings_provider),
     )
     for field, value, provider in candidates:
         if value is None:

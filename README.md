@@ -100,6 +100,21 @@ costs zero API calls. Entries expire on a sliding scale — 30 days for films re
 year ago, 7 days for recent releases, 24 hours for films with no match yet. `?force=true`
 bypasses the cache.
 
+### Where ratings come from
+
+| Field | Source | Notes |
+|---|---|---|
+| `imdb`, `letterboxd`, `rt_crit`, `rt_aud` | **MDBList** | All four in one call. Free tier, 1,000 requests/day. |
+| `budget`, `gross`, `release_date`, IMDb ID | TMDB | The IMDb ID is what makes the MDBList lookup exact rather than a title guess. |
+| `imdb`, `rt_crit` | OMDb *(fallback)* | Only called when MDBList leaves one of them empty, so a complete MDBList response costs no extra request. |
+
+MDBList replaced OMDb as the primary ratings source because OMDb carries no Letterboxd
+rating and no RT audience score at all, and its RT critic coverage on recent releases is
+patchy — on this league's 2026 slate it supplied RT for roughly a third of the films.
+MDBList covered every film that had ratings anywhere.
+
+Films with no ratings are simply unreleased; no source has data for them yet.
+
 ### Scoring
 
 Scores are computed from the enrichment inputs by `backend/app/scoring.py`, so a run that

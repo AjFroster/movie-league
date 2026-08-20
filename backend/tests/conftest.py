@@ -24,6 +24,7 @@ def no_real_api_keys(monkeypatch):
     """Every test runs with zero provider credentials unless it sets its own."""
     monkeypatch.delenv("TMDB_API_KEY", raising=False)
     monkeypatch.delenv("OMDB_API_KEY", raising=False)
+    monkeypatch.delenv("MDBLIST_API_KEY", raising=False)
 
 
 @pytest.fixture

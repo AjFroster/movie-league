@@ -28,8 +28,9 @@ MANUAL = "manual"
 FETCHED = "fetched"
 UNKNOWN = "unknown"
 
-# The only fields an automated enrichment run is allowed to write.
-ENRICHABLE_FIELDS = ("imdb", "rt_crit", "budget", "gross", "roi")
+# The only fields an automated enrichment run is allowed to write. rt_aud and letterboxd
+# joined the list when MDBList made them fetchable -- OMDb never carried either.
+ENRICHABLE_FIELDS = ("imdb", "rt_crit", "rt_aud", "letterboxd", "budget", "gross", "roi")
 
 
 def now_iso() -> str:

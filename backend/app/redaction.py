@@ -15,7 +15,7 @@ makes that guarantee auditable.
 import os
 import re
 
-SECRET_ENV_VARS = ("OMDB_API_KEY", "TMDB_API_KEY")
+SECRET_ENV_VARS = ("OMDB_API_KEY", "TMDB_API_KEY", "MDBLIST_API_KEY")
 REDACTED = "***REDACTED***"
 _MIN_SECRET_LEN = 4
 
