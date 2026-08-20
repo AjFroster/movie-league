@@ -13,11 +13,13 @@ import pytest
 from app.services import tmdb
 
 
-SEARCH_RESULT = {"results": [{"id": 42}]}
+# release_date must be >= tmdb.SEASON_FLOOR_YEAR: _pick_result rejects older/undated hits
+SEARCH_RESULT = {"results": [{"id": 42, "title": "Test Film", "release_date": "2026-05-22"}]}
 
 
 def _details(**overrides):
     base = {
+        "title": "Test Film",
         "budget": 170_000_000,
         "revenue": 700_000_000,
         "vote_average": 7.35,
@@ -48,6 +50,7 @@ async def test_fetch_movie_financials_full_round_trip_includes_release_date(monk
 
     assert result == {
         "tmdb_id": 42,
+        "title": "Test Film",
         "budget_millions": 170.0,
         "gross_millions": 700.0,
         "vote_average": 7.4,
@@ -195,3 +198,50 @@ def test_release_date_feeds_cache_ttl_tiering():
     from app.services import cache
     assert cache.ttl_for(tmdb._release_date(""), matched=True) == cache.TTL_NEGATIVE
     assert cache.ttl_for(tmdb._release_date("2001-04-01"), matched=True) == cache.TTL_RELEASED
+
+
+# ---------------------------------------------------------------------------
+# season floor / wrong-film protection
+# ---------------------------------------------------------------------------
+
+def _r(id_, title, release_date):
+    return {"id": id_, "title": title, "release_date": release_date}
+
+
+def test_pick_result_skips_pre_season_films():
+    """The real 'The Mummy' case: 1999 ranks first, the 2026 film is the right answer."""
+    results = [_r(564, "The Mummy", "1999-05-07"), _r(999, "The Mummy", "2026-04-17")]
+    assert tmdb._pick_result(results)["id"] == 999
+
+
+def test_pick_result_returns_none_when_every_hit_is_too_old():
+    """No plausible match must read as NO match, never as a fallback to a wrong film."""
+    results = [_r(564, "The Mummy", "1999-05-07"), _r(1734, "The Mummy Returns", "2001-05-04")]
+    assert tmdb._pick_result(results) is None
+
+
+def test_pick_result_preserves_tmdb_relevance_among_recent_films():
+    results = [_r(1, "Scream 7", "2026-02-27"), _r(2, "Scream 8", "2027-01-01")]
+    assert tmdb._pick_result(results)["id"] == 1
+
+
+@pytest.mark.parametrize("results", [[], [{"title": "no id"}], [_r(1, "x", "")],
+                                     [{"id": 1, "title": "no date"}], ["not a dict"]])
+def test_pick_result_handles_junk(results):
+    assert tmdb._pick_result(results) is None
+
+
+async def test_fetch_movie_financials_returns_none_for_a_pre_season_only_match(monkeypatch):
+    """End-to-end: an all-old result set yields None and never fetches details."""
+    detail_calls = []
+
+    def handler(request):
+        if "/search/movie" in str(request.url):
+            return httpx.Response(200, json={"results": [_r(564, "The Mummy", "1999-05-07")]})
+        detail_calls.append(str(request.url))
+        return httpx.Response(200, json={})
+
+    monkeypatch.setenv("TMDB_API_KEY", "test-key")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await tmdb.fetch_movie_financials("The Mummy", client=client) is None
+    assert detail_calls == []   # no wasted call budget on a rejected match

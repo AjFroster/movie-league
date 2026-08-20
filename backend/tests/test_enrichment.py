@@ -673,3 +673,56 @@ async def test_rows_are_paced_sequentially_never_concurrently(tmp_cache, fake_pr
     await enrichment.enrich_all(data, sleep=recording_sleep)
 
     assert len(order) == 3          # one delay per row
+
+
+async def test_enrich_all_reports_unmatched_rows(monkeypatch, tmp_cache):
+    """Rows TMDB cannot match are surfaced at the top level, not buried in per-row reports."""
+    monkeypatch.setenv("TMDB_API_KEY", "t")
+    monkeypatch.setenv("OMDB_API_KEY", "o")
+
+    async def no_match(title, client=None):
+        return None
+
+    monkeypatch.setattr(enrichment.tmdb, "fetch_movie_financials", no_match)
+
+    data = {"owners": ["A"], "movies": [
+        {"owner": "A", "round": 1, "movie": "Werewolf", "imdb": None, "budget": None,
+         "gross": None, "roi": None, "rt_crit": None, "sources": {}},
+        {"owner": "A", "round": 2, "movie": "", "imdb": None, "budget": None,
+         "gross": None, "roi": None, "rt_crit": None, "sources": {}},
+    ]}
+    summary = await enrichment.enrich_all(data)
+
+    assert summary["unmatched"] == [{"owner": "A", "round": 1, "movie": "Werewolf"}]
+    assert summary["fields_updated"] == 0          # an unmatched row is left untouched
+    # a round with no pick yet is skipped cleanly, not crashed on and not reported unmatched
+    assert summary["reports"][1]["tmdb"] == "skipped-no-title"
+
+
+async def test_enrich_all_flags_non_exact_title_matches_for_review(monkeypatch, tmp_cache):
+    """A match whose title differs from the entered one is flagged, not rejected.
+
+    "Dune Part 3" -> "Dune: Part Three" is correct; "Werewolf" -> "Werewolf Game" is not.
+    Both look identical to code, so both surface for a human glance.
+    """
+    monkeypatch.setenv("TMDB_API_KEY", "t")
+    monkeypatch.setenv("OMDB_API_KEY", "o")
+    titles = {"Dune Part 3": "Dune: Part Three", "Scream 7": "Scream 7"}
+
+    async def fake_tmdb(title, year=None, *, client=None):
+        return {"tmdb_id": 1, "title": titles[title], "budget_millions": 10.0,
+                "gross_millions": 20.0, "vote_average": 7.0, "imdb_id": None,
+                "release_date": "2026-01-01"}
+
+    monkeypatch.setattr(enrichment.tmdb, "fetch_movie_financials", fake_tmdb)
+
+    data = {"owners": ["A"], "movies": [
+        {"owner": "A", "round": 1, "movie": t, "imdb": None, "budget": None, "gross": None,
+         "roi": None, "rt_crit": None, "sources": {}} for t in titles
+    ]}
+    summary = await enrichment.enrich_all(data)
+
+    # only the differing title is flagged; the exact match is not noise
+    assert summary["review"] == [
+        {"owner": "A", "round": 1, "movie": "Dune Part 3", "matched_title": "Dune: Part Three"}
+    ]

@@ -13,6 +13,7 @@ about "did this run cost an API call?" and "was this write allowed?".
 """
 import asyncio
 import os
+import re
 
 import httpx
 
@@ -119,6 +120,11 @@ async def fetch_omdb(imdb_id: str, *, release_date: str | None, budget: CallBudg
     return payload, OUTCOME_FETCHED if payload else OUTCOME_MISS
 
 
+def _norm(title: str | None) -> str:
+    """Loose title key for match comparison: case, spacing and punctuation insensitive."""
+    return re.sub(r"[^a-z0-9]", "", (title or "").lower())
+
+
 def compute_roi(entry: dict, *, force: bool = False) -> bool:
     """roi = gross / budget, subject to the same no-clobber rule as every other field.
 
@@ -153,13 +159,23 @@ async def enrich_entry(entry: dict, *, budget: CallBudget, force: bool = False,
     """Merge provider data into `entry` in place. Returns a per-row report."""
     report = {
         "owner": entry.get("owner"), "round": entry.get("round"), "movie": entry.get("movie"),
-        "tmdb": "", "omdb": "", "updated": [], "protected": [], "errors": [],
+        "tmdb": "", "omdb": "", "matched_title": None,
+        "updated": [], "protected": [], "errors": [],
     }
+
+    # A round with no pick yet is normal mid-season. Without this guard the empty title
+    # reaches cache.make_key, which raises ValueError and 500s the entire bulk run over one
+    # blank row.
+    if not (entry.get("movie") or "").strip():
+        report["tmdb"] = report["omdb"] = "skipped-no-title"
+        return report
 
     financials, report["tmdb"] = await fetch_tmdb(
         entry.get("movie") or "", budget=budget, force=force, client=tmdb_client)
     if report["tmdb"].startswith(ERROR_PREFIX):
         report["errors"].append(report["tmdb"])
+
+    report["matched_title"] = (financials or {}).get("title")
 
     imdb_id = (financials or {}).get("imdb_id")
     release_date = (financials or {}).get("release_date")
@@ -223,6 +239,21 @@ async def enrich_all(data: dict, *, force: bool = False, max_calls: int = DEFAUL
         "forced": force,
         "fields_updated": sum(len(r["updated"]) for r in reports),
         "fields_protected": sum(len(r["protected"]) for r in reports),
+        # Rows TMDB could not match are the ones needing a human: either the title differs
+        # from TMDB's ("Super Girl" vs "Supergirl") or every hit predates the season floor.
+        # They are left untouched, so surfacing them here is the only signal you get --
+        # without this you would have to scan every per-row report to find them.
+        "unmatched": [{"owner": r["owner"], "round": r["round"], "movie": r["movie"]}
+                      for r in reports if r["tmdb"] == "miss" and r["movie"]],
+        # Matches whose TMDB title differs from the entered one. Most are benign and
+        # correct ("Dune Part 3" -> "Dune: Part Three"), but this is also where a genuine
+        # mis-match hides: the query "Werewolf" matched the unrelated "Werewolf Game".
+        # Requiring exact titles would reject 9 correct matches to catch that 1, so these
+        # are flagged for a human glance rather than rejected.
+        "review": [{"owner": r["owner"], "round": r["round"], "movie": r["movie"],
+                    "matched_title": r["matched_title"]}
+                   for r in reports
+                   if r["matched_title"] and _norm(r["matched_title"]) != _norm(r["movie"])],
         "errors": [e for r in reports for e in r["errors"]],
         "reports": reports,
     }

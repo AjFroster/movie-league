@@ -17,9 +17,42 @@ TMDB_BASE = "https://api.themoviedb.org/3"
 _IMDB_ID_RE = re.compile(r"^tt\d{7,10}$")
 _RELEASE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
+# TMDB's search ranks by popularity, not recency, so a league title that reuses an older
+# film's name matches the famous one: "The Mummy" returns the 1999 film, "Narnia" the 2005
+# one, "Werewolf" a 1981 film. Silently writing those financials is data corruption -- the
+# 1999 Mummy's $415.89M gross landed on a 2026 pick during live testing.
+# A result released before the season floor is therefore treated as NO match, not as a
+# fallback: an unmatched row keeps its existing values and is reported, which is
+# recoverable, whereas a wrong match is silent and is not.
+SEASON_FLOOR_YEAR = int(os.environ.get("LEAGUE_SEASON_FLOOR_YEAR", "2025"))
+
 
 def _api_key() -> str | None:
     return os.environ.get("TMDB_API_KEY")
+
+
+def _release_year(result: dict) -> int | None:
+    """Year from a search result's release_date, or None if absent/malformed."""
+    raw = result.get("release_date")
+    if not isinstance(raw, str) or not _RELEASE_DATE_RE.match(raw):
+        return None
+    return int(raw[:4])
+
+
+def _pick_result(results: list) -> dict | None:
+    """First search result at or after SEASON_FLOOR_YEAR, else None.
+
+    Order is preserved, so TMDB's own relevance ranking still decides between candidates
+    that are all recent enough. Results with no release_date are skipped -- an unreleased
+    stub carries no financials worth writing, and cannot be verified as the right film.
+    """
+    for result in results:
+        if not isinstance(result, dict) or "id" not in result:
+            continue
+        year = _release_year(result)
+        if year is not None and year >= SEASON_FLOOR_YEAR:
+            return result
+    return None
 
 
 def _millions(value) -> float | None:
@@ -76,16 +109,20 @@ async def fetch_movie_financials(title: str, year: int | None = None, *,
         search = await client.get(f"{TMDB_BASE}/search/movie", params=params, headers=headers)
         search.raise_for_status()
         results = search.json().get("results", [])
-        if not results:
+        chosen = _pick_result(results)
+        if chosen is None:
             return None
 
-        movie_id = results[0]["id"]
+        movie_id = chosen["id"]
         details = await client.get(f"{TMDB_BASE}/movie/{movie_id}", headers=headers)
         details.raise_for_status()
         d = details.json()
 
         return {
             "tmdb_id": movie_id,
+            # Carried so the engine can flag matches whose title differs from the entered
+            # one -- TMDB's fuzzy search returned "Werewolf Game" for the query "Werewolf".
+            "title": d.get("title") or chosen.get("title"),
             "budget_millions": _millions(d.get("budget")),
             "gross_millions": _millions(d.get("revenue")),
             # WARNING: vote_average is TMDB's community rating, NOT the IMDb rating. It is
