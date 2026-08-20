@@ -6,7 +6,11 @@ Existing app (React/Vite frontend, FastAPI backend, JSON data store) gets a visu
 
 ## Phases
 
-- [ ] **Phase 1: UI Redesign** - Reskin frontend to match new mockups (team/roster view + movie detail view), preserving existing functionality
+- [x] **Phase 1: UI Redesign** - Reskin frontend to match new mockups (team/roster view + movie detail view), preserving existing functionality
+
+- [x] **Phase 2: Live API Enrichment** - Fetch ratings/financials from free APIs (OMDb + TMDB), cached and non-destructive
+
+- [x] **Phase 3: Scoring Formula** - Derive all scores from enrichment inputs so standings update from live data
 
 ## Phase Details
 
@@ -27,11 +31,47 @@ Plans:
 - [x] 01-03-PLAN.md — Roster table shell: Leaderboard/PlayerCard stat header + ROUND/TITLE/STATUS/PTS/WATCHED columns
 - [x] 01-04-PLAN.md — Movie detail: status pill roster row + expanded hero/stat-strip/points-ledger/campaign-tracker/ownership panel
 
+### Phase 2: Live API Enrichment
+**Goal**: Film ratings and financials populate from free public APIs on a manual refresh trigger, cached so repeat runs cost no API calls, and never overwriting hand-entered values
+**Depends on**: Nothing (backend-only; independent of Phase 1)
+**Requirements**: API-01, API-02, API-03, API-04, API-05
+**Success Criteria** (what must be TRUE):
+  1. A manually-triggered bulk enrich fills `imdb` (real IMDb rating) and `rt_crit` from OMDb, and `budget`/`gross` from TMDB, for films that have no hand-entered value
+  2. Re-running enrichment immediately after a first run makes zero outbound API calls (all served from cache)
+  3. A hand-entered value is never silently overwritten — provenance distinguishes `manual` from `fetched`, and overwriting requires an explicit force flag
+  4. A single bulk run cannot exceed a configured per-run call cap, so the OMDb 1,000/day free quota cannot be exhausted by accident
+  5. Both API keys are documented in `.env.example` and never appear in logs
+**Non-goals** (explicitly out of scope):
+  - `rt_aud` and `letterboxd` — no free API exists for either; they stay manual
+  - `compute_movie_scores()` — the scoring formula lives in the user's spreadsheet; without it the standings will NOT change even after enrichment (see 02-RESEARCH.md §3)
+  - Scheduled/background refresh — manual trigger only
+**Plans**: 6 plans
+
+Plans:
+- [x] 02-01-PLAN.md — Test harness (pytest via uv), secret redaction, persistent JSON API cache
+- [x] 02-02-PLAN.md — Field provenance + no-clobber rule + evidence-based migration of the 30 existing rows
+- [x] 02-03-PLAN.md — OMDb client (real IMDb rating + RT critic score by IMDb ID); TMDB release_date
+- [x] 02-04-PLAN.md — Enrichment engine: cache-first fetches, no-clobber merge, ROI, capped/paced bulk runner
+- [x] 02-05-PLAN.md — Endpoints: rewired /enrich (no clobber, no key leak), provenance-stamping PUT, POST /api/enrich-all
+- [x] 02-06-PLAN.md — Both keys in .env.example + README, static secret-hygiene guards
+
+### Phase 3: Scoring Formula
+**Goal**: Every score is derived from the enrichment inputs, so live ratings and box office move the standings
+**Depends on**: Phase 2 (needs the enriched inputs)
+**Requirements**: SCORE-01, SCORE-02, SCORE-03
+**Success Criteria** (what must be TRUE):
+  1. `compute_movie_scores()` reproduces the commissioner's tier tables for ratings, financials, penalties and watch points
+  2. The formula reproduces every hand-scored row before being adopted (2 rows exempted as confirmed-stale)
+  3. Scores recompute on enrich, bulk enrich, and manual PUT — a stored score is a cached calculation, not data a client can assert
+  4. Standings change when live data changes
+**Plans**: implemented directly with the user (no plan files — formula supplied, scope small)
+
 ## Progress
 
 **Execution Order:**
-Phase 1 only (single-phase scaffold).
+Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. UI Redesign | 4/4 | Complete | 2026-08-18 |
+| 2. Live API Enrichment | 6/6 | Complete | 2026-08-19 |

@@ -1,39 +1,1324 @@
 {
-  "owners": ["Liam", "Mark", "Andrew", "Jaq", "Evan"],
+  "owners": [
+    "Liam",
+    "Mark",
+    "Andrew",
+    "Jaq",
+    "Evan"
+  ],
   "movies": [
-    {"owner": "Liam", "round": 1, "movie": "Digger", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Liam", "round": 2, "movie": "Super Girl", "imdb": 6.1, "letterboxd": 3.1, "rt_crit": 54, "rt_aud": 75, "budget": 170, "gross": 100.5, "roi": 0.591, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 4, "financial_score": 3, "penalties": -25, "penalty_notes": "Didnt recoup budget (-10), Didnt recoup 75% of budget (-15)", "watch_points": 0, "total": -18},
-    {"owner": "Liam", "round": 3, "movie": "Nirvana the Band the Show the Movie", "imdb": 8, "letterboxd": 4.3, "rt_crit": 98, "rt_aud": 95, "budget": 2, "gross": 4.9, "roi": 2.450, "bo_rank": null, "awards": null, "who_watched": ["Liam", "Mark", "Evan"], "rating_score": 38, "financial_score": 3, "penalties": 0, "penalty_notes": "", "watch_points": 5, "total": 46},
-    {"owner": "Liam", "round": 4, "movie": "Good Luck Have Fun Don't Die", "imdb": 7, "letterboxd": 3.4, "rt_crit": 81, "rt_aud": 85, "budget": 20, "gross": 9.31, "roi": 0.466, "bo_rank": null, "awards": null, "who_watched": ["Liam", "Mark"], "rating_score": 11, "financial_score": 0, "penalties": -25, "penalty_notes": "Didnt recoup budget (-10), Didnt recoup 75% of budget (-15)", "watch_points": 5, "total": -9},
-    {"owner": "Liam", "round": 5, "movie": "Redux Redux", "imdb": 6.2, "letterboxd": 3.4, "rt_crit": 97, "rt_aud": 66, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 12, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 12},
-    {"owner": "Liam", "round": 6, "movie": "Star Wars: The Mandalorian and Grogu", "imdb": 7, "letterboxd": 3.1, "rt_crit": 62, "rt_aud": 87, "budget": 165, "gross": 293.5, "roi": 1.779, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 7, "financial_score": 5, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 12},
-
-    {"owner": "Mark", "round": 1, "movie": "Scream 7", "imdb": 5.6, "letterboxd": 2.3, "rt_crit": 31, "rt_aud": 75, "budget": 45, "gross": 209.38, "roi": 4.653, "bo_rank": null, "awards": null, "who_watched": ["Mark", "Liam"], "rating_score": 4, "financial_score": 8, "penalties": -20, "penalty_notes": "Letterboxd < 2.5 (-10), RT Critics < 50% (-10)", "watch_points": 5, "total": -3},
-    {"owner": "Mark", "round": 2, "movie": "The Bride!", "imdb": 5.8, "letterboxd": 2.9, "rt_crit": 57, "rt_aud": 70, "budget": 85, "gross": 23.4, "roi": 0.275, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": -25, "penalty_notes": "Didnt recoup budget (-10), Didnt recoup 75% of budget (-15)", "watch_points": 0, "total": -25},
-    {"owner": "Mark", "round": 3, "movie": "Resident Evil", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 12, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 12},
-    {"owner": "Mark", "round": 4, "movie": "Backrooms", "imdb": 7.1, "letterboxd": 3.4, "rt_crit": 88, "rt_aud": 74, "budget": 10, "gross": 277, "roi": 27.700, "bo_rank": null, "awards": null, "who_watched": ["Mark", "Liam"], "rating_score": 7, "financial_score": 5, "penalties": 0, "penalty_notes": "", "watch_points": 5, "total": 17},
-    {"owner": "Mark", "round": 5, "movie": "The Mummy", "imdb": 6.5, "letterboxd": 2.9, "rt_crit": 46, "rt_aud": 76, "budget": 22, "gross": 80.2, "roi": 3.645, "bo_rank": null, "awards": null, "who_watched": ["Mark", "Liam"], "rating_score": 4, "financial_score": 6, "penalties": -10, "penalty_notes": "RT Critics < 50% (-10)", "watch_points": 5, "total": 5},
-    {"owner": "Mark", "round": 6, "movie": "Ready Or Not 2", "imdb": 6.9, "letterboxd": 3.4, "rt_crit": 74, "rt_aud": 90, "budget": 14, "gross": 31.4, "roi": 2.243, "bo_rank": null, "awards": null, "who_watched": ["Mark", "Liam"], "rating_score": 7, "financial_score": 3, "penalties": 0, "penalty_notes": "", "watch_points": 5, "total": 15},
-
-    {"owner": "Andrew", "round": 1, "movie": "The Super Mario Galaxy Movie", "imdb": 6.3, "letterboxd": 2.9, "rt_crit": 42, "rt_aud": 88, "budget": 110, "gross": 1007, "roi": 9.155, "bo_rank": null, "awards": null, "who_watched": ["Andrew", "Mark", "Evan", "Jaq", "Liam"], "rating_score": 7, "financial_score": 17, "penalties": -10, "penalty_notes": "RT Critics < 50% (-10)", "watch_points": 5, "total": 19},
-    {"owner": "Andrew", "round": 2, "movie": "Spider-Man: Brand New Day", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Andrew", "round": 3, "movie": "The Hunger Games: Sunrise on the Reaping", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Andrew", "round": 4, "movie": "Minions & Monsters", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Andrew", "round": 5, "movie": "Avengers: Doomsday", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Andrew", "round": 6, "movie": "Toy Story 5", "imdb": 7.6, "letterboxd": 3.7, "rt_crit": 92, "rt_aud": 95, "budget": 250, "gross": 764, "roi": 3.056, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 27, "financial_score": 12, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 39},
-
-    {"owner": "Jaq", "round": 1, "movie": "Peaky Blinders", "imdb": 6.6, "letterboxd": 3.2, "rt_crit": 90, "rt_aud": 89, "budget": 60, "gross": 175, "roi": 2.917, "bo_rank": null, "awards": null, "who_watched": ["Jaq"], "rating_score": 14, "financial_score": 6, "penalties": 0, "penalty_notes": "", "watch_points": 5, "total": 25},
-    {"owner": "Jaq", "round": 2, "movie": "Werewolf", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Jaq", "round": 3, "movie": "Devil Wears Prada 2", "imdb": 6.8, "letterboxd": 3.3, "rt_crit": 78, "rt_aud": 86, "budget": 100, "gross": 258.4, "roi": 2.584, "bo_rank": null, "awards": null, "who_watched": ["Liam", "Andrew", "Mark"], "rating_score": 11, "financial_score": 8, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 19},
-    {"owner": "Jaq", "round": 4, "movie": "Mortuary Assistant", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Jaq", "round": 5, "movie": "Other Mommy", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Jaq", "round": 6, "movie": "Forbidden Fruits", "imdb": 6.1, "letterboxd": 3.2, "rt_crit": 73, "rt_aud": 73, "budget": 2, "gross": 2.3, "roi": 1.150, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-
-    {"owner": "Evan", "round": 1, "movie": "Dune Part 3", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Evan", "round": 2, "movie": "Narnia", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Evan", "round": 3, "movie": "Odyssey", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Evan", "round": 4, "movie": "Madden", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Evan", "round": 5, "movie": "Disclosure Day", "imdb": null, "letterboxd": null, "rt_crit": null, "rt_aud": null, "budget": null, "gross": null, "roi": null, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 0, "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 0},
-    {"owner": "Evan", "round": 6, "movie": "Wuthering Heights", "imdb": 6.2, "letterboxd": 2.8, "rt_crit": 58, "rt_aud": 76, "budget": 80, "gross": 240.4, "roi": 3.005, "bo_rank": null, "awards": null, "who_watched": [], "rating_score": 4, "financial_score": 8, "penalties": 0, "penalty_notes": "", "watch_points": 0, "total": 12}
+    {
+      "owner": "Liam",
+      "round": 1,
+      "movie": "Digger",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Liam",
+      "round": 2,
+      "movie": "Supergirl",
+      "imdb": 6.1,
+      "letterboxd": 3.1,
+      "rt_crit": 54,
+      "rt_aud": 75,
+      "budget": 170,
+      "gross": 100.5,
+      "roi": 0.591,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 4,
+      "financial_score": 3,
+      "penalties": -25,
+      "penalty_notes": "Didnt recoup budget (-10), Didnt recoup 75% of budget (-15)",
+      "watch_points": 0,
+      "total": -18,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508872+00:00",
+          "legacy_value": 6.1
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508918+00:00",
+          "legacy_value": 170
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508928+00:00",
+          "legacy_value": 100.5
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508933+00:00",
+          "legacy_value": 0.591
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508940+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508945+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508951+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Liam",
+      "round": 3,
+      "movie": "Nirvanna the Band the Show the Movie",
+      "imdb": 8,
+      "letterboxd": 4.3,
+      "rt_crit": 98,
+      "rt_aud": 95,
+      "budget": 2,
+      "gross": 4.9,
+      "roi": 2.45,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Liam",
+        "Mark",
+        "Evan"
+      ],
+      "rating_score": 38,
+      "financial_score": 3,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 5,
+      "total": 46,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508959+00:00",
+          "legacy_value": 8
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508964+00:00",
+          "legacy_value": 2
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508971+00:00",
+          "legacy_value": 4.9
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508975+00:00",
+          "legacy_value": 2.45
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508979+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508984+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508988+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Liam",
+      "round": 4,
+      "movie": "Good Luck Have Fun Don't Die",
+      "imdb": 7,
+      "letterboxd": 3.4,
+      "rt_crit": 81,
+      "rt_aud": 85,
+      "budget": 20,
+      "gross": 9.31,
+      "roi": 0.466,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Liam",
+        "Mark"
+      ],
+      "rating_score": 11,
+      "financial_score": 0,
+      "penalties": -25,
+      "penalty_notes": "Didnt recoup budget (-10), Didnt recoup 75% of budget (-15)",
+      "watch_points": 5,
+      "total": -9,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508994+00:00",
+          "legacy_value": 7
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.508998+00:00",
+          "legacy_value": 20
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509006+00:00",
+          "legacy_value": 9.31
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509010+00:00",
+          "legacy_value": 0.466
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509014+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509018+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509023+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Liam",
+      "round": 5,
+      "movie": "Redux Redux",
+      "imdb": 6.2,
+      "letterboxd": 3.4,
+      "rt_crit": 97,
+      "rt_aud": 66,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 12,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 12,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509028+00:00",
+          "legacy_value": 6.2
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509033+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509037+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509041+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Liam",
+      "round": 6,
+      "movie": "Star Wars: The Mandalorian and Grogu",
+      "imdb": 7,
+      "letterboxd": 3.1,
+      "rt_crit": 62,
+      "rt_aud": 87,
+      "budget": 165,
+      "gross": 293.5,
+      "roi": 1.779,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 7,
+      "financial_score": 5,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 12,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509046+00:00",
+          "legacy_value": 7
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509050+00:00",
+          "legacy_value": 165
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509054+00:00",
+          "legacy_value": 293.5
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509058+00:00",
+          "legacy_value": 1.779
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509061+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509065+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509069+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Mark",
+      "round": 1,
+      "movie": "Scream 7",
+      "imdb": 5.6,
+      "letterboxd": 2.3,
+      "rt_crit": 31,
+      "rt_aud": 75,
+      "budget": 45,
+      "gross": 209.38,
+      "roi": 4.653,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Mark",
+        "Liam"
+      ],
+      "rating_score": 4,
+      "financial_score": 8,
+      "penalties": -20,
+      "penalty_notes": "Letterboxd < 2.5 (-10), RT Critics < 50% (-10)",
+      "watch_points": 5,
+      "total": -3,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509074+00:00",
+          "legacy_value": 5.6
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509078+00:00",
+          "legacy_value": 45
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509082+00:00",
+          "legacy_value": 209.38
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509085+00:00",
+          "legacy_value": 4.653
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509089+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509093+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509097+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Mark",
+      "round": 2,
+      "movie": "The Bride!",
+      "imdb": 5.8,
+      "letterboxd": 2.9,
+      "rt_crit": 57,
+      "rt_aud": 70,
+      "budget": 85,
+      "gross": 23.4,
+      "roi": 0.275,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": -25,
+      "penalty_notes": "Didnt recoup budget (-10), Didnt recoup 75% of budget (-15)",
+      "watch_points": 0,
+      "total": -25,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509102+00:00",
+          "legacy_value": 5.8
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509111+00:00",
+          "legacy_value": 85
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509115+00:00",
+          "legacy_value": 23.4
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509119+00:00",
+          "legacy_value": 0.275
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509123+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509127+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509131+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Mark",
+      "round": 3,
+      "movie": "Resident Evil",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 12,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 12,
+      "sources": {}
+    },
+    {
+      "owner": "Mark",
+      "round": 4,
+      "movie": "Backrooms",
+      "imdb": 7.1,
+      "letterboxd": 3.4,
+      "rt_crit": 88,
+      "rt_aud": 74,
+      "budget": 10,
+      "gross": 277,
+      "roi": 27.7,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Mark",
+        "Liam"
+      ],
+      "rating_score": 7,
+      "financial_score": 5,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 5,
+      "total": 17,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509140+00:00",
+          "legacy_value": 7.1
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509145+00:00",
+          "legacy_value": 10
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509149+00:00",
+          "legacy_value": 277
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509155+00:00",
+          "legacy_value": 27.7
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509160+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509163+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509167+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Mark",
+      "round": 5,
+      "movie": "The Mummy",
+      "imdb": 6.5,
+      "letterboxd": 2.9,
+      "rt_crit": 46,
+      "rt_aud": 76,
+      "budget": 22,
+      "gross": 80.2,
+      "roi": 3.645,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Mark",
+        "Liam"
+      ],
+      "rating_score": 4,
+      "financial_score": 6,
+      "penalties": -10,
+      "penalty_notes": "RT Critics < 50% (-10)",
+      "watch_points": 5,
+      "total": 5,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509172+00:00",
+          "legacy_value": 6.5
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509176+00:00",
+          "legacy_value": 22
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509180+00:00",
+          "legacy_value": 80.2
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509184+00:00",
+          "legacy_value": 3.645
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509188+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509192+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509198+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Mark",
+      "round": 6,
+      "movie": "Ready Or Not 2",
+      "imdb": 6.9,
+      "letterboxd": 3.4,
+      "rt_crit": 74,
+      "rt_aud": 90,
+      "budget": 14,
+      "gross": 31.4,
+      "roi": 2.243,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Mark",
+        "Liam"
+      ],
+      "rating_score": 7,
+      "financial_score": 3,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 5,
+      "total": 15,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509203+00:00",
+          "legacy_value": 6.9
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509207+00:00",
+          "legacy_value": 14
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509212+00:00",
+          "legacy_value": 31.4
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509215+00:00",
+          "legacy_value": 2.243
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509219+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509223+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509227+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Andrew",
+      "round": 1,
+      "movie": "The Super Mario Galaxy Movie",
+      "imdb": 6.3,
+      "letterboxd": 2.9,
+      "rt_crit": 42,
+      "rt_aud": 88,
+      "budget": 110,
+      "gross": 1007,
+      "roi": 9.155,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Andrew",
+        "Mark",
+        "Evan",
+        "Jaq",
+        "Liam"
+      ],
+      "rating_score": 7,
+      "financial_score": 17,
+      "penalties": -10,
+      "penalty_notes": "RT Critics < 50% (-10)",
+      "watch_points": 5,
+      "total": 19,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509232+00:00",
+          "legacy_value": 6.3
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509236+00:00",
+          "legacy_value": 110
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509239+00:00",
+          "legacy_value": 1007
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509243+00:00",
+          "legacy_value": 9.155
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509247+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509254+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509258+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Andrew",
+      "round": 2,
+      "movie": "Spider-Man: Brand New Day",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Andrew",
+      "round": 3,
+      "movie": "The Hunger Games: Sunrise on the Reaping",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Andrew",
+      "round": 4,
+      "movie": "Minions & Monsters",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Andrew",
+      "round": 5,
+      "movie": "Avengers: Doomsday",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Andrew",
+      "round": 6,
+      "movie": "Toy Story 5",
+      "imdb": 7.6,
+      "letterboxd": 3.7,
+      "rt_crit": 92,
+      "rt_aud": 95,
+      "budget": 250,
+      "gross": 764,
+      "roi": 3.056,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 27,
+      "financial_score": 12,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 39,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509270+00:00",
+          "legacy_value": 7.6
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509275+00:00",
+          "legacy_value": 250
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509278+00:00",
+          "legacy_value": 764
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509282+00:00",
+          "legacy_value": 3.056
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509286+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509290+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509294+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Jaq",
+      "round": 1,
+      "movie": "Peaky Blinders",
+      "imdb": 6.6,
+      "letterboxd": 3.2,
+      "rt_crit": 90,
+      "rt_aud": 89,
+      "budget": 60,
+      "gross": 175,
+      "roi": 2.917,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Jaq"
+      ],
+      "rating_score": 14,
+      "financial_score": 6,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 5,
+      "total": 25,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509299+00:00",
+          "legacy_value": 6.6
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509303+00:00",
+          "legacy_value": 60
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509307+00:00",
+          "legacy_value": 175
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509311+00:00",
+          "legacy_value": 2.917
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509315+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509319+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509323+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Jaq",
+      "round": 2,
+      "movie": "Werwulf",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Jaq",
+      "round": 3,
+      "movie": "Devil Wears Prada 2",
+      "imdb": 6.8,
+      "letterboxd": 3.3,
+      "rt_crit": 78,
+      "rt_aud": 86,
+      "budget": 100,
+      "gross": 258.4,
+      "roi": 2.584,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [
+        "Liam",
+        "Andrew",
+        "Mark"
+      ],
+      "rating_score": 11,
+      "financial_score": 8,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 19,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509329+00:00",
+          "legacy_value": 6.8
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509333+00:00",
+          "legacy_value": 100
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509337+00:00",
+          "legacy_value": 258.4
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509341+00:00",
+          "legacy_value": 2.584
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509344+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509348+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509352+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Jaq",
+      "round": 4,
+      "movie": "Mortuary Assistant",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Jaq",
+      "round": 5,
+      "movie": "Other Mommy",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Jaq",
+      "round": 6,
+      "movie": "Forbidden Fruits",
+      "imdb": 6.1,
+      "letterboxd": 3.2,
+      "rt_crit": 73,
+      "rt_aud": 73,
+      "budget": 2,
+      "gross": 2.3,
+      "roi": 1.15,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509359+00:00",
+          "legacy_value": 6.1
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509363+00:00",
+          "legacy_value": 2
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509367+00:00",
+          "legacy_value": 2.3
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509371+00:00",
+          "legacy_value": 1.15
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509375+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509382+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509386+00:00"
+        }
+      }
+    },
+    {
+      "owner": "Evan",
+      "round": 1,
+      "movie": "Dune Part 3",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Evan",
+      "round": 2,
+      "movie": "Narnia",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Evan",
+      "round": 3,
+      "movie": "Odyssey",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Evan",
+      "round": 4,
+      "movie": "Madden",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Evan",
+      "round": 5,
+      "movie": "Disclosure Day",
+      "imdb": null,
+      "letterboxd": null,
+      "rt_crit": null,
+      "rt_aud": null,
+      "budget": null,
+      "gross": null,
+      "roi": null,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 0,
+      "financial_score": 0,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 0,
+      "sources": {}
+    },
+    {
+      "owner": "Evan",
+      "round": 6,
+      "movie": "Wuthering Heights",
+      "imdb": 6.2,
+      "letterboxd": 2.8,
+      "rt_crit": 58,
+      "rt_aud": 76,
+      "budget": 80,
+      "gross": 240.4,
+      "roi": 3.005,
+      "bo_rank": null,
+      "awards": null,
+      "who_watched": [],
+      "rating_score": 4,
+      "financial_score": 8,
+      "penalties": 0,
+      "penalty_notes": "",
+      "watch_points": 0,
+      "total": 12,
+      "sources": {
+        "imdb": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509396+00:00",
+          "legacy_value": 6.2
+        },
+        "budget": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509400+00:00",
+          "legacy_value": 80
+        },
+        "gross": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509419+00:00",
+          "legacy_value": 240.4
+        },
+        "roi": {
+          "origin": "unknown",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509423+00:00",
+          "legacy_value": 3.005
+        },
+        "letterboxd": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509428+00:00"
+        },
+        "rt_crit": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509432+00:00"
+        },
+        "rt_aud": {
+          "origin": "manual",
+          "provider": "",
+          "at": "2026-08-19T15:03:44.509436+00:00"
+        }
+      }
+    }
   ]
 }

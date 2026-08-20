@@ -5,7 +5,12 @@ from threading import Lock
 
 from fastapi import HTTPException
 
-DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "league_data.json"
+_DEFAULT_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "league_data.json"
+
+# Overridable so a preview or staging instance can be pointed at a copy of the league file
+# rather than the live one -- running the app against real data just to look at it is how
+# real data gets modified by accident.
+DATA_PATH = Path(os.environ.get("LEAGUE_DATA_PATH") or _DEFAULT_DATA_PATH)
 _lock = Lock()
 
 
