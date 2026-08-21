@@ -3,6 +3,8 @@
 Kept out of main.py so the legacy single-league endpoints and the multi-league ones do not
 grow into each other. Everything here is league-scoped by path.
 """
+from datetime import date
+
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -21,15 +23,19 @@ class CreateLeague(BaseModel):
     year: int = Field(ge=1900, le=2100)
     players: list[str] = Field(min_length=2, max_length=20)
     rounds: int = Field(default=6, ge=1, le=30)
+    # Omitted means 31 December of the league's year.
+    settles_on: date | None = None
 
 
 class EditLeague(BaseModel):
     """Only what is safe to change after creation.
 
     Year and player list are deliberately absent: the roster is already drafted against a
-    year's film pool, and renaming is the only edit that cannot invalidate a pick.
+    year's film pool, so changing either would invalidate picks rather than edit them. The
+    settle date is editable precisely because the roster is what decides it.
     """
-    name: str = Field(min_length=1, max_length=120)
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    settles_on: date | None = None
 
 
 class MakePick(BaseModel):
@@ -58,7 +64,8 @@ def post_league(body: CreateLeague):
     with session_scope() as session:
         try:
             league = repo.create_league(session, name=body.name, year=body.year,
-                                        players=body.players, rounds=body.rounds)
+                                        players=body.players, rounds=body.rounds,
+                                        settles_on=body.settles_on)
         except ValueError as e:
             # A rejected setup is the caller's input problem, not a server fault.
             raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
@@ -86,13 +93,18 @@ async def get_pool_size(year: int = Query(ge=1900, le=2100),
 def patch_league(league_id: int, body: EditLeague):
     with session_scope() as session:
         try:
-            league = repo.rename_league(session, league_id, name=body.name)
+            league = repo.get_league(session, league_id)
+            if body.name is not None:
+                league = repo.rename_league(session, league_id, name=body.name)
+            if body.settles_on is not None:
+                league = repo.set_settles_on(session, league_id, on=body.settles_on)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         except ValueError as e:
             raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
         return {"id": league.id, "name": league.name, "year": league.year,
-                "status": league.status}
+                "status": league.status,
+                "settles_on": league.settles_on.isoformat() if league.settles_on else None}
 
 
 @router.post("/{league_id}/freeze")

@@ -35,8 +35,9 @@ def list_leagues(session: Session) -> list[dict]:
              "films_scored": sum(1 for e in l.entries if e.imdb is not None),
              "films_total": len(l.entries),
              "frozen_at": l.frozen_at.isoformat() if l.frozen_at else None,
-             # A season is over once its year is, which is the rule the league agreed.
-             "season_ended": date.today() > date(l.year, 12, 31)}
+             "settles_on": (l.settles_on or default_settles_on(l.year)).isoformat(),
+             # Ready to settle once the date this league chose has passed.
+             "season_ended": date.today() > (l.settles_on or default_settles_on(l.year))}
             for l in leagues]
 
 
@@ -137,12 +138,21 @@ def leaderboard(session: Session, league_id: int) -> list[dict]:
 # league creation and drafting
 # ---------------------------------------------------------------------------
 
+DEFAULT_SETTLE_MONTH_DAY = (12, 31)
+
+
+def default_settles_on(year: int) -> date:
+    """A season's books close at the end of its year unless the league says otherwise."""
+    return date(year, *DEFAULT_SETTLE_MONTH_DAY)
+
+
 def create_league(session: Session, *, name: str, year: int, players: list[str],
-                  rounds: int = 6) -> League:
+                  rounds: int = 6, settles_on: date | None = None) -> League:
     names = [p.strip() for p in players]
     draft_rules.validate_setup(names, rounds)
     league = League(name=name.strip() or f"League {year}", year=year, rounds=rounds,
-                    status=STATUS_SETUP)
+                    status=STATUS_SETUP,
+                    settles_on=settles_on or default_settles_on(year))
     session.add(league)
     session.flush()
     for player_name in names:
@@ -160,6 +170,21 @@ def freeze_league(session: Session, league_id: int, *, frozen: bool = True) -> L
     from datetime import datetime, timezone
     league = get_league(session, league_id)
     league.frozen_at = datetime.now(tz=timezone.utc) if frozen else None
+    session.flush()
+    return league
+
+
+def set_settles_on(session: Session, league_id: int, *, on: date) -> League:
+    """Change when this league's books close.
+
+    Editable after the fact because the roster is what decides it, and the roster is not
+    known until the draft is done -- a season whose last pick opens on Christmas Eve needs
+    longer to settle than one that wrapped in September.
+    """
+    league = get_league(session, league_id)
+    if on < date(league.year, 1, 1):
+        raise ValueError("a season cannot settle before it starts")
+    league.settles_on = on
     session.flush()
     return league
 

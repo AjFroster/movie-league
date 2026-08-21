@@ -5,6 +5,7 @@ the draft opens or after it closes -- and the concurrency case the JSON store go
 """
 import random
 import threading
+from datetime import date
 
 import pytest
 from sqlalchemy.orm import sessionmaker
@@ -329,3 +330,42 @@ def test_freezing_one_league_leaves_others_refreshable(session):
     session.flush()
     documents, index = repo.entries_as_documents(session, live.id)
     repo.apply_documents(session, live.id, documents, index)      # unaffected
+
+
+# ---------------------------------------------------------------------------
+# when a season's books close
+# ---------------------------------------------------------------------------
+
+def test_a_league_defaults_to_settling_at_the_end_of_its_year(session):
+    league = repo.create_league(session, name="T", year=2026, players=PLAYERS, rounds=1)
+    assert league.settles_on == date(2026, 12, 31)
+
+
+def test_a_league_can_settle_on_its_own_date(session):
+    """A roster whose last film opens at Christmas needs longer than the calendar year."""
+    league = repo.create_league(session, name="T", year=2026, players=PLAYERS, rounds=1,
+                                settles_on=date(2027, 3, 31))
+    assert league.settles_on == date(2027, 3, 31)
+
+
+def test_the_settle_date_can_be_changed_after_the_draft(session):
+    """The roster decides the right date, and the roster is not known until drafting ends."""
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    repo.set_settles_on(session, league.id, on=date(2027, 3, 31))
+    assert league.settles_on == date(2027, 3, 31)
+
+
+def test_a_season_cannot_settle_before_it_starts(session):
+    league = repo.create_league(session, name="T", year=2026, players=PLAYERS, rounds=1)
+    with pytest.raises(ValueError, match="before it starts"):
+        repo.set_settles_on(session, league.id, on=date(2025, 6, 1))
+
+
+def test_changing_the_settle_date_moves_nothing_else(session):
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    before = [(m["owner"], m["total"]) for m in repo.league_movies(session, league.id)]
+    repo.set_settles_on(session, league.id, on=date(2027, 3, 31))
+    assert [(m["owner"], m["total"]) for m in
+            repo.league_movies(session, league.id)] == before

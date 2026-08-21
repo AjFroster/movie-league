@@ -17,10 +17,10 @@ The old JSON store lost 3 of 4 simultaneous watch toggles because every write re
 whole file from a stale read. Both problems are transactional, not schema-shaped, but the
 constraints make the invariants explicit rather than implicit.
 """
-from datetime import datetime, timezone
+from datetime import date as dateonly, datetime, timezone
 
-from sqlalchemy import (JSON, CheckConstraint, DateTime, Float, ForeignKey, Integer,
-                        String, Text, UniqueConstraint)
+from sqlalchemy import (JSON, CheckConstraint, Date, DateTime, Float, ForeignKey,
+                        Integer, String, Text, UniqueConstraint)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -56,6 +56,10 @@ class League(Base):
     # final standing quietly changes months after everyone agreed who won.
     frozen_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None)
+    # The date this league's books close. Defaults to 31 December of its year, but is
+    # per-league because the right answer depends on the roster: a season whose last film
+    # opens on Christmas Eve needs longer than one that finished in September.
+    settles_on: Mapped[dateonly | None] = mapped_column(Date, default=None)
 
     players: Mapped[list["Player"]] = relationship(
         back_populates="league", cascade="all, delete-orphan", order_by="Player.id")

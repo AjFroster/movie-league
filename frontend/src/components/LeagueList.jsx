@@ -55,6 +55,16 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
     }
   }
 
+  async function saveSettleDate(league, value) {
+    if (!value || value === league.settles_on) return
+    try {
+      await api.setSettlesOn(league.id, value)
+      await reload()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   async function toggleFreeze(league) {
     try {
       await api.freezeLeague(league.id, !league.frozen_at)
@@ -139,7 +149,21 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                       {league.name}
                     </button>
                   )}
-                  <span className="league-meta">{progress.caption}</span>
+                  <span className="league-meta">
+                    {progress.caption}
+                    {!league.frozen_at && (
+                      <>
+                        {' · books close '}
+                        <input
+                          type="date"
+                          className="settle-date"
+                          value={league.settles_on || ''}
+                          title="When this season's scores stop updating"
+                          onChange={(e) => saveSettleDate(league, e.target.value)}
+                        />
+                      </>
+                    )}
+                  </span>
                 </span>
                 <span className="league-year">{league.year}</span>
                 <span className="league-status">

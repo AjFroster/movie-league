@@ -39,6 +39,7 @@ async function post(path, body) {
 export const api = {
   leagues: () => get('/leagues'),
   renameLeague: (id, name) => send('PATCH', `/leagues/${id}`, { name }),
+  setSettlesOn: (id, settlesOn) => send('PATCH', `/leagues/${id}`, { settles_on: settlesOn }),
   freezeLeague: (id, frozen = true) =>
     send('POST', `/leagues/${id}/freeze?frozen=${frozen}`),
   deleteLeague: (id) => send('DELETE', `/leagues/${id}`),
