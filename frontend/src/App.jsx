@@ -7,7 +7,11 @@ import DraftBoard from './components/DraftBoard.jsx'
 import { api } from './api.js'
 
 export default function App() {
-  const [rows, setRows] = useState(null)
+  // Rows carry the league they describe. Effects run after render, so clearing them in
+  // an effect still lets one render through with the previous league's players, and
+  // every card fetches a player that season never had. Matching on the id instead
+  // means stale rows are simply never rendered.
+  const [board, setBoard] = useState(null)
   const [error, setError] = useState(null)
   // A four-view app does not need a router; a tagged view keeps the whole navigation
   // model readable in one place.
@@ -17,10 +21,18 @@ export default function App() {
   // which is what the legacy single-league endpoints serve.
   const refresh = (leagueId) => {
     const request = leagueId ? api.leagueLeaderboard(leagueId) : api.leaderboard()
-    return request.then(setRows).catch((e) => setError(e.message))
+    return request
+      .then((rows) => setBoard({ leagueId, rows }))
+      .catch((e) => setError(e.message))
   }
 
-  useEffect(() => { refresh(view.leagueId) }, [view.name, view.leagueId])
+  useEffect(() => {
+    setError(null)
+    refresh(view.leagueId)
+  }, [view.name, view.leagueId])
+
+  // Only rows fetched for the league currently on screen.
+  const rows = board && board.leagueId === view.leagueId ? board.rows : null
 
   if (view.name === 'leagues') {
     return (
