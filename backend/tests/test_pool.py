@@ -38,7 +38,8 @@ def _client(handler):
 def test_summarize_keeps_only_what_a_draft_board_needs():
     assert pool.summarize(_film(1)) == {
         "tmdb_id": 1, "title": "Film 1", "release_date": "2026-05-01",
-        "poster_path": "/p1.jpg", "overview": "words", "popularity": 99.0,
+        "poster_path": "/p1.jpg", "poster_url": f"{pool.IMAGE_BASE}/p1.jpg",
+        "overview": "words", "popularity": 99.0,
     }
 
 
@@ -54,6 +55,9 @@ def test_blank_optional_fields_become_none_not_empty_strings():
     film = pool.summarize(_film(1, release_date="", poster_path="", overview=""))
     assert film["release_date"] is None and film["poster_path"] is None
     assert film["overview"] is None
+    # No artwork must be None rather than a URL pointing at nothing, so the client can
+    # render its placeholder instead of a broken image.
+    assert film["poster_url"] is None
 
 
 def test_long_overviews_are_truncated():

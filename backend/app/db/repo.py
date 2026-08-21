@@ -26,7 +26,11 @@ def list_leagues(session: Session) -> list[dict]:
     return [{"id": l.id, "name": l.name, "year": l.year, "rounds": l.rounds,
              "status": l.status, "players": [p.name for p in l.players],
              "picks_made": sum(1 for e in l.entries if e.tmdb_id is not None or e.title),
-             "total_picks": len(l.players) * l.rounds}
+             "total_picks": len(l.players) * l.rounds,
+             # Once a draft is done the meaningful progress is no longer picks but how
+             # many films have ratings in yet -- the season running rather than the draft.
+             "films_scored": sum(1 for e in l.entries if e.imdb is not None),
+             "films_total": len(l.entries)}
             for l in leagues]
 
 

@@ -23,6 +23,9 @@ MAX_POOL_SIZE = 500
 # 3 = theatrical, 2 = limited theatrical. Excludes the direct-to-streaming long tail that
 # makes up most of the 31k.
 RELEASE_TYPES = "2|3"
+# w185 is the smallest TMDB size that still reads as a poster in a list row. The full URL
+# is built here rather than in the client so the CDN host lives in one place.
+IMAGE_BASE = "https://image.tmdb.org/t/p/w185"
 
 
 def _api_key() -> str | None:
@@ -42,6 +45,8 @@ def summarize(result: dict) -> dict | None:
         "title": result["title"],
         "release_date": result.get("release_date") or None,
         "poster_path": result.get("poster_path") or None,
+        "poster_url": (f"{IMAGE_BASE}{result['poster_path']}"
+                       if result.get("poster_path") else None),
         "overview": (result.get("overview") or "")[:400] or None,
         "popularity": round(result.get("popularity") or 0, 1),
     }

@@ -1,8 +1,18 @@
 const BASE = '/api'
 
+// The server explains a rejected pick ("Frozen III has already been drafted"); surfacing
+// that verbatim is far more useful than a status code, and the draft board shows it inline.
+async function describe(res, path) {
+  let detail = null
+  try { detail = (await res.json()).detail } catch { /* non-JSON error body */ }
+  const error = new Error(detail || `${path} failed: ${res.status}`)
+  error.status = res.status
+  return error
+}
+
 async function get(path) {
   const res = await fetch(`${BASE}${path}`)
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`)
+  if (!res.ok) throw await describe(res, path)
   return res.json()
 }
 
@@ -12,11 +22,20 @@ async function post(path, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`)
+  if (!res.ok) throw await describe(res, path)
   return res.json()
 }
 
 export const api = {
+  leagues: () => get('/leagues'),
+  createLeague: (body) => post('/leagues', body),
+  poolSize: (year) => get(`/leagues/pool-size?year=${year}`),
+  draft: (id) => get(`/leagues/${id}/draft`),
+  startDraft: (id) => post(`/leagues/${id}/draft/start`, {}),
+  makePick: (id, player, tmdbId, title) =>
+    post(`/leagues/${id}/draft/pick`, { player, tmdb_id: tmdbId, title }),
+  pool: (id, size = 300) => get(`/leagues/${id}/pool?size=${size}`),
+  poolSearch: (id, q) => get(`/leagues/${id}/pool/search?q=${encodeURIComponent(q)}`),
   setWatched: (owner, round, viewer, watched) =>
     post(`/movies/${encodeURIComponent(owner)}/${round}/watch`, { viewer, watched }),
   leaderboard: () => get('/leaderboard'),
