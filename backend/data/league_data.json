@@ -15,7 +15,7 @@
       "letterboxd": null,
       "rt_crit": null,
       "rt_aud": null,
-      "budget": null,
+      "budget": 130.0,
       "gross": null,
       "roi": null,
       "bo_rank": null,
@@ -27,19 +27,25 @@
       "penalty_notes": "",
       "watch_points": 0,
       "total": 0,
-      "sources": {}
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:14.269939+00:00"
+        }
+      }
     },
     {
       "owner": "Liam",
       "round": 2,
       "movie": "Supergirl",
-      "imdb": 6.1,
+      "imdb": 5.9,
       "letterboxd": 3.1,
       "rt_crit": 54,
       "rt_aud": 75,
-      "budget": 170,
-      "gross": 100.5,
-      "roi": 0.591,
+      "budget": 175.0,
+      "gross": 126.35,
+      "roi": 0.722,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
@@ -51,27 +57,27 @@
       "total": -18,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508872+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:15.143020+00:00",
           "legacy_value": 6.1
         },
         "budget": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508918+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:15.142969+00:00",
           "legacy_value": 170
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508928+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:15.143007+00:00",
           "legacy_value": 100.5
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508933+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:15.143054+00:00",
           "legacy_value": 0.591
         },
         "letterboxd": {
@@ -95,13 +101,13 @@
       "owner": "Liam",
       "round": 3,
       "movie": "Nirvanna the Band the Show the Movie",
-      "imdb": 8,
+      "imdb": 7.7,
       "letterboxd": 4.3,
       "rt_crit": 98,
       "rt_aud": 95,
-      "budget": 2,
-      "gross": 4.9,
-      "roi": 2.45,
+      "budget": 1.2,
+      "gross": 5.19,
+      "roi": 4.325,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -109,35 +115,35 @@
         "Mark",
         "Evan"
       ],
-      "rating_score": 38,
-      "financial_score": 3,
+      "rating_score": 35,
+      "financial_score": 5,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 5,
-      "total": 46,
+      "total": 45,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508959+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:15.925823+00:00",
           "legacy_value": 8
         },
         "budget": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508964+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:15.925787+00:00",
           "legacy_value": 2
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508971+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:15.925814+00:00",
           "legacy_value": 4.9
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.508975+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:15.925850+00:00",
           "legacy_value": 2.45
         },
         "letterboxd": {
@@ -166,8 +172,8 @@
       "rt_crit": 81,
       "rt_aud": 85,
       "budget": 20,
-      "gross": 9.31,
-      "roi": 0.466,
+      "gross": 9.76,
+      "roi": 0.488,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -194,15 +200,15 @@
           "legacy_value": 20
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509006+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:16.715520+00:00",
           "legacy_value": 9.31
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509010+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:16.715566+00:00",
           "legacy_value": 0.466
         },
         "letterboxd": {
@@ -270,27 +276,27 @@
       "owner": "Liam",
       "round": 6,
       "movie": "Star Wars: The Mandalorian and Grogu",
-      "imdb": 7,
+      "imdb": 6.8,
       "letterboxd": 3.1,
       "rt_crit": 62,
       "rt_aud": 87,
       "budget": 165,
-      "gross": 293.5,
-      "roi": 1.779,
+      "gross": 345.17,
+      "roi": 2.092,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
       "rating_score": 7,
-      "financial_score": 5,
+      "financial_score": 8,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 12,
+      "total": 15,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509046+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:18.341433+00:00",
           "legacy_value": 7
         },
         "budget": {
@@ -300,15 +306,15 @@
           "legacy_value": 165
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509054+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:18.341402+00:00",
           "legacy_value": 293.5
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509058+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:18.341462+00:00",
           "legacy_value": 1.779
         },
         "letterboxd": {
@@ -332,13 +338,13 @@
       "owner": "Mark",
       "round": 1,
       "movie": "Scream 7",
-      "imdb": 5.6,
+      "imdb": 5.5,
       "letterboxd": 2.3,
       "rt_crit": 31,
       "rt_aud": 75,
       "budget": 45,
-      "gross": 209.38,
-      "roi": 4.653,
+      "gross": 213.84,
+      "roi": 4.752,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -353,9 +359,9 @@
       "total": -3,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509074+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:19.118378+00:00",
           "legacy_value": 5.6
         },
         "budget": {
@@ -365,15 +371,15 @@
           "legacy_value": 45
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509082+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:19.118350+00:00",
           "legacy_value": 209.38
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509085+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:19.118405+00:00",
           "legacy_value": 4.653
         },
         "letterboxd": {
@@ -397,13 +403,13 @@
       "owner": "Mark",
       "round": 2,
       "movie": "The Bride!",
-      "imdb": 5.8,
+      "imdb": 5.6,
       "letterboxd": 2.9,
       "rt_crit": 57,
       "rt_aud": 70,
-      "budget": 85,
-      "gross": 23.4,
-      "roi": 0.275,
+      "budget": 80.0,
+      "gross": 23.94,
+      "roi": 0.299,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
@@ -415,27 +421,27 @@
       "total": -25,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509102+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:19.946794+00:00",
           "legacy_value": 5.8
         },
         "budget": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509111+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:19.946761+00:00",
           "legacy_value": 85
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509115+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:19.946785+00:00",
           "legacy_value": 23.4
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509119+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:19.946814+00:00",
           "legacy_value": 0.275
         },
         "letterboxd": {
@@ -463,31 +469,37 @@
       "letterboxd": null,
       "rt_crit": null,
       "rt_aud": null,
-      "budget": null,
+      "budget": 80.0,
       "gross": null,
       "roi": null,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
       "rating_score": 0,
-      "financial_score": 12,
+      "financial_score": 0,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 12,
-      "sources": {}
+      "total": 0,
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:20.988347+00:00"
+        }
+      }
     },
     {
       "owner": "Mark",
       "round": 4,
       "movie": "Backrooms",
-      "imdb": 7.1,
+      "imdb": 6.8,
       "letterboxd": 3.4,
       "rt_crit": 88,
       "rt_aud": 74,
       "budget": 10,
-      "gross": 277,
-      "roi": 27.7,
+      "gross": 393.16,
+      "roi": 39.316,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -495,16 +507,16 @@
         "Liam"
       ],
       "rating_score": 7,
-      "financial_score": 5,
+      "financial_score": 17,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 5,
-      "total": 17,
+      "total": 29,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509140+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:20.345885+00:00",
           "legacy_value": 7.1
         },
         "budget": {
@@ -514,15 +526,15 @@
           "legacy_value": 10
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509149+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:20.345857+00:00",
           "legacy_value": 277
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509155+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:20.345909+00:00",
           "legacy_value": 27.7
         },
         "letterboxd": {
@@ -546,13 +558,13 @@
       "owner": "Mark",
       "round": 5,
       "movie": "The Mummy",
-      "imdb": 6.5,
+      "imdb": 6.1,
       "letterboxd": 2.9,
       "rt_crit": 46,
       "rt_aud": 76,
       "budget": 22,
-      "gross": 80.2,
-      "roi": 3.645,
+      "gross": 90.55,
+      "roi": 4.116,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -567,9 +579,9 @@
       "total": 5,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509172+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:21.204825+00:00",
           "legacy_value": 6.5
         },
         "budget": {
@@ -579,15 +591,15 @@
           "legacy_value": 22
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509180+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:21.204785+00:00",
           "legacy_value": 80.2
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509184+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:21.204863+00:00",
           "legacy_value": 3.645
         },
         "letterboxd": {
@@ -611,13 +623,13 @@
       "owner": "Mark",
       "round": 6,
       "movie": "Ready Or Not 2",
-      "imdb": 6.9,
+      "imdb": 6.5,
       "letterboxd": 3.4,
       "rt_crit": 74,
       "rt_aud": 90,
       "budget": 14,
-      "gross": 31.4,
-      "roi": 2.243,
+      "gross": 42.94,
+      "roi": 3.067,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -625,16 +637,16 @@
         "Liam"
       ],
       "rating_score": 7,
-      "financial_score": 3,
+      "financial_score": 5,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 5,
-      "total": 15,
+      "total": 17,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509203+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:22.029478+00:00",
           "legacy_value": 6.9
         },
         "budget": {
@@ -644,15 +656,15 @@
           "legacy_value": 14
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509212+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:22.029448+00:00",
           "legacy_value": 31.4
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509215+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:22.029504+00:00",
           "legacy_value": 2.243
         },
         "letterboxd": {
@@ -681,8 +693,8 @@
       "rt_crit": 42,
       "rt_aud": 88,
       "budget": 110,
-      "gross": 1007,
-      "roi": 9.155,
+      "gross": 1012.2,
+      "roi": 9.202,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -712,15 +724,15 @@
           "legacy_value": 110
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509239+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:22.849809+00:00",
           "legacy_value": 1007
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509243+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:22.849874+00:00",
           "legacy_value": 9.155
         },
         "letterboxd": {
@@ -744,23 +756,59 @@
       "owner": "Andrew",
       "round": 2,
       "movie": "Spider-Man: Brand New Day",
-      "imdb": null,
-      "letterboxd": null,
-      "rt_crit": null,
-      "rt_aud": null,
-      "budget": null,
-      "gross": null,
-      "roi": null,
+      "imdb": 8.1,
+      "letterboxd": 4.1,
+      "rt_crit": 90.0,
+      "rt_aud": 98.0,
+      "budget": 225.0,
+      "gross": 2039.93,
+      "roi": 9.066,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
-      "rating_score": 0,
-      "financial_score": 0,
+      "rating_score": 33,
+      "financial_score": 17,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 0,
-      "sources": {}
+      "total": 50,
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:23.623349+00:00"
+        },
+        "gross": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:23.623383+00:00"
+        },
+        "imdb": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:23.623392+00:00"
+        },
+        "rt_crit": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:23.623401+00:00"
+        },
+        "rt_aud": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:23.623409+00:00"
+        },
+        "letterboxd": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:23.623418+00:00"
+        },
+        "roi": {
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:23.623441+00:00"
+        }
+      }
     },
     {
       "owner": "Andrew",
@@ -770,7 +818,7 @@
       "letterboxd": null,
       "rt_crit": null,
       "rt_aud": null,
-      "budget": null,
+      "budget": 150.0,
       "gross": null,
       "roi": null,
       "bo_rank": null,
@@ -782,29 +830,71 @@
       "penalty_notes": "",
       "watch_points": 0,
       "total": 0,
-      "sources": {}
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:24.648645+00:00"
+        }
+      }
     },
     {
       "owner": "Andrew",
       "round": 4,
       "movie": "Minions & Monsters",
-      "imdb": null,
-      "letterboxd": null,
-      "rt_crit": null,
-      "rt_aud": null,
-      "budget": null,
-      "gross": null,
-      "roi": null,
+      "imdb": 6.4,
+      "letterboxd": 3.2,
+      "rt_crit": 89.0,
+      "rt_aud": 75.0,
+      "budget": 85.0,
+      "gross": 493.57,
+      "roi": 5.807,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
-      "rating_score": 0,
-      "financial_score": 0,
+      "rating_score": 11,
+      "financial_score": 13,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 0,
-      "sources": {}
+      "total": 24,
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:25.500516+00:00"
+        },
+        "gross": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:25.500529+00:00"
+        },
+        "imdb": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:25.500534+00:00"
+        },
+        "rt_crit": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:25.500537+00:00"
+        },
+        "rt_aud": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:25.500541+00:00"
+        },
+        "letterboxd": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:25.500544+00:00"
+        },
+        "roi": {
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:25.500554+00:00"
+        }
+      }
     },
     {
       "owner": "Andrew",
@@ -832,27 +922,27 @@
       "owner": "Andrew",
       "round": 6,
       "movie": "Toy Story 5",
-      "imdb": 7.6,
+      "imdb": 7.4,
       "letterboxd": 3.7,
       "rt_crit": 92,
       "rt_aud": 95,
       "budget": 250,
-      "gross": 764,
-      "roi": 3.056,
+      "gross": 1115.34,
+      "roi": 4.461,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
-      "rating_score": 27,
-      "financial_score": 12,
+      "rating_score": 23,
+      "financial_score": 14,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 39,
+      "total": 37,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509270+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:27.404846+00:00",
           "legacy_value": 7.6
         },
         "budget": {
@@ -862,15 +952,15 @@
           "legacy_value": 250
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509278+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:27.404800+00:00",
           "legacy_value": 764
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509282+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:27.404886+00:00",
           "legacy_value": 3.056
         },
         "letterboxd": {
@@ -894,7 +984,7 @@
       "owner": "Jaq",
       "round": 1,
       "movie": "Peaky Blinders",
-      "imdb": 6.6,
+      "imdb": 6.5,
       "letterboxd": 3.2,
       "rt_crit": 90,
       "rt_aud": 89,
@@ -914,9 +1004,9 @@
       "total": 25,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509299+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:28.175459+00:00",
           "legacy_value": 6.6
         },
         "budget": {
@@ -980,13 +1070,13 @@
       "owner": "Jaq",
       "round": 3,
       "movie": "Devil Wears Prada 2",
-      "imdb": 6.8,
+      "imdb": 6.3,
       "letterboxd": 3.3,
       "rt_crit": 78,
       "rt_aud": 86,
       "budget": 100,
-      "gross": 258.4,
-      "roi": 2.584,
+      "gross": 691.38,
+      "roi": 6.914,
       "bo_rank": null,
       "awards": null,
       "who_watched": [
@@ -995,16 +1085,16 @@
         "Mark"
       ],
       "rating_score": 11,
-      "financial_score": 8,
+      "financial_score": 15,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 19,
+      "total": 26,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509329+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:30.792110+00:00",
           "legacy_value": 6.8
         },
         "budget": {
@@ -1014,15 +1104,15 @@
           "legacy_value": 100
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509337+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:30.792090+00:00",
           "legacy_value": 258.4
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509341+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:30.792128+00:00",
           "legacy_value": 2.584
         },
         "letterboxd": {
@@ -1046,23 +1136,49 @@
       "owner": "Jaq",
       "round": 4,
       "movie": "Mortuary Assistant",
-      "imdb": null,
-      "letterboxd": null,
-      "rt_crit": null,
-      "rt_aud": null,
+      "imdb": 3.7,
+      "letterboxd": 1.5,
+      "rt_crit": 37.0,
+      "rt_aud": 18.0,
       "budget": null,
-      "gross": null,
+      "gross": 1.3,
       "roi": null,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
       "rating_score": 0,
       "financial_score": 0,
-      "penalties": 0,
-      "penalty_notes": "",
+      "penalties": -20,
+      "penalty_notes": "Letterboxd < 2.5 (-10), RT Critics < 50% (-10)",
       "watch_points": 0,
-      "total": 0,
-      "sources": {}
+      "total": -20,
+      "sources": {
+        "gross": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:31.620311+00:00"
+        },
+        "imdb": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:31.620350+00:00"
+        },
+        "rt_crit": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:31.620363+00:00"
+        },
+        "rt_aud": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:31.620374+00:00"
+        },
+        "letterboxd": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:31.620383+00:00"
+        }
+      }
     },
     {
       "owner": "Jaq",
@@ -1090,27 +1206,27 @@
       "owner": "Jaq",
       "round": 6,
       "movie": "Forbidden Fruits",
-      "imdb": 6.1,
+      "imdb": 5.2,
       "letterboxd": 3.2,
       "rt_crit": 73,
       "rt_aud": 73,
       "budget": 2,
-      "gross": 2.3,
-      "roi": 1.15,
+      "gross": 1.77,
+      "roi": 0.885,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
       "rating_score": 0,
       "financial_score": 0,
-      "penalties": 0,
-      "penalty_notes": "",
+      "penalties": -10,
+      "penalty_notes": "Didnt recoup budget (-10)",
       "watch_points": 0,
-      "total": 0,
+      "total": -10,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509359+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:33.503164+00:00",
           "legacy_value": 6.1
         },
         "budget": {
@@ -1120,15 +1236,15 @@
           "legacy_value": 2
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509367+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:33.503139+00:00",
           "legacy_value": 2.3
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509371+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:33.503187+00:00",
           "legacy_value": 1.15
         },
         "letterboxd": {
@@ -1155,20 +1271,26 @@
       "imdb": null,
       "letterboxd": null,
       "rt_crit": null,
-      "rt_aud": null,
+      "rt_aud": 95.0,
       "budget": null,
       "gross": null,
       "roi": null,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
-      "rating_score": 0,
+      "rating_score": 12,
       "financial_score": 0,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 0,
-      "sources": {}
+      "total": 12,
+      "sources": {
+        "rt_aud": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:34.668397+00:00"
+        }
+      }
     },
     {
       "owner": "Evan",
@@ -1178,7 +1300,7 @@
       "letterboxd": null,
       "rt_crit": null,
       "rt_aud": null,
-      "budget": null,
+      "budget": 200.0,
       "gross": null,
       "roi": null,
       "bo_rank": null,
@@ -1190,29 +1312,71 @@
       "penalty_notes": "",
       "watch_points": 0,
       "total": 0,
-      "sources": {}
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:35.645428+00:00"
+        }
+      }
     },
     {
       "owner": "Evan",
       "round": 3,
       "movie": "Odyssey",
-      "imdb": null,
-      "letterboxd": null,
-      "rt_crit": null,
-      "rt_aud": null,
-      "budget": null,
-      "gross": null,
-      "roi": null,
+      "imdb": 8.5,
+      "letterboxd": 4.4,
+      "rt_crit": 94.0,
+      "rt_aud": 97.0,
+      "budget": 250.0,
+      "gross": 1294.48,
+      "roi": 5.178,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
-      "rating_score": 0,
-      "financial_score": 0,
+      "rating_score": 38,
+      "financial_score": 17,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 0,
-      "sources": {}
+      "total": 55,
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:36.439434+00:00"
+        },
+        "gross": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:36.439467+00:00"
+        },
+        "imdb": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:36.439476+00:00"
+        },
+        "rt_crit": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:36.439484+00:00"
+        },
+        "rt_aud": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:36.439491+00:00"
+        },
+        "letterboxd": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:36.439499+00:00"
+        },
+        "roi": {
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:36.439520+00:00"
+        }
+      }
     },
     {
       "owner": "Evan",
@@ -1240,35 +1404,71 @@
       "owner": "Evan",
       "round": 5,
       "movie": "Disclosure Day",
-      "imdb": null,
-      "letterboxd": null,
-      "rt_crit": null,
-      "rt_aud": null,
-      "budget": null,
-      "gross": null,
-      "roi": null,
+      "imdb": 6.4,
+      "letterboxd": 3.0,
+      "rt_crit": 80.0,
+      "rt_aud": 69.0,
+      "budget": 115.0,
+      "gross": 240.66,
+      "roi": 2.093,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
-      "rating_score": 0,
-      "financial_score": 0,
+      "rating_score": 4,
+      "financial_score": 6,
       "penalties": 0,
       "penalty_notes": "",
       "watch_points": 0,
-      "total": 0,
-      "sources": {}
+      "total": 10,
+      "sources": {
+        "budget": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:38.346552+00:00"
+        },
+        "gross": {
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:38.346566+00:00"
+        },
+        "imdb": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:38.346570+00:00"
+        },
+        "rt_crit": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:38.346573+00:00"
+        },
+        "rt_aud": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:38.346577+00:00"
+        },
+        "letterboxd": {
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:38.346580+00:00"
+        },
+        "roi": {
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:38.346591+00:00"
+        }
+      }
     },
     {
       "owner": "Evan",
       "round": 6,
       "movie": "Wuthering Heights",
-      "imdb": 6.2,
+      "imdb": 6.1,
       "letterboxd": 2.8,
       "rt_crit": 58,
       "rt_aud": 76,
       "budget": 80,
-      "gross": 240.4,
-      "roi": 3.005,
+      "gross": 241.6,
+      "roi": 3.02,
       "bo_rank": null,
       "awards": null,
       "who_watched": [],
@@ -1280,9 +1480,9 @@
       "total": 12,
       "sources": {
         "imdb": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509396+00:00",
+          "origin": "fetched",
+          "provider": "mdblist",
+          "at": "2026-08-21T00:44:39.190006+00:00",
           "legacy_value": 6.2
         },
         "budget": {
@@ -1292,15 +1492,15 @@
           "legacy_value": 80
         },
         "gross": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509419+00:00",
+          "origin": "fetched",
+          "provider": "tmdb",
+          "at": "2026-08-21T00:44:39.189978+00:00",
           "legacy_value": 240.4
         },
         "roi": {
-          "origin": "unknown",
-          "provider": "",
-          "at": "2026-08-19T15:03:44.509423+00:00",
+          "origin": "fetched",
+          "provider": "derived",
+          "at": "2026-08-21T00:44:39.190030+00:00",
           "legacy_value": 3.005
         },
         "letterboxd": {

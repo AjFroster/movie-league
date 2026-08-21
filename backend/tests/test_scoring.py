@@ -1,9 +1,9 @@
 """Tests for the league scoring formula.
 
 The headline test is `test_formula_reproduces_the_hand_scored_rows`, which runs the formula
-against the real league_data.json and asserts it reproduces every hand-entered score. That
-is the only real evidence the transcription is faithful; unit tests below only pin the
-individual tiers.
+against the real league_data.json and asserts it reproduces every stored score. That is the
+only real evidence the transcription is faithful; unit tests below only pin the individual
+tiers.
 """
 import json
 from pathlib import Path
@@ -14,10 +14,12 @@ from app import scoring
 
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "league_data.json"
 
-# Confirmed by the user as scored before budget/gross were corrected, not formula gaps.
-# Mark R4 stores 5 -- exactly the gross tier with no ROI points -- against a current ROI of
-# 27.7; Mark R3 stores 12 with no financials recorded at all.
-KNOWN_STALE_FINANCIAL = {("Mark", 3), ("Mark", 4)}
+# Previously {("Mark", 3), ("Mark", 4)}: both were scored by hand before their budget and
+# gross were known, and disagreed with the formula. Live enrichment supplied the real
+# financials and the rescore brought both into line, so the exemption is gone and every
+# row must now reconcile. The guard test that watched for exactly this has served its
+# purpose and been removed with it.
+KNOWN_STALE_FINANCIAL = set()
 
 
 def _entry(**fields):
@@ -161,17 +163,10 @@ def test_formula_reproduces_the_hand_scored_rows():
     assert watch_misses == [], f"watch_points diverged on {watch_misses}"
 
 
-def test_the_two_known_stale_rows_are_still_stale():
-    """If a future data fix makes these agree, delete them from KNOWN_STALE_FINANCIAL.
-
-    Guards against the exemption silently masking a real regression later.
-    """
-    data = json.loads(DATA_PATH.read_text())
-    by_key = {(m["owner"], m["round"]): m for m in data["movies"]}
-    for key in KNOWN_STALE_FINANCIAL:
-        m = by_key[key]
-        assert scoring.financial_score(m) != m["financial_score"], (
-            f"{key} now agrees with the formula -- remove it from KNOWN_STALE_FINANCIAL")
+def test_no_row_is_exempt_from_the_formula():
+    """Every row now reconciles; nothing is carved out. Kept as a ratchet -- re-adding an
+    exemption should be a deliberate act that breaks this test first."""
+    assert KNOWN_STALE_FINANCIAL == set()
 
 
 # ---------------------------------------------------------------------------
