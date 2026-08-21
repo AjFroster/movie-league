@@ -13,9 +13,14 @@ export default function App() {
   // model readable in one place.
   const [view, setView] = useState({ name: 'leagues' })
 
-  const refresh = () => api.leaderboard().then(setRows).catch((e) => setError(e.message))
+  // A standings view scoped to a league; without an id it falls back to the current one,
+  // which is what the legacy single-league endpoints serve.
+  const refresh = (leagueId) => {
+    const request = leagueId ? api.leagueLeaderboard(leagueId) : api.leaderboard()
+    return request.then(setRows).catch((e) => setError(e.message))
+  }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => { refresh(view.leagueId) }, [view.name, view.leagueId])
 
   if (view.name === 'leagues') {
     return (
@@ -23,7 +28,8 @@ export default function App() {
         <LeagueList
           onCreate={() => setView({ name: 'create' })}
           onOpenLeague={(league) => setView({ name: 'draft', leagueId: league.id })}
-          onOpenStandings={() => { refresh(); setView({ name: 'standings' }) }}
+          onOpenStandings={(league) =>
+            setView({ name: 'standings', leagueId: league.id, leagueName: league.name })}
         />
       </div>
     )
@@ -46,7 +52,9 @@ export default function App() {
         <DraftBoard
           leagueId={view.leagueId}
           onExit={() => setView({ name: 'leagues' })}
-          onFinished={() => { refresh() }}
+          onFinished={() => {}}
+          onStandings={(leagueId, leagueName) =>
+            setView({ name: 'standings', leagueId, leagueName })}
         />
       </div>
     )
@@ -57,7 +65,7 @@ export default function App() {
       <header className="header">
         <span className="header-mark" />
         <div>
-          <h1>Fantasy Movie League</h1>
+          <h1>{view.leagueName || 'Fantasy Movie League'}</h1>
           <p>
             <button className="linkish" onClick={() => setView({ name: 'leagues' })}>
               All leagues
@@ -82,7 +90,11 @@ export default function App() {
       {rows && rows.length > 0 && (
         <div className="app-layout">
           <main className="app-main">
-            <Leaderboard rows={rows} onWatchChange={refresh} />
+            <Leaderboard
+              rows={rows}
+              leagueId={view.leagueId}
+              onWatchChange={() => refresh(view.leagueId)}
+            />
           </main>
           <ThisWeekSidebar />
         </div>

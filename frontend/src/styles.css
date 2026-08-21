@@ -686,3 +686,11 @@ body {
 .snake-pick { font-size: 9px; }
 .snake-round { padding: var(--space-xs) 0; }
 .snake-round-label, .snake-direction { font-size: 9px; }
+
+/* Draft complete. The board without this was a dead end: every slot filled, no way out. */
+.draft-done { padding: var(--space-2xl) 0; max-width: 70ch; }
+.done-headline { font-family: var(--font-display); font-size: 48px; line-height: 1.1;
+  color: var(--accent); margin: var(--space-sm) 0 var(--space-md); }
+.done-body { font-family: var(--font-body); font-size: var(--fs-body);
+  line-height: var(--lh-body); color: var(--text-dim); margin: 0 0 var(--space-sm); }
+.draft-done .setup-actions { flex-wrap: wrap; }

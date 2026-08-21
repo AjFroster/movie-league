@@ -28,6 +28,9 @@ async function post(path, body) {
 
 export const api = {
   leagues: () => get('/leagues'),
+  leagueLeaderboard: (id) => get(`/leagues/${id}/leaderboard`),
+  leagueOwner: (id, name) => get(`/leagues/${id}/owners/${encodeURIComponent(name)}`),
+  leagueEnrich: (id) => post(`/leagues/${id}/enrich-all`, {}),
   createLeague: (body) => post('/leagues', body),
   poolSize: (year) => get(`/leagues/pool-size?year=${year}`),
   draft: (id) => get(`/leagues/${id}/draft`),

@@ -1,6 +1,6 @@
 import PlayerCard from './PlayerCard.jsx'
 
-export default function Leaderboard({ rows, onWatchChange }) {
+export default function Leaderboard({ rows, onWatchChange, leagueId }) {
   // Every player is a possible viewer of every film, so the full roster goes down the tree.
   const owners = rows.map((r) => r.owner)
   return (
@@ -12,6 +12,7 @@ export default function Leaderboard({ rows, onWatchChange }) {
           ownerCount={rows.length}
           owners={owners}
           onWatchChange={onWatchChange}
+          leagueId={leagueId}
         />
       ))}
     </div>

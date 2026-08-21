@@ -95,7 +95,37 @@ function SnakeGrid({ state }) {
   )
 }
 
-export default function DraftBoard({ leagueId, onExit, onFinished }) {
+function CompleteState({ state, onStandings, onExit, onScore, scoring, scored }) {
+  return (
+    <section className="draft-done">
+      <span className="field-label">Draft complete</span>
+      <div className="done-headline">{state.name}</div>
+      <p className="done-body">
+        All {state.total_picks} picks are in and every roster is final. The draft order is
+        locked and cannot be re-run.
+      </p>
+      {scored && (
+        <p className="done-body">
+          {scored.fields_updated} fields filled from {scored.api_calls_used} API calls
+          {scored.unmatched?.length ? `, ${scored.unmatched.length} film(s) unmatched` : ''}.
+        </p>
+      )}
+      <div className="setup-actions">
+        <button className="btn btn-primary" onClick={onStandings}>VIEW STANDINGS</button>
+        <button className="btn" onClick={onScore} disabled={scoring}>
+          {scoring ? 'FETCHING RATINGS…' : 'FETCH RATINGS & SCORE'}
+        </button>
+        <button className="btn" onClick={onExit}>BACK TO LEAGUES</button>
+      </div>
+      <p className="summary-note">
+        A season this far out has no ratings yet, so every score starts at zero. Fetching
+        pulls whatever exists today; run it again whenever films release.
+      </p>
+    </section>
+  )
+}
+
+export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }) {
   const [state, setState] = useState(null)
   const [films, setFilms] = useState(null)
   const [query, setQuery] = useState('')
@@ -103,6 +133,8 @@ export default function DraftBoard({ leagueId, onExit, onFinished }) {
   const [error, setError] = useState(null)
   const [rejected, setRejected] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [scoringNow, setScoringNow] = useState(false)
+  const [scored, setScored] = useState(null)
 
   useEffect(() => {
     api.draft(leagueId).then(setState).catch((e) => setError(e.message))
@@ -131,6 +163,17 @@ export default function DraftBoard({ leagueId, onExit, onFinished }) {
       setError(e.message)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function scoreLeague() {
+    setScoringNow(true)
+    try {
+      setScored(await api.leagueEnrich(leagueId))
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setScoringNow(false)
     }
   }
 
@@ -199,6 +242,15 @@ export default function DraftBoard({ leagueId, onExit, onFinished }) {
 
       {state.status === 'setup' ? (
         <SetupState state={state} onStart={start} starting={busy} error={error} />
+      ) : state.status === 'complete' ? (
+        <CompleteState
+          state={state}
+          scored={scored}
+          scoring={scoringNow}
+          onScore={scoreLeague}
+          onStandings={() => onStandings(leagueId, state.name)}
+          onExit={onExit}
+        />
       ) : (
         <>
           <section className="clock-strip">

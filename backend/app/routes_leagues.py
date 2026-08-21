@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from .db import repo
 from .db.session import session_scope
 from .redaction import ProviderError, redact_secrets
+from . import enrichment, scoring
 from .services import pool
 
 router = APIRouter(prefix="/api/leagues", tags=["leagues"])
@@ -105,6 +106,55 @@ def post_pick(league_id: int, body: MakePick):
             # 409: the request was well formed but conflicts with the draft's state --
             # someone else took the film, or it is not this player's turn.
             raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
+
+
+@router.get("/{league_id}/leaderboard")
+def get_league_leaderboard(league_id: int):
+    """Standings for one league.
+
+    The legacy /api/leaderboard serves whichever league is current; once more than one
+    exists, reviewing a specific season needs to name it.
+    """
+    with session_scope() as session:
+        try:
+            return repo.leaderboard(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+
+
+@router.get("/{league_id}/owners/{owner}")
+def get_league_owner(league_id: int, owner: str):
+    with session_scope() as session:
+        try:
+            movies = repo.owner_movies(session, league_id, owner)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        if not movies:
+            raise HTTPException(status_code=404, detail=f"No owner named {owner}")
+        return {"owner": owner,
+                "movies": [{**m, "breakdown": scoring.score_breakdown(m)} for m in movies]}
+
+
+@router.post("/{league_id}/enrich-all")
+async def post_league_enrich(league_id: int, force: bool = False,
+                             max_calls: int = enrichment.DEFAULT_MAX_CALLS):
+    """Enrich and rescore one league. A freshly drafted season starts unscored."""
+    if not 1 <= max_calls <= enrichment.HARD_MAX_CALLS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"max_calls must be between 1 and {enrichment.HARD_MAX_CALLS}")
+    with session_scope() as session:
+        try:
+            documents, index = repo.entries_as_documents(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        try:
+            summary = await enrichment.enrich_all({"movies": documents}, force=force,
+                                                  max_calls=max_calls)
+        except (ProviderError, httpx.HTTPError) as e:
+            raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        repo.apply_documents(session, league_id, documents, index)
+        return summary
 
 
 @router.get("/{league_id}/pool")
