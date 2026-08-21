@@ -65,6 +65,17 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
     }
   }
 
+  async function savePickSeconds(league, value) {
+    const seconds = Number(value)
+    if (Number.isNaN(seconds) || seconds === league.pick_seconds) return
+    try {
+      await api.setPickSeconds(league.id, seconds)
+      await reload()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   async function toggleFreeze(league) {
     try {
       await api.freezeLeague(league.id, !league.frozen_at)
@@ -151,6 +162,23 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                   )}
                   <span className="league-meta">
                     {progress.caption}
+                    {league.status !== 'complete' && (
+                      <>
+                        {' · '}
+                        <select
+                          className="settle-date"
+                          value={league.pick_seconds}
+                          title="Seconds each player gets on the clock"
+                          onChange={(e) => savePickSeconds(league, e.target.value)}
+                        >
+                          {[0, 30, 60, 120, 300].map((s) => (
+                            <option key={s} value={s}>
+                              {s === 0 ? 'untimed' : `${s}s per pick`}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
                     {!league.frozen_at && (
                       <>
                         {' · books close '}

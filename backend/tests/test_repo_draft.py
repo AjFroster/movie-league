@@ -369,3 +369,80 @@ def test_changing_the_settle_date_moves_nothing_else(session):
     repo.set_settles_on(session, league.id, on=date(2027, 3, 31))
     assert [(m["owner"], m["total"]) for m in
             repo.league_movies(session, league.id)] == before
+
+
+# ---------------------------------------------------------------------------
+# the pick clock
+# ---------------------------------------------------------------------------
+
+def _age_the_clock(league, seconds):
+    """Backdate the clock so a deadline can be tested without waiting for it."""
+    from datetime import datetime, timedelta, timezone
+    league.clock_started_at = datetime.now(tz=timezone.utc) - timedelta(seconds=seconds)
+
+
+def test_the_clock_starts_when_the_draft_opens(session):
+    league = _league(session)
+    assert league.clock_started_at is None
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    assert league.clock_started_at is not None
+
+
+def test_each_pick_restarts_the_clock(session):
+    """The next player's time starts when the pick lands, not when their browser renders."""
+    league = _league(session, rounds=2)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    _age_the_clock(league, 30)
+    started = league.clock_started_at
+    repo.make_pick(session, league.id, player=league.draft_order[0], tmdb_id=1, title="A")
+    assert league.clock_started_at > started
+
+
+def test_the_clock_stops_when_the_draft_completes(session):
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    assert league.clock_started_at is None
+
+
+def test_expiry_is_judged_by_elapsed_time(session):
+    league = _league(session)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    assert repo.clock_expired(league) is False
+    _age_the_clock(league, league.pick_seconds + 1)
+    assert repo.clock_expired(league) is True
+
+
+def test_a_zero_timer_never_expires(session):
+    """0 means an untimed draft; nobody should ever be auto-picked."""
+    league = _league(session)
+    repo.set_pick_seconds(session, league.id, seconds=0)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    _age_the_clock(league, 99999)
+    assert repo.clock_expired(league) is False
+
+
+def test_a_draft_that_has_not_started_never_expires(session):
+    league = _league(session)
+    assert repo.clock_expired(league) is False
+
+
+def test_seconds_remaining_is_reported_and_never_negative(session):
+    league = _league(session)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    assert repo.draft_state(session, league.id)["seconds_remaining"] <= league.pick_seconds
+    _age_the_clock(league, league.pick_seconds + 500)
+    assert repo.draft_state(session, league.id)["seconds_remaining"] == 0
+
+
+@pytest.mark.parametrize("seconds", [-1, 3601])
+def test_an_implausible_timer_is_rejected(session, seconds):
+    league = _league(session)
+    with pytest.raises(ValueError):
+        repo.set_pick_seconds(session, league.id, seconds=seconds)
+
+
+def test_the_timer_can_be_changed_mid_draft(session):
+    league = _league(session, rounds=2)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    repo.set_pick_seconds(session, league.id, seconds=120)
+    assert league.pick_seconds == 120

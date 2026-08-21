@@ -25,6 +25,8 @@ class CreateLeague(BaseModel):
     rounds: int = Field(default=6, ge=1, le=30)
     # Omitted means 31 December of the league's year.
     settles_on: date | None = None
+    # Seconds on the clock per pick; 0 turns the timer off.
+    pick_seconds: int = Field(default=60, ge=0, le=3600)
 
 
 class EditLeague(BaseModel):
@@ -36,6 +38,7 @@ class EditLeague(BaseModel):
     """
     name: str | None = Field(default=None, min_length=1, max_length=120)
     settles_on: date | None = None
+    pick_seconds: int | None = Field(default=None, ge=0, le=3600)
 
 
 class MakePick(BaseModel):
@@ -65,7 +68,8 @@ def post_league(body: CreateLeague):
         try:
             league = repo.create_league(session, name=body.name, year=body.year,
                                         players=body.players, rounds=body.rounds,
-                                        settles_on=body.settles_on)
+                                        settles_on=body.settles_on,
+                                        pick_seconds=body.pick_seconds)
         except ValueError as e:
             # A rejected setup is the caller's input problem, not a server fault.
             raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
@@ -98,13 +102,17 @@ def patch_league(league_id: int, body: EditLeague):
                 league = repo.rename_league(session, league_id, name=body.name)
             if body.settles_on is not None:
                 league = repo.set_settles_on(session, league_id, on=body.settles_on)
+            if body.pick_seconds is not None:
+                league = repo.set_pick_seconds(session, league_id,
+                                               seconds=body.pick_seconds)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         except ValueError as e:
             raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
         return {"id": league.id, "name": league.name, "year": league.year,
                 "status": league.status,
-                "settles_on": league.settles_on.isoformat() if league.settles_on else None}
+                "settles_on": league.settles_on.isoformat() if league.settles_on else None,
+                "pick_seconds": league.pick_seconds}
 
 
 @router.post("/{league_id}/freeze")
@@ -247,6 +255,54 @@ def post_league_watch(league_id: int, owner: str, round_number: int, body: Watch
                                 detail=detail)
         return {"movie": {**row, "breakdown": scoring.score_breakdown(row)},
                 "leaderboard": repo.leaderboard(session, league_id)}
+
+
+@router.post("/{league_id}/draft/autopick")
+async def post_autopick(league_id: int):
+    """Take the pick for whoever is on the clock, once their time is genuinely up.
+
+    The browser asks; the server decides. It re-checks the deadline against its own clock,
+    so a wrong client clock -- or a tampered one -- cannot take someone's pick early. It
+    also chooses the film itself, from the top of the pool, rather than accepting a title
+    from the caller.
+    """
+    with session_scope() as session:
+        try:
+            league = repo.get_league(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        if not repo.clock_expired(league):
+            raise HTTPException(status_code=409,
+                                detail="the clock has not run out for this pick")
+        state = repo.draft_state(session, league_id)
+        clock = state["on_the_clock"]
+        if clock is None:
+            raise HTTPException(status_code=409, detail="the draft is already complete")
+        year, taken = state["year"], set(state["drafted_ids"])
+
+    try:
+        films = await pool.fetch_pool(year)
+    except (ProviderError, httpx.HTTPError) as e:
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+    choice = next((f for f in films if f["tmdb_id"] not in taken), None)
+    if choice is None:
+        raise HTTPException(status_code=409, detail="no films left to auto-pick")
+
+    with session_scope() as session:
+        # Re-check inside the write transaction: the player may have picked in the moment
+        # between the deadline check and here, and their own pick must win over the clock.
+        league = repo.get_league(session, league_id)
+        if not repo.clock_expired(league):
+            raise HTTPException(status_code=409,
+                                detail="the pick was made before the clock ran out")
+        try:
+            result = repo.make_pick(session, league_id, player=clock["player"],
+                                    tmdb_id=choice["tmdb_id"], title=choice["title"],
+                                    poster_path=choice.get("poster_path"))
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
+        return {**result, "autopicked": {"player": clock["player"],
+                                         "title": choice["title"]}}
 
 
 @router.get("/{league_id}/pool")

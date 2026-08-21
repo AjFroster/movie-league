@@ -60,6 +60,12 @@ class League(Base):
     # per-league because the right answer depends on the roster: a season whose last film
     # opens on Christmas Eve needs longer than one that finished in September.
     settles_on: Mapped[dateonly | None] = mapped_column(Date, default=None)
+    # Seconds each player gets on the clock. 0 disables the timer entirely.
+    pick_seconds: Mapped[int] = mapped_column(Integer, default=60)
+    # When the current pick's clock started. Stored rather than tracked in the browser so
+    # the deadline survives a refresh and cannot be restarted by reloading the page.
+    clock_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None)
 
     players: Mapped[list["Player"]] = relationship(
         back_populates="league", cascade="all, delete-orphan", order_by="Player.id")

@@ -36,6 +36,7 @@ def list_leagues(session: Session) -> list[dict]:
              "films_total": len(l.entries),
              "frozen_at": l.frozen_at.isoformat() if l.frozen_at else None,
              "settles_on": (l.settles_on or default_settles_on(l.year)).isoformat(),
+             "pick_seconds": l.pick_seconds,
              # Ready to settle once the date this league chose has passed.
              "season_ended": date.today() > (l.settles_on or default_settles_on(l.year))}
             for l in leagues]
@@ -147,16 +148,53 @@ def default_settles_on(year: int) -> date:
 
 
 def create_league(session: Session, *, name: str, year: int, players: list[str],
-                  rounds: int = 6, settles_on: date | None = None) -> League:
+                  rounds: int = 6, settles_on: date | None = None,
+                  pick_seconds: int = 60) -> League:
     names = [p.strip() for p in players]
     draft_rules.validate_setup(names, rounds)
     league = League(name=name.strip() or f"League {year}", year=year, rounds=rounds,
                     status=STATUS_SETUP,
-                    settles_on=settles_on or default_settles_on(year))
+                    settles_on=settles_on or default_settles_on(year),
+                    pick_seconds=max(0, min(int(pick_seconds), 3600)))
     session.add(league)
     session.flush()
     for player_name in names:
         session.add(Player(league_id=league.id, name=player_name))
+    session.flush()
+    return league
+
+
+def _now():
+    from datetime import datetime, timezone
+    return datetime.now(tz=timezone.utc)
+
+
+def _aware(value):
+    """SQLite hands back naive datetimes; compare in UTC rather than crashing on the mix."""
+    from datetime import timezone
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def clock_expired(league: League) -> bool:
+    """Whether the current pick's time is genuinely up, judged by the server's clock.
+
+    The browser asks for an auto-pick, but never decides one is due -- a wrong clock or a
+    tampered client would otherwise take a player's pick away early.
+    """
+    if league.status != STATUS_DRAFTING or not league.pick_seconds:
+        return False
+    if league.clock_started_at is None:
+        return False
+    elapsed = (_now() - _aware(league.clock_started_at)).total_seconds()
+    return elapsed >= league.pick_seconds
+
+
+def set_pick_seconds(session: Session, league_id: int, *, seconds: int) -> League:
+    """Change the per-pick time. 0 turns the clock off."""
+    league = get_league(session, league_id)
+    if not 0 <= seconds <= 3600:
+        raise ValueError("pick timer must be between 0 and 3600 seconds")
+    league.pick_seconds = int(seconds)
     session.flush()
     return league
 
@@ -220,6 +258,7 @@ def start_draft(session: Session, league_id: int, *, rng=None) -> League:
     draft_rules.validate_setup(names, league.rounds)
     league.draft_order = draft_rules.randomize_order(names, rng=rng)
     league.status = STATUS_DRAFTING
+    league.clock_started_at = _now()
     session.flush()
     return league
 
@@ -254,8 +293,20 @@ def draft_state(session: Session, league_id: int) -> dict:
                                                        len(made), name),
         })
 
+    remaining = None
+    if (league.status == STATUS_DRAFTING and league.pick_seconds
+            and league.clock_started_at):
+        elapsed = (_now() - _aware(league.clock_started_at)).total_seconds()
+        # Clamped at zero rather than going negative: "overdue" is a client concern, and
+        # the server only needs to say whether time is left.
+        remaining = max(0, round(league.pick_seconds - elapsed))
+
     return {
         "league_id": league.id, "name": league.name, "year": league.year,
+        "pick_seconds": league.pick_seconds,
+        "clock_started_at": (_aware(league.clock_started_at).isoformat()
+                             if league.clock_started_at else None),
+        "seconds_remaining": remaining,
         "rounds": league.rounds, "status": league.status, "order": order,
         "picks": made, "picks_made": len(made),
         "total_picks": draft_rules.total_picks(len(order), league.rounds),
@@ -302,6 +353,11 @@ def make_pick(session: Session, league_id: int, *, player: str, tmdb_id: int,
 
     if len(picks) + 1 >= draft_rules.total_picks(len(order), league.rounds):
         league.status = STATUS_COMPLETE
+        league.clock_started_at = None
+    else:
+        # The next player's clock starts the moment this pick lands, not when their
+        # browser happens to render -- otherwise a slow page load buys extra time.
+        league.clock_started_at = _now()
     session.flush()
     return draft_state(session, league_id)
 

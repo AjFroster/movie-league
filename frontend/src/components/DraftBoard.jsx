@@ -125,6 +125,58 @@ function CompleteState({ state, onStandings, onExit, onScore, scoring, scored })
   )
 }
 
+/** Seconds left on the current pick, recomputed from the server's deadline every tick.
+ *  Not a local countdown: a refresh, a slow load, or a sleeping laptop would all drift a
+ *  browser-owned stopwatch, and the deadline has to be the same for everyone in the room. */
+function useClock(state, onExpire) {
+  const [left, setLeft] = useState(null)
+
+  useEffect(() => {
+    if (!state || state.status !== 'drafting' || !state.pick_seconds
+        || !state.clock_started_at) {
+      setLeft(null)
+      return
+    }
+    const deadline = new Date(state.clock_started_at).getTime()
+      + state.pick_seconds * 1000
+    // Ask repeatedly while overdue rather than once at zero. Client and server clocks
+    // differ by a fraction, so a single shot at 0:00 gets "not yet" from the server and
+    // then never retries -- which is exactly what left a draft stuck on TIME.
+    let asking = false
+    let lastAsk = 0
+    const tick = () => {
+      const seconds = Math.round((deadline - Date.now()) / 1000)
+      setLeft(seconds)
+      if (seconds > 0 || asking || Date.now() - lastAsk < 2000) return
+      asking = true
+      lastAsk = Date.now()
+      Promise.resolve(onExpire?.()).finally(() => { asking = false })
+    }
+    tick()
+    const id = setInterval(tick, 250)
+    return () => clearInterval(id)
+  }, [state?.clock_started_at, state?.pick_seconds, state?.status, state?.picks_made])
+
+  return left
+}
+
+function Clock({ left, seconds }) {
+  if (left === null) return null
+  const overdue = left <= 0
+  const urgent = !overdue && left <= Math.max(10, seconds * 0.2)
+  const shown = Math.abs(left)
+  return (
+    <div className={`clock-timer${overdue ? ' overdue' : urgent ? ' urgent' : ''}`}>
+      <span className="clock-digits">
+        {overdue ? 'TIME' : `${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`}
+      </span>
+      <span className="clock-timer-label">
+        {overdue ? 'auto-picking…' : 'on the clock'}
+      </span>
+    </div>
+  )
+}
+
 export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }) {
   const [state, setState] = useState(null)
   const [films, setFilms] = useState(null)
@@ -135,6 +187,27 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
   const [busy, setBusy] = useState(false)
   const [scoringNow, setScoringNow] = useState(false)
   const [scored, setScored] = useState(null)
+  const [autopicked, setAutopicked] = useState(null)
+
+  async function expire() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const result = await api.autopick(leagueId)
+      setAutopicked(result.autopicked)
+      setState(result)
+      const refreshed = await api.pool(leagueId)
+      setFilms(refreshed.films)
+      if (result.status === 'complete') onFinished?.(result)
+    } catch (e) {
+      // 409 means the player picked in the moment the clock ran out -- their pick wins,
+      // so re-read rather than treating it as a failure.
+      const next = await api.draft(leagueId).catch(() => null)
+      if (next) setState(next)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   useEffect(() => {
     api.draft(leagueId).then(setState).catch((e) => setError(e.message))
@@ -208,6 +281,7 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
     }
   }
 
+  const secondsLeft = useClock(state, expire)
   const shown = results ?? films
   const clock = state?.on_the_clock
   const percent = useMemo(() => (
@@ -259,7 +333,15 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
               <span className="field-label">
                 {clock ? 'On the clock' : 'Draft complete'}
               </span>
-              <div className="clock-name">{clock ? clock.player : 'All picks in'}</div>
+              <div className="clock-headline">
+                <div className="clock-name">{clock ? clock.player : 'All picks in'}</div>
+                <Clock left={secondsLeft} seconds={state.pick_seconds} />
+              </div>
+              {autopicked && (
+                <p className="clock-note autopicked">
+                  Time ran out — {autopicked.player} was given {autopicked.title}.
+                </p>
+              )}
               {clock && (
                 <div className="clock-detail">
                   ROUND {clock.round} · PICK {clock.pick} OF {state.total_picks} ·

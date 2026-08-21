@@ -769,3 +769,17 @@ body {
 .movie-hero .poster-hero { flex: 0 0 auto; }
 .movie-hero-text { min-width: 0; }
 .movie-hero .movie-detail-title { margin-top: 0; }
+
+/* Pick clock. Sits beside the name on the clock, because the two facts a room needs are
+   whose turn it is and how long they have left. */
+.clock-headline { display: flex; align-items: baseline; gap: var(--space-lg);
+  flex-wrap: wrap; }
+.clock-timer { display: flex; flex-direction: column; }
+.clock-digits { font-family: var(--font-label); font-size: 32px; font-weight: 700;
+  line-height: 1; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.clock-timer-label { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.clock-timer.urgent .clock-digits { color: var(--accent); }
+.clock-timer.overdue .clock-digits, .clock-timer.overdue .clock-timer-label {
+  color: var(--destructive); }
+.clock-note.autopicked { color: var(--destructive); }

@@ -10,6 +10,7 @@ export default function CreateLeague({ onCreated, onCancel }) {
   const [name, setName] = useState('Movie League 2027')
   const [year, setYear] = useState(2027)
   const [rounds, setRounds] = useState(6)
+  const [pickSeconds, setPickSeconds] = useState(60)
   const [players, setPlayers] = useState([])
   const [draftName, setDraftName] = useState('')
   const [nameError, setNameError] = useState(null)
@@ -49,7 +50,8 @@ export default function CreateLeague({ onCreated, onCancel }) {
     setSubmitting(true)
     setError(null)
     try {
-      const state = await api.createLeague({ name, year, players, rounds })
+      const state = await api.createLeague({ name, year, players, rounds,
+                                             pick_seconds: pickSeconds })
       onCreated(state)
     } catch (e) {
       setError(e.message)
@@ -105,6 +107,26 @@ export default function CreateLeague({ onCreated, onCancel }) {
 
           <div className="field">
             <span className="field-label">
+              Pick timer
+              <span className="field-hint">
+                {pickSeconds === 0 ? 'off — untimed draft' : 'seconds per pick'}
+              </span>
+            </span>
+            <div className="segmented">
+              {[0, 30, 60, 120, 300].map((s) => (
+                <button
+                  key={s}
+                  className={`segment${s === pickSeconds ? ' selected' : ''}`}
+                  onClick={() => setPickSeconds(s)}
+                >
+                  {s === 0 ? 'OFF' : s < 60 ? `${s}s` : `${s / 60}m`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <span className="field-label">
               Players
               <span className="field-hint">
                 {players.length} of {MAX_PLAYERS} · min {MIN_PLAYERS}
@@ -153,6 +175,8 @@ export default function CreateLeague({ onCreated, onCancel }) {
           <dl className="summary-facts">
             <div><dt>Picks per player</dt><dd>{rounds}</dd></div>
             <div><dt>Draft format</dt><dd>SNAKE</dd></div>
+            <div><dt>Pick timer</dt>
+              <dd>{pickSeconds === 0 ? 'OFF' : `${pickSeconds}s`}</dd></div>
             <div><dt>Film pool · {year}</dt>
               <dd>{poolCount === null ? '…' : poolCount}</dd></div>
           </dl>

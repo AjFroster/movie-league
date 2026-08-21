@@ -88,12 +88,10 @@ handles this league comfortably.
 
 ## Quality of life, roughly in value order
 
-### 6. Undo a draft pick
+### 6. ~~Undo a draft pick~~ — dropped, replaced by the pick clock
 
-A misclick during a live draft is permanent. The one flow where mistakes are most likely
-and most irritating has no recovery. Deleting the last `Entry` and letting `draft_state`
-recompute would be enough -- state is already derived from the pick list rather than a
-stored cursor, so nothing else needs unwinding.
+Shipped instead: a per-league pick timer that auto-picks the top available film when a
+player's time runs out. Configurable at creation and editable later; 0 disables it.
 
 ### 7. Scheduled enrichment
 
