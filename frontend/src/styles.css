@@ -719,3 +719,22 @@ body {
 .breakdown-table td, .breakdown-table th { overflow-wrap: anywhere; }
 .breakdown-table .tier { white-space: normal; }
 .breakdown-table .num { width: 56px; }
+
+/* Rename in place: the name is the edit affordance, so there is no pencil icon competing
+   with the row's real action. */
+.league-name-button { background: none; border: 0; padding: 0; cursor: text;
+  text-align: left; font: inherit; color: inherit; }
+.league-name-button:hover { color: var(--accent); }
+.input-inline { padding: 6px var(--space-sm); font-family: var(--font-display);
+  font-size: var(--fs-heading); }
+.league-action { display: flex; align-items: center; gap: var(--space-sm);
+  justify-content: flex-end; }
+/* Delete stays quiet until hovered -- it sits beside the row's primary action. */
+.league-delete { background: none; border: 0; color: var(--text-faint); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 var(--space-xs); }
+.league-delete:hover { color: var(--destructive); }
+.confirm-strip { display: flex; align-items: center; gap: var(--space-sm); }
+.confirm-text { font-family: var(--font-body); font-size: var(--fs-label);
+  color: var(--destructive); white-space: nowrap; }
+.btn-danger { border-color: var(--destructive); color: var(--destructive); }
+.btn-danger:hover { background: var(--destructive); color: var(--bg); }

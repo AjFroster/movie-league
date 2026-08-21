@@ -146,6 +146,28 @@ def create_league(session: Session, *, name: str, year: int, players: list[str],
     return league
 
 
+def rename_league(session: Session, league_id: int, *, name: str) -> League:
+    """Rename a league. The only mutable field once players exist.
+
+    Everything else about a league -- its year, its roster, its draft order -- is something
+    a pick was already made against, so changing it would invalidate the season rather
+    than edit it.
+    """
+    league = get_league(session, league_id)
+    cleaned = (name or "").strip()
+    if not cleaned:
+        raise ValueError("a league needs a name")
+    league.name = cleaned[:120]
+    session.flush()
+    return league
+
+
+def delete_league(session: Session, league_id: int) -> None:
+    """Delete a league and everything under it, via the ON DELETE CASCADE relationships."""
+    session.delete(get_league(session, league_id))
+    session.flush()
+
+
 def start_draft(session: Session, league_id: int, *, rng=None) -> League:
     """Randomize the order and open the draft. Only legal from setup."""
     league = get_league(session, league_id)

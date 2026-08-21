@@ -227,3 +227,48 @@ def test_a_pick_without_artwork_stores_none_not_an_empty_string(session):
                    poster_path="")
     row = repo.owner_movies(session, league.id, first)[0]
     assert row["poster_path"] is None and row["poster_url"] is None
+
+
+# ---------------------------------------------------------------------------
+# renaming and deleting
+# ---------------------------------------------------------------------------
+
+def test_a_league_can_be_renamed(session):
+    league = _league(session)
+    repo.rename_league(session, league.id, name="  Renamed Season  ")
+    assert league.name == "Renamed Season"          # trimmed
+
+
+@pytest.mark.parametrize("name", ["", "   ", None])
+def test_a_league_cannot_be_renamed_to_nothing(session, name):
+    league = _league(session)
+    with pytest.raises(ValueError):
+        repo.rename_league(session, league.id, name=name)
+
+
+def test_renaming_a_drafted_league_keeps_its_picks(session):
+    """A rename is cosmetic; nothing about the season may move."""
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    before = [(m["owner"], m["round"], m["movie"]) for m in
+              repo.league_movies(session, league.id)]
+    repo.rename_league(session, league.id, name="New Name")
+    assert [(m["owner"], m["round"], m["movie"]) for m in
+            repo.league_movies(session, league.id)] == before
+
+
+def test_deleting_a_league_removes_its_entries_and_watches(session):
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    other = repo.create_league(session, name="Survivor", year=2027,
+                               players=PLAYERS, rounds=1)
+    session.flush()
+    repo.delete_league(session, league.id)
+    assert repo.league_movies(session, other.id) == []      # untouched, still exists
+    with pytest.raises(LookupError):
+        repo.draft_state(session, league.id)
+
+
+def test_deleting_an_unknown_league_raises(session):
+    with pytest.raises(LookupError):
+        repo.delete_league(session, 9999)

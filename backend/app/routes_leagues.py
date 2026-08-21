@@ -23,6 +23,15 @@ class CreateLeague(BaseModel):
     rounds: int = Field(default=6, ge=1, le=30)
 
 
+class EditLeague(BaseModel):
+    """Only what is safe to change after creation.
+
+    Year and player list are deliberately absent: the roster is already drafted against a
+    year's film pool, and renaming is the only edit that cannot invalidate a pick.
+    """
+    name: str = Field(min_length=1, max_length=120)
+
+
 class MakePick(BaseModel):
     player: str
     tmdb_id: int
@@ -71,6 +80,30 @@ async def get_pool_size(year: int = Query(ge=1900, le=2100),
     except (ProviderError, httpx.HTTPError) as e:
         raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
     return {"year": year, "count": len(films)}
+
+
+@router.patch("/{league_id}")
+def patch_league(league_id: int, body: EditLeague):
+    with session_scope() as session:
+        try:
+            league = repo.rename_league(session, league_id, name=body.name)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
+        return {"id": league.id, "name": league.name, "year": league.year,
+                "status": league.status}
+
+
+@router.delete("/{league_id}", status_code=204)
+def delete_league(league_id: int):
+    """Remove a league and everything drafted in it. Cascades to players and entries."""
+    with session_scope() as session:
+        try:
+            repo.delete_league(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+    return None
 
 
 @router.get("/{league_id}/draft")

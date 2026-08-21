@@ -32,10 +32,35 @@ function actionFor(league) {
 export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) {
   const [leagues, setLeagues] = useState(null)
   const [error, setError] = useState(null)
+  const [editing, setEditing] = useState(null)      // league id being renamed
+  const [draftName, setDraftName] = useState('')
+  const [confirming, setConfirming] = useState(null) // league id awaiting delete confirm
 
-  useEffect(() => {
-    api.leagues().then(setLeagues).catch((e) => setError(e.message))
-  }, [])
+  const reload = () => api.leagues().then(setLeagues).catch((e) => setError(e.message))
+
+  async function saveName(league) {
+    const name = draftName.trim()
+    if (!name || name === league.name) { setEditing(null); return }
+    try {
+      await api.renameLeague(league.id, name)
+      setEditing(null)
+      await reload()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  async function remove(league) {
+    try {
+      await api.deleteLeague(league.id)
+      setConfirming(null)
+      await reload()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  useEffect(() => { reload() }, [])
 
   if (error) return <div className="state-msg" role="alert">{error}</div>
   if (!leagues) return <div className="state-msg">Loading leagues…</div>
@@ -79,7 +104,27 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
             return (
               <div className={`league-row${archived ? ' archived' : ''}`} key={league.id}>
                 <span className="league-name-cell">
-                  <span className="league-name">{league.name}</span>
+                  {editing === league.id ? (
+                    <input
+                      className="input input-inline"
+                      autoFocus
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      onBlur={() => saveName(league)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveName(league)
+                        if (e.key === 'Escape') setEditing(null)
+                      }}
+                    />
+                  ) : (
+                    <button
+                      className="league-name league-name-button"
+                      title="Rename"
+                      onClick={() => { setEditing(league.id); setDraftName(league.name) }}
+                    >
+                      {league.name}
+                    </button>
+                  )}
                   <span className="league-meta">{progress.caption}</span>
                 </span>
                 <span className="league-year">{league.year}</span>
@@ -97,6 +142,25 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                   </span>
                 </span>
                 <span className="league-action">
+                  {confirming === league.id ? (
+                    <span className="confirm-strip">
+                      <span className="confirm-text">
+                        Delete “{league.name}” and its {league.picks_made} picks?
+                      </span>
+                      <button className="btn btn-danger" onClick={() => remove(league)}>
+                        DELETE
+                      </button>
+                      <button className="btn" onClick={() => setConfirming(null)}>
+                        CANCEL
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      className="league-delete"
+                      title="Delete league"
+                      onClick={() => setConfirming(league.id)}
+                    >×</button>
+                  )}
                   <button
                     className={`btn${action.primary ? ' btn-primary' : ''}`}
                     onClick={() => (league.status === 'complete'

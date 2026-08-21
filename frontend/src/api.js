@@ -16,6 +16,16 @@ async function get(path) {
   return res.json()
 }
 
+async function send(method, path, body) {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw await describe(res, path)
+  return res.status === 204 ? null : res.json()
+}
+
 async function post(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -28,6 +38,8 @@ async function post(path, body) {
 
 export const api = {
   leagues: () => get('/leagues'),
+  renameLeague: (id, name) => send('PATCH', `/leagues/${id}`, { name }),
+  deleteLeague: (id) => send('DELETE', `/leagues/${id}`),
   leagueLeaderboard: (id) => get(`/leagues/${id}/leaderboard`),
   leagueOwner: (id, name) => get(`/leagues/${id}/owners/${encodeURIComponent(name)}`),
   leagueEnrich: (id) => post(`/leagues/${id}/enrich-all`, {}),
