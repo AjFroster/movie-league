@@ -4,18 +4,16 @@ The endpoint is trust-based by design -- there is no login, and any player can t
 other player -- so these tests cover the input validation that does exist rather than
 authorisation, which does not.
 """
-import json
-
 import pytest
 from fastapi.testclient import TestClient
 
-from app import storage
+from app.db.porting import import_league
 from app.main import app
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
-    """A TestClient backed by a throwaway league file, never the real one."""
+def client(never_touch_the_real_database):
+    """A TestClient backed by a throwaway database, never the real one."""
     data = {"owners": ["Ann", "Bob", "Cal"], "movies": [
         {"owner": "Ann", "round": 1, "movie": "Alpha", "imdb": 8.0, "letterboxd": None,
          "rt_crit": None, "rt_aud": None, "budget": None, "gross": None, "roi": None,
@@ -28,9 +26,12 @@ def client(tmp_path, monkeypatch):
          "financial_score": 0, "penalties": 0, "penalty_notes": "", "watch_points": 0,
          "total": 0, "sources": {}},
     ]}
-    path = tmp_path / "league.json"
-    path.write_text(json.dumps(data))
-    monkeypatch.setattr(storage, "DATA_PATH", path)
+    # never_touch_the_real_database (conftest, autouse) already redirected the app at a
+    # throwaway database and handed back its session factory; just seed it.
+    maker = never_touch_the_real_database
+    with maker() as s:
+        import_league(s, data, name="Test", year=2026)
+        s.commit()
     return TestClient(app)
 
 

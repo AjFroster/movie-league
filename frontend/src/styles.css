@@ -403,3 +403,349 @@ body {
 .watch-pts { color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .watch-hint { margin: var(--space-sm) 0 0; font-family: var(--font-body);
   font-size: var(--fs-label); line-height: var(--lh-body); color: var(--text-faint); }
+
+/* ===========================================================================
+   League list, create form, and draft board.
+   Same system as the season pages: flat surfaces, hairline dividers, no
+   shadows, amber rationed to whatever matters most on the screen.
+   =========================================================================== */
+
+.btn { font-family: var(--font-label); font-size: var(--fs-label); line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text);
+  background: transparent; border: 1px solid var(--border-bright);
+  padding: 10px var(--space-md); cursor: pointer; }
+.btn:hover { background: var(--surface-raised); border-color: var(--text-faint); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #17130a;
+  font-weight: 700; }
+.btn-primary:hover:not(:disabled) { background: #edb254; border-color: #edb254; }
+.btn-small { padding: 6px var(--space-sm); }
+.btn-block { width: 100%; margin-top: var(--space-md); padding: 14px; }
+
+.linkish { background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--font-label); font-size: var(--fs-label); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--status-info); }
+.linkish:hover { color: var(--text); }
+
+.input { width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border-bright); padding: 12px var(--space-md);
+  font-family: var(--font-body); font-size: var(--fs-body); }
+.input:focus { outline: none; border-color: var(--accent); }
+.input.invalid { border-color: var(--destructive); }
+
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: var(--space-sm); background: var(--text-faint); }
+.status-dot.drafting { background: var(--accent); }
+.status-dot.complete, .status-dot.setup { background: var(--status-info); }
+.status-dot.at-risk { background: var(--destructive); }
+
+/* --- league list ---------------------------------------------------------- */
+.league-page, .create-page, .draft-page { max-width: 1280px; margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg); }
+.league-header { display: flex; justify-content: space-between; align-items: flex-start;
+  padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-bright); }
+.league-wordmark { font-family: var(--font-label); font-size: var(--fs-heading);
+  letter-spacing: 0.14em; text-transform: uppercase; margin: 0; color: var(--text); }
+.league-subtitle { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
+  margin: var(--space-xs) 0 0; }
+
+.league-table { margin-top: var(--space-lg); }
+.league-row { display: grid;
+  grid-template-columns: 2.4fr 0.5fr 1fr 0.6fr 1.4fr auto;
+  gap: var(--space-md); align-items: center; padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--border); }
+.league-head { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+  border-bottom-color: var(--border-bright); padding-bottom: var(--space-sm); }
+/* A completed league that is not the current season reads as history, not as a state. */
+.league-row.archived .league-name, .league-row.archived .league-progress-count { color: var(--text-faint); }
+.league-name-cell { display: flex; flex-direction: column; gap: var(--space-xs); }
+.league-name { font-family: var(--font-display); font-size: var(--fs-heading);
+  line-height: var(--lh-heading); color: var(--text); }
+.league-meta, .league-year, .league-status, .league-players {
+  font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+.league-progress { display: flex; flex-direction: column; gap: var(--space-xs); }
+.league-progress-bar { display: block; height: 2px; background: var(--border-bright); }
+.league-progress-fill { display: block; height: 100%; background: var(--accent); }
+.league-progress-count { font-family: var(--font-label); font-size: var(--fs-label);
+  color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --- create --------------------------------------------------------------- */
+.create-title { font-family: var(--font-label); font-size: var(--fs-heading);
+  letter-spacing: 0.14em; text-transform: uppercase; margin: var(--space-sm) 0 0; }
+.breadcrumb, .breadcrumb-current { font-family: var(--font-label);
+  font-size: var(--fs-label); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-faint); }
+.create-body { display: grid; grid-template-columns: 1.6fr 1fr; gap: var(--space-2xl);
+  margin-top: var(--space-lg); padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-bright); }
+.field { display: flex; flex-direction: column; gap: var(--space-sm);
+  margin-bottom: var(--space-lg); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+.field-label { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
+  display: flex; justify-content: space-between; }
+.field-hint { color: var(--text-faint); }
+.field-error { font-family: var(--font-body); font-size: var(--fs-label);
+  color: var(--destructive); margin: 0; }
+.segmented, .stepper { display: flex; border: 1px solid var(--border-bright); }
+.segment, .step { flex: 1; background: transparent; border: 0; color: var(--text-dim);
+  font-family: var(--font-label); font-size: var(--fs-body); padding: 11px; cursor: pointer; }
+.segment.selected { background: var(--surface-raised); color: var(--text); }
+.step-value { flex: 2; text-align: center; align-self: center;
+  font-family: var(--font-label); font-size: var(--fs-body); font-weight: 700; }
+.add-row { display: grid; grid-template-columns: 1fr auto; gap: var(--space-sm); }
+.player-list { list-style: none; margin: var(--space-sm) 0 0; padding: 0; }
+.player-row { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-md);
+  align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); }
+.player-index { font-family: var(--font-label); font-size: var(--fs-label);
+  color: var(--text-faint); }
+.player-label { font-family: var(--font-label); font-size: var(--fs-body);
+  font-weight: 700; color: var(--text); }
+.player-remove { background: none; border: 0; color: var(--text-faint); cursor: pointer;
+  font-size: 18px; line-height: 1; }
+.player-remove:hover { color: var(--destructive); }
+.create-summary { border-left: 1px solid var(--border-bright); padding-left: var(--space-lg); }
+.summary-figure { font-family: var(--font-label); font-size: 56px; font-weight: 700;
+  line-height: 1; color: var(--accent); margin: var(--space-sm) 0; }
+.summary-formula { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); margin: 0; }
+.summary-note { font-family: var(--font-body); font-size: var(--fs-label);
+  line-height: var(--lh-body); color: var(--text-faint); margin: var(--space-md) 0 0; }
+.summary-facts { margin: var(--space-lg) 0 0; }
+.summary-facts > div { display: flex; justify-content: space-between;
+  padding: var(--space-sm) 0; border-bottom: 1px solid var(--border);
+  font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.06em; text-transform: uppercase; }
+.summary-facts dt { color: var(--text-dim); }
+.summary-facts dd { margin: 0; color: var(--text); font-weight: 700; }
+
+/* --- draft board ---------------------------------------------------------- */
+.draft-header { display: flex; justify-content: space-between; align-items: flex-start;
+  padding-bottom: var(--space-md); border-bottom: 1px solid var(--border-bright); }
+.draft-identity { display: flex; flex-direction: column; gap: var(--space-xs); }
+.draft-name { font-family: var(--font-display); font-size: var(--fs-heading);
+  margin: 0; color: var(--text); }
+.draft-progress { display: flex; flex-direction: column; gap: var(--space-xs);
+  min-width: 240px; }
+
+.draft-setup { display: grid; grid-template-columns: 1.6fr 1fr; gap: var(--space-2xl);
+  padding-top: var(--space-2xl); }
+.setup-headline { font-family: var(--font-display); font-size: 56px; line-height: 1.1;
+  color: var(--text-faint); margin: var(--space-sm) 0 var(--space-md); }
+.setup-body { font-family: var(--font-body); font-size: var(--fs-body);
+  line-height: var(--lh-body); color: var(--text-dim); max-width: 52ch; }
+.setup-actions { display: flex; align-items: center; gap: var(--space-md);
+  margin-top: var(--space-lg); }
+.warn-inline { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--destructive); }
+.setup-aside { border-left: 1px solid var(--border-bright); padding-left: var(--space-lg); }
+.draw-list { list-style: none; margin: var(--space-md) 0 0; padding: 0; }
+.draw-list li { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-md);
+  align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); }
+.draw-dash { color: var(--text-faint); }
+.draw-name { font-family: var(--font-display); font-size: var(--fs-heading); }
+.draw-picks { font-family: var(--font-label); font-size: var(--fs-label);
+  text-transform: uppercase; color: var(--text-faint); }
+
+.clock-strip { display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--space-2xl);
+  padding: var(--space-xl) 0; border-bottom: 1px solid var(--border-bright); }
+/* The one thing readable from across a room. */
+.clock-name { font-family: var(--font-display); font-size: 64px; line-height: 1;
+  color: var(--accent); margin: var(--space-sm) 0; }
+.clock-detail { font-family: var(--font-label); font-size: var(--fs-body);
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); font-weight: 700; }
+.clock-note { font-family: var(--font-body); font-size: var(--fs-label);
+  color: var(--text-dim); margin: var(--space-sm) 0 0; }
+.upcoming { border-left: 1px solid var(--border-bright); padding-left: var(--space-lg); }
+.upcoming-row { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-md);
+  align-items: baseline; padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border); }
+.upcoming-pick { font-family: var(--font-label); font-size: var(--fs-label);
+  color: var(--text-faint); }
+.upcoming-player { font-family: var(--font-label); font-size: var(--fs-body);
+  font-weight: 700; color: var(--text); }
+.upcoming-tag { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+
+.reject-panel { border: 1px solid var(--destructive); padding: var(--space-md); }
+.reject-title { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--destructive); }
+.reject-body { font-family: var(--font-body); font-size: var(--fs-body);
+  line-height: var(--lh-body); color: var(--text); margin: var(--space-sm) 0 var(--space-md); }
+
+.draft-columns { display: grid; grid-template-columns: 1fr 2.2fr 1fr;
+  gap: var(--space-lg); padding-top: var(--space-lg); }
+.draft-left, .draft-right { min-width: 0; }
+.draft-right { border-left: 1px solid var(--border-bright); padding-left: var(--space-lg); }
+
+.snake-head { display: flex; justify-content: space-between; margin-bottom: var(--space-sm); }
+.snake-row { display: grid; grid-template-columns: auto repeat(auto-fit, minmax(0, 1fr));
+  gap: 2px; margin-bottom: 2px; }
+.snake-round { display: flex; flex-direction: column; padding: var(--space-xs) var(--space-sm) ;
+  font-family: var(--font-label); font-size: var(--fs-label); color: var(--text-dim); }
+.snake-round.current .snake-round-label { color: var(--accent); }
+.snake-direction { color: var(--text-faint); }
+.snake-cell { display: flex; flex-direction: column; gap: 2px; padding: var(--space-sm);
+  background: var(--surface); border: 1px solid transparent;
+  font-family: var(--font-label); font-size: var(--fs-label); }
+.snake-player { text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snake-pick { color: var(--text-faint); }
+.snake-cell.done .snake-player { color: var(--text); }
+.snake-cell.now { border-color: var(--accent); background: var(--surface-raised); }
+.snake-cell.now .snake-player, .snake-cell.now .snake-pick { color: var(--accent);
+  font-weight: 700; }
+
+.pool-head { display: grid; grid-template-columns: 1fr auto; gap: var(--space-md);
+  align-items: center; margin-bottom: var(--space-md); }
+.pool-row { display: grid;
+  grid-template-columns: auto 46px 1fr auto 90px; gap: var(--space-md);
+  align-items: center; padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border); }
+.pool-head-row { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+  border-bottom-color: var(--border-bright); }
+.pool-rank { font-family: var(--font-label); font-size: var(--fs-label);
+  color: var(--text-faint); }
+/* Fixed poster box: most future films have no artwork, so the empty case must hold its
+   space or the whole list reflows as images resolve. */
+.poster { width: 46px; height: 69px; object-fit: cover; display: block;
+  background: var(--surface-raised); border: 1px solid var(--border); }
+.poster-empty { display: flex; align-items: center; justify-content: center;
+  text-align: center; font-family: var(--font-label); font-size: 9px;
+  line-height: 1.1; color: var(--text-faint); }
+.pool-film { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pool-title { font-family: var(--font-body); font-size: var(--fs-body); font-weight: 600;
+  color: var(--text); }
+.pool-sub, .pool-release { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+/* Taken films stay on the board, struck through -- people want to see what went. */
+.pool-row.taken .pool-title { color: var(--text-faint); text-decoration: line-through; }
+.taken-badge { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint);
+  border: 1px solid var(--border-bright); padding: 6px var(--space-sm); }
+
+.roster { margin-bottom: var(--space-lg); }
+.roster-head { display: flex; justify-content: space-between; align-items: baseline;
+  border-bottom: 1px solid var(--border); padding-bottom: var(--space-xs); }
+.roster-name { font-family: var(--font-display); font-size: var(--fs-heading);
+  color: var(--text); }
+.roster-name.current { color: var(--accent); }
+.roster-count { font-family: var(--font-label); font-size: var(--fs-label);
+  color: var(--text-faint); }
+.roster-pick { display: grid; grid-template-columns: auto 1fr; gap: var(--space-sm);
+  padding: var(--space-xs) 0; }
+.roster-pick-no { font-family: var(--font-label); font-size: var(--fs-label);
+  color: var(--text-faint); }
+.roster-title { font-family: var(--font-body); font-size: var(--fs-label);
+  line-height: var(--lh-body); color: var(--text); }
+
+@media (max-width: 1100px) {
+  .draft-columns { grid-template-columns: 1fr; }
+  .draft-right { border-left: 0; padding-left: 0; border-top: 1px solid var(--border-bright);
+    padding-top: var(--space-lg); }
+  .clock-strip, .create-body, .draft-setup { grid-template-columns: 1fr; gap: var(--space-lg); }
+  .upcoming, .create-summary, .setup-aside { border-left: 0; padding-left: 0; }
+  .league-row { grid-template-columns: 1.6fr 0.6fr 1fr auto; }
+  .league-row > .league-progress, .league-head > span:nth-child(4) { display: none; }
+}
+
+/* The pool is 300 rows. Left to grow, it made the page 26,000px tall and pushed the snake
+   grid and rosters out of view -- the two things a picker needs while choosing. Each
+   column scrolls in its own right so all three stay on screen together. */
+.draft-columns { align-items: start; }
+.draft-pool, .draft-left, .draft-right {
+  max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; }
+.pool-head { position: sticky; top: 0; z-index: 2; background: var(--bg);
+  padding-bottom: var(--space-sm); }
+.pool-head-row { position: sticky; top: 58px; z-index: 1; background: var(--bg); }
+@media (max-width: 1100px) {
+  /* Stacked on narrow screens, each column scrolling separately would trap the page. */
+  .draft-pool, .draft-left, .draft-right { max-height: none; overflow: visible; }
+  .pool-head, .pool-head-row { position: static; }
+}
+
+/* Snake grid: one column per player, set from --players. A round has to read left-to-right
+   as a row for the reversal to be visible at all -- collapsed into a list it is just names. */
+.snake-row { grid-template-columns: 64px repeat(var(--players, 5), minmax(0, 1fr)); }
+.snake-head { display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--space-sm); }
+.snake-head-label { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+
+/* Give the snake grid room for real names. At 1fr the cells were ~40px and every player
+   rendered as "M...", which defeats the point of showing the order at all. */
+.draft-columns { grid-template-columns: 1.5fr 2.4fr 1.1fr; }
+.snake-row { grid-template-columns: 52px repeat(var(--players, 5), minmax(0, 1fr)); }
+.snake-cell { padding: var(--space-xs) 6px; }
+.snake-player { font-size: 9px; letter-spacing: 0.02em; }
+.snake-pick { font-size: 9px; }
+.snake-round { padding: var(--space-xs) 0; }
+.snake-round-label, .snake-direction { font-size: 9px; }
+
+/* Draft complete. The board without this was a dead end: every slot filled, no way out. */
+.draft-done { padding: var(--space-2xl) 0; max-width: 70ch; }
+.done-headline { font-family: var(--font-display); font-size: 48px; line-height: 1.1;
+  color: var(--accent); margin: var(--space-sm) 0 var(--space-md); }
+.done-body { font-family: var(--font-body); font-size: var(--fs-body);
+  line-height: var(--lh-body); color: var(--text-dim); margin: 0 0 var(--space-sm); }
+.draft-done .setup-actions { flex-wrap: wrap; }
+
+/* Posters in the standings view. Same fixed box as the draft board, at two sizes: a small
+   one beside a roster title, and the hero on an expanded film. */
+.poster-sm { width: 32px; height: 48px; flex: 0 0 auto; }
+.roster-col-title { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.roster-title-text { overflow: hidden; text-overflow: ellipsis; }
+.movie-hero { display: flex; align-items: flex-end; padding: var(--space-lg);
+  gap: var(--space-lg); }
+.poster-hero { width: 92px; height: 138px; }
+.poster-hero.poster-empty { font-size: 11px; }
+
+/* Poster beside the title rather than stranded in an empty band above it. */
+.movie-hero { display: flex; align-items: flex-end; gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-lg) var(--space-md); background: none; }
+.movie-hero-text { min-width: 0; }
+.movie-hero .movie-detail-title { margin-top: 0; }
+
+/* The points column was overrunning into the campaign tracker: the breakdown table sat in
+   a column narrower than its content and had nothing stopping it. Give the table room and
+   let a long tier label wrap instead of pushing the number out of its cell. */
+.detail-columns { grid-template-columns: 2.2fr 1fr 1.1fr; }
+.breakdown-table { table-layout: fixed; }
+.breakdown-table td, .breakdown-table th { overflow-wrap: anywhere; }
+.breakdown-table .tier { white-space: normal; }
+.breakdown-table .num { width: 56px; }
+
+/* Rename in place: the name is the edit affordance, so there is no pencil icon competing
+   with the row's real action. */
+.league-name-button { background: none; border: 0; padding: 0; cursor: text;
+  text-align: left; font: inherit; color: inherit; }
+.league-name-button:hover { color: var(--accent); }
+.input-inline { padding: 6px var(--space-sm); font-family: var(--font-display);
+  font-size: var(--fs-heading); }
+.league-action { display: flex; align-items: center; gap: var(--space-sm);
+  justify-content: flex-end; }
+/* Delete stays quiet until hovered -- it sits beside the row's primary action. */
+.league-delete { background: none; border: 0; color: var(--text-faint); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 var(--space-xs); }
+.league-delete:hover { color: var(--destructive); }
+.confirm-strip { display: flex; align-items: center; gap: var(--space-sm); }
+.confirm-text { font-family: var(--font-body); font-size: var(--fs-label);
+  color: var(--destructive); white-space: nowrap; }
+.btn-danger { border-color: var(--destructive); color: var(--destructive); }
+.btn-danger:hover { background: var(--destructive); color: var(--bg); }
+
+/* A settled season reads as a record rather than a state in progress. */
+.status-dot.frozen { background: var(--text-faint); }
+
+/* The settle date sits in the league's meta line: it is a property of the season, not a
+   separate setting screen, and it changes rarely enough not to need one. */
+.settle-date { background: transparent; border: 0; border-bottom: 1px dotted var(--text-faint);
+  color: var(--text-dim); font-family: var(--font-label); font-size: var(--fs-label);
+  padding: 0 2px; cursor: pointer; color-scheme: dark; }
+.settle-date:hover, .settle-date:focus { color: var(--accent);
+  border-bottom-color: var(--accent); outline: none; }

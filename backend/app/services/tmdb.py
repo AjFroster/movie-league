@@ -130,6 +130,7 @@ async def fetch_movie_financials(title: str, year: int | None = None, *,
             # bug recorded in HANDOFF.md line 43; `imdb` is sourced from omdb.py.
             "vote_average": _vote_average(d.get("vote_average")),
             "imdb_id": _imdb_id(d.get("imdb_id")),
+            "poster_path": d.get("poster_path") or chosen.get("poster_path") or None,
             "release_date": _release_date(d.get("release_date")),
         }
     finally:

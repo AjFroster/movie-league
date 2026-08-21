@@ -1,6 +1,17 @@
 import { Fragment, useState } from 'react'
 import { api } from '../api.js'
 
+/** A film's artwork, or a placeholder holding the same box.
+ *  Most future films have no poster, so the empty case is common and must not collapse. */
+function Poster({ film, className = '' }) {
+  const [failed, setFailed] = useState(false)
+  if (!film.poster_url || failed) {
+    return <span className={`poster poster-empty ${className}`} aria-hidden="true">NO<br />ART</span>
+  }
+  return <img className={`poster ${className}`} src={film.poster_url} alt=""
+              loading="lazy" onError={() => setFailed(true)} />
+}
+
 function statusFor(m) {
   if (!m.movie) return { dot: 'no-pick', label: 'NO PICK' }
   if (m.penalties !== 0) return { dot: 'at-risk', label: 'AT RISK' }
@@ -43,9 +54,13 @@ function MovieDetail({ m, ownerCount, owners, onWatched }) {
 
   return (
     <div className="movie-detail">
-      <div className="movie-hero" />
-      <div className="movie-detail-title">{m.movie}</div>
-      <div className="movie-detail-meta">R{m.round} · {m.owner}'s pick</div>
+      <div className="movie-hero">
+        <Poster film={m} className="poster-hero" />
+        <div className="movie-hero-text">
+          <div className="movie-detail-title">{m.movie}</div>
+          <div className="movie-detail-meta">R{m.round} · {m.owner}'s pick</div>
+        </div>
+      </div>
 
       <div className="stat-strip">
         <div className="stat-block">
@@ -221,7 +236,10 @@ export default function MovieCard({ movie: m, ownerCount, owners, onWatched }) {
         }}
       >
         <span className="roster-col-round">R{m.round}</span>
-        <span className={`roster-col-title${!m.movie ? ' dim' : ''}`}>{m.movie || 'Not yet picked'}</span>
+        <span className={`roster-col-title${!m.movie ? ' dim' : ''}`}>
+          <Poster film={m} className="poster-sm" />
+          <span className="roster-title-text">{m.movie || 'Not yet picked'}</span>
+        </span>
         <span className="status-pill">
           <span className={`status-dot ${status.dot}`} />
           <span className="status-label">{status.label}</span>

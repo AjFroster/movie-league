@@ -12,15 +12,18 @@ function signed(v) {
   return v > 0 ? `+${v}` : `${v}`
 }
 
-export default function PlayerCard({ summary, ownerCount, owners, onWatchChange }) {
+export default function PlayerCard({ summary, ownerCount, owners, onWatchChange, leagueId }) {
   const [movies, setMovies] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    api.owner(summary.owner)
-      .then(d => setMovies(d.movies))
-      .catch(e => setError(e.message))
-  }, [summary.owner])
+    // Scoped to a league when one is named, so reviewing an older season shows that
+    // season rather than whichever league happens to be current.
+    const request = leagueId
+      ? api.leagueOwner(leagueId, summary.owner)
+      : api.owner(summary.owner)
+    request.then(d => setMovies(d.movies)).catch(e => setError(e.message))
+  }, [summary.owner, leagueId])
 
   return (
     <div className={`player-card${summary.rank === 1 ? ' rank-1' : ''}`}>

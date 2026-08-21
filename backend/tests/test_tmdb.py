@@ -20,6 +20,7 @@ SEARCH_RESULT = {"results": [{"id": 42, "title": "Test Film", "release_date": "2
 def _details(**overrides):
     base = {
         "title": "Test Film",
+        "poster_path": "/poster.jpg",
         "budget": 170_000_000,
         "revenue": 700_000_000,
         "vote_average": 7.35,
@@ -51,6 +52,7 @@ async def test_fetch_movie_financials_full_round_trip_includes_release_date(monk
     assert result == {
         "tmdb_id": 42,
         "title": "Test Film",
+        "poster_path": "/poster.jpg",
         "budget_millions": 170.0,
         "gross_millions": 700.0,
         "vote_average": 7.4,
