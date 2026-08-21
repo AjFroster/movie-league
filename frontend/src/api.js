@@ -55,8 +55,10 @@ export const api = {
          { player, tmdb_id: tmdbId, title, poster_path: posterPath ?? null }),
   pool: (id, size = 300) => get(`/leagues/${id}/pool?size=${size}`),
   poolSearch: (id, q) => get(`/leagues/${id}/pool/search?q=${encodeURIComponent(q)}`),
-  setWatched: (owner, round, viewer, watched) =>
-    post(`/movies/${encodeURIComponent(owner)}/${round}/watch`, { viewer, watched }),
+  setWatched: (owner, round, viewer, watched, leagueId) =>
+    post(leagueId
+      ? `/leagues/${leagueId}/movies/${encodeURIComponent(owner)}/${round}/watch`
+      : `/movies/${encodeURIComponent(owner)}/${round}/watch`, { viewer, watched }),
   leaderboard: () => get('/leaderboard'),
   owner: (name) => get(`/owners/${encodeURIComponent(name)}`),
   round: (n) => get(`/rounds/${n}`),

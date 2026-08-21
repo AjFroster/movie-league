@@ -110,3 +110,25 @@ def test_response_carries_a_fresh_breakdown_and_leaderboard(client):
     watch_row = [r for r in body["movie"]["breakdown"] if r["label"] == "Owner watched"][0]
     assert watch_row["value"] == "Yes" and watch_row["points"] == 5
     assert {r["owner"] for r in body["leaderboard"]} == {"Ann", "Bob", "Cal"}
+
+
+def test_a_watch_is_recorded_against_the_named_league(client):
+    """The legacy route acts on whichever league is current, which is wrong as soon as you
+    are looking at an older season -- it would write to the newest league and 422."""
+    r = client.post("/api/leagues/1/movies/Ann/1/watch",
+                    json={"viewer": "Bob", "watched": True})
+    assert r.status_code == 200
+    board = {x["owner"]: x for x in r.json()["leaderboard"]}
+    assert board["Bob"]["other_watch_points"] == 1
+
+
+def test_a_watch_against_an_unknown_league_is_404(client):
+    r = client.post("/api/leagues/999/movies/Ann/1/watch",
+                    json={"viewer": "Bob", "watched": True})
+    assert r.status_code == 404
+
+
+def test_a_watch_naming_a_player_from_another_league_is_rejected(client):
+    r = client.post("/api/leagues/1/movies/Ann/1/watch",
+                    json={"viewer": "Stranger", "watched": True})
+    assert r.status_code == 422

@@ -223,6 +223,32 @@ async def post_league_enrich(league_id: int, force: bool = False,
         return summary
 
 
+class WatchUpdate(BaseModel):
+    viewer: str
+    watched: bool
+
+
+@router.post("/{league_id}/movies/{owner}/{round_number}/watch")
+def post_league_watch(league_id: int, owner: str, round_number: int, body: WatchUpdate):
+    """Record a watch against a named league.
+
+    The legacy route acts on whichever league is current, which is wrong the moment you are
+    looking at an older season: toggling a 2026 watch would write to the newest league and
+    fail with "no player named ...".
+    """
+    with session_scope() as session:
+        try:
+            row = repo.set_watched(session, league_id, owner=owner,
+                                   round_number=round_number,
+                                   viewer=body.viewer, watched=body.watched)
+        except LookupError as e:
+            detail = redact_secrets(str(e))
+            raise HTTPException(status_code=422 if "no player" in detail else 404,
+                                detail=detail)
+        return {"movie": {**row, "breakdown": scoring.score_breakdown(row)},
+                "leaderboard": repo.leaderboard(session, league_id)}
+
+
 @router.get("/{league_id}/pool")
 async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_SIZE,
                                                      ge=1, le=pool.MAX_POOL_SIZE)):

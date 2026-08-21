@@ -79,6 +79,7 @@ export default function PlayerCard({ summary, ownerCount, owners, onWatchChange,
             movie={m}
             ownerCount={ownerCount}
             owners={owners}
+            leagueId={leagueId}
             onWatched={(updated) => {
               // Patch the row in place so the panel reflects the toggle immediately,
               // then let the parent refresh standings -- a cross-owner watch scores for

@@ -19,7 +19,7 @@ function statusFor(m) {
   return { dot: 'scored', label: 'SCORED' }
 }
 
-function MovieDetail({ m, ownerCount, owners, onWatched }) {
+function MovieDetail({ m, ownerCount, owners, onWatched, leagueId }) {
   // Supplied by GET /api/owners/{owner}; absent means an older payload, so render nothing
   // rather than recomputing the tiers here and risking drift from scoring.py.
   const breakdown = m.breakdown || []
@@ -32,7 +32,7 @@ function MovieDetail({ m, ownerCount, owners, onWatched }) {
     try {
       // The server returns the recomputed row, so the panel never has to guess what the
       // new score is -- it renders whatever the scoring rules actually produced.
-      const result = await api.setWatched(m.owner, m.round, person, watched)
+      const result = await api.setWatched(m.owner, m.round, person, watched, leagueId)
       onWatched?.(result.movie)
     } catch (e) {
       setWatchError("Couldn't save that — check the backend is running, then try again.")
@@ -59,33 +59,15 @@ function MovieDetail({ m, ownerCount, owners, onWatched }) {
         <div className="movie-hero-text">
           <div className="movie-detail-title">{m.movie}</div>
           <div className="movie-detail-meta">R{m.round} · {m.owner}'s pick</div>
-        </div>
-      </div>
-
-      <div className="stat-strip">
-        <div className="stat-block">
-          <span className="stat-block-label">ROUND TOTAL</span>
-          <span className={`stat-block-value ${m.total > 0 ? 'positive' : m.total < 0 ? 'negative' : ''}`}>
-            {m.total > 0 ? `+${m.total}` : m.total}
-          </span>
-          <span className="stat-block-caption">
-            RATING {m.rating_score > 0 ? `+${m.rating_score}` : m.rating_score} · FIN {m.financial_score > 0 ? `+${m.financial_score}` : m.financial_score} · WATCH +{m.watch_points}
-          </span>
-        </div>
-        <div className="stat-block">
-          <span className="stat-block-label">RATING</span>
-          <span className="stat-block-value">{m.imdb !== null ? m.imdb : '—'}</span>
-          <span className="stat-block-caption">{ratingCaption}</span>
-        </div>
-        <div className="stat-block">
-          <span className="stat-block-label">ROI</span>
-          <span className="stat-block-value">{m.roi !== null ? `${m.roi.toFixed(2)}×` : '—'}</span>
-          <span className="stat-block-caption">{financialCaption}</span>
-        </div>
-        <div className="stat-block">
-          <span className="stat-block-label">WATCHED</span>
-          <span className="stat-block-value">{m.who_watched.length}/{ownerCount}</span>
-          <span className="stat-block-caption">{watchedNames}</span>
+          <div className="movie-hero-facts">
+            <span className={`hero-total ${m.total > 0 ? 'positive' : m.total < 0 ? 'negative' : ''}`}>
+              {m.total > 0 ? `+${m.total}` : m.total}
+            </span>
+            <span className="hero-facts-text">
+              {ratingCaption}
+              {financialCaption !== '—' && ` · ${financialCaption}`}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -140,40 +122,7 @@ function MovieDetail({ m, ownerCount, owners, onWatched }) {
         </div>
 
         <div className="detail-col">
-          <div className="detail-section-title">CAMPAIGN TRACKER</div>
-          <div className="illustrative-note">Illustrative — not live data</div>
-          <div className="campaign-tracker">
-            <div className="tracker-item">
-              <span className="tracker-dot amber" />
-              <div>
-                <div className="tracker-headline">Movie picked</div>
-                <div className="tracker-detail">Selected for this round</div>
-              </div>
-            </div>
-            <div className="tracker-item">
-              <span className="tracker-dot blue" />
-              <div>
-                <div className="tracker-headline">Scores entered</div>
-                <div className="tracker-detail">Manual entry after release</div>
-              </div>
-            </div>
-            <div className="tracker-item">
-              <span className="tracker-dot gray" />
-              <div>
-                <div className="tracker-headline">TMDB enrichment available</div>
-                <div className="tracker-detail">Budget & gross can be pulled from TMDB</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="detail-col">
-          <div className="detail-section-title">LEAGUE OWNERSHIP</div>
-          <div className="ownership-callout">
-            Picked by <strong>{m.owner}</strong> · Round {m.round}
-          </div>
-
-          <div className="detail-section-title watch-title">WHO WATCHED</div>
+          <div className="detail-section-title">WHO WATCHED</div>
           {watchError && <div className="card-error" role="alert">{watchError}</div>}
           <ul className="watch-list">
             {(owners || []).map((person) => {
@@ -211,7 +160,7 @@ const GROUPS = [
   { key: 'watch', label: 'Watch points' },
 ]
 
-export default function MovieCard({ movie: m, ownerCount, owners, onWatched }) {
+export default function MovieCard({ movie: m, ownerCount, owners, onWatched, leagueId }) {
   const [open, setOpen] = useState(false)
   const isPending = m.imdb === null && m.gross === null && m.rt_crit === null
   const status = statusFor(m)
@@ -249,7 +198,8 @@ export default function MovieCard({ movie: m, ownerCount, owners, onWatched }) {
         </span>
         <span className="roster-col-watched">{m.who_watched.length}/{ownerCount}</span>
       </div>
-      {open && <MovieDetail m={m} ownerCount={ownerCount} owners={owners} onWatched={onWatched} />}
+      {open && <MovieDetail m={m} ownerCount={ownerCount} owners={owners} onWatched={onWatched}
+                     leagueId={leagueId} />}
     </>
   )
 }

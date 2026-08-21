@@ -146,7 +146,6 @@ body {
   line-height: var(--lh-heading);
   color: var(--text-dim);
 }
-.illustrative-note {
   font-family: var(--font-label);
   font-size: var(--fs-label);
   line-height: var(--lh-label);
@@ -307,14 +306,9 @@ body {
 
 /* -- Movie detail (expanded) -- */
 .movie-detail { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-lg); }
-.movie-hero { height: 120px; background: linear-gradient(135deg, var(--surface), var(--surface-raised)); }
 .movie-detail-title { font-family: var(--font-display); font-size: var(--fs-display); font-weight: 700; line-height: var(--lh-display); color: var(--text); margin: var(--space-md) 0 0; }
 .movie-detail-meta { font-family: var(--font-label); font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: var(--space-xs); }
 
-.stat-strip { display: flex; flex-wrap: wrap; }
-.stat-strip .stat-block { padding: 0 var(--space-lg); border-right: 1px solid var(--border); }
-.stat-strip .stat-block:first-child { padding-left: 0; }
-.stat-strip .stat-block:last-child { border-right: none; }
 
 .detail-columns { display: grid; grid-template-columns: 2.6fr 1fr 1fr; gap: var(--space-lg); }
 .detail-col { display: flex; flex-direction: column; min-width: 0; }
@@ -361,17 +355,9 @@ body {
   margin-top: var(--space-sm);
 }
 
-.campaign-tracker { display: flex; flex-direction: column; gap: var(--space-md); }
-.tracker-item { display: flex; gap: var(--space-sm); }
-.tracker-dot { width: var(--dot-size); height: var(--dot-size); border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-.tracker-dot.amber { background: var(--accent); }
-.tracker-dot.blue { background: var(--status-info); }
-.tracker-dot.gray { background: var(--text-faint); }
 .tracker-headline { font-weight: 700; color: var(--text); font-size: var(--fs-body); }
 .tracker-detail { color: var(--text-dim); font-size: var(--fs-label); line-height: var(--lh-label); font-family: var(--font-label); }
 
-.ownership-callout { border: 1px solid var(--accent); padding: var(--space-md); background: var(--surface-raised); font-size: var(--fs-body); color: var(--text); }
-.ownership-callout strong { color: var(--accent); }
 
 .card-error { padding: var(--space-md) var(--space-lg); color: var(--destructive); font-family: var(--font-label); font-size: var(--fs-label); }
 
@@ -379,8 +365,6 @@ body {
 @media (max-width: 600px) {
   .player-name, .movie-detail-title { font-size: 28px; }
   .roster-header-row, .roster-row { grid-template-columns: 48px 1fr 120px 56px 56px; padding: 0 var(--space-md); }
-  .stat-strip { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
-  .stat-strip .stat-block { border-right: none; padding: 0; }
   .detail-columns { grid-template-columns: 1fr; }
 }
 
@@ -700,13 +684,11 @@ body {
 .poster-sm { width: 32px; height: 48px; flex: 0 0 auto; }
 .roster-col-title { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
 .roster-title-text { overflow: hidden; text-overflow: ellipsis; }
-.movie-hero { display: flex; align-items: flex-end; padding: var(--space-lg);
   gap: var(--space-lg); }
 .poster-hero { width: 92px; height: 138px; }
 .poster-hero.poster-empty { font-size: 11px; }
 
 /* Poster beside the title rather than stranded in an empty band above it. */
-.movie-hero { display: flex; align-items: flex-end; gap: var(--space-lg);
   padding: var(--space-lg) var(--space-lg) var(--space-md); background: none; }
 .movie-hero-text { min-width: 0; }
 .movie-hero .movie-detail-title { margin-top: 0; }
@@ -749,3 +731,41 @@ body {
   padding: 0 2px; cursor: pointer; color-scheme: dark; }
 .settle-date:hover, .settle-date:focus { color: var(--accent);
   border-bottom-color: var(--accent); outline: none; }
+
+/* Detail panel, simplified. The stat strip used to restate what the breakdown table says
+   directly beneath it, and the campaign tracker was hardcoded text labelled "not live
+   data" occupying a third of the width. Both are gone; the headline number moved into the
+   hero, where the one figure worth seeing at a glance belongs. */
+.movie-hero-facts { display: flex; align-items: baseline; gap: var(--space-md);
+  margin-top: var(--space-sm); flex-wrap: wrap; }
+.hero-total { font-family: var(--font-label); font-size: 28px; font-weight: 700;
+  line-height: 1; }
+.hero-total.positive { color: var(--accent); }
+.hero-total.negative { color: var(--destructive); }
+.hero-facts-text { font-family: var(--font-label); font-size: var(--fs-label);
+  line-height: var(--lh-label); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-dim); }
+/* Two columns now, not three: the breakdown needs the room and nothing competes with it. */
+.detail-columns { grid-template-columns: 2.4fr 1fr; }
+@media (max-width: 900px) { .detail-columns { grid-template-columns: 1fr; } }
+
+/* THIS WEEK's disclaimer. Still needed: that sidebar is hardcoded and says so.
+   (Removed by mistake when sweeping the campaign tracker's styles.) */
+.illustrative-note { font-family: var(--font-label); font-size: var(--fs-label);
+  line-height: var(--lh-label); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-faint); }
+
+/* Align the hero to the top, not the bottom. A long title wraps to two or three lines and
+   flex-end pushed those lines up out of the panel -- "The Super Mario Galaxy Movie"
+   rendered as "Movie". Titles here are routinely long, so this is the normal case. */
+.movie-hero .poster-hero { flex: 0 0 auto; }
+
+/* One hero rule. Three had accumulated across edits, and the oldest still carried
+   height:120px from when this was an empty placeholder banner -- which clipped the title
+   and overlapped the breakdown once real content went in. Titles here run long
+   ("The Lord of the Rings: The Hunt for Gollum"), so the box must grow with them. */
+.movie-hero { display: flex; align-items: flex-start; gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-lg) var(--space-md); background: none; }
+.movie-hero .poster-hero { flex: 0 0 auto; }
+.movie-hero-text { min-width: 0; }
+.movie-hero .movie-detail-title { margin-top: 0; }
