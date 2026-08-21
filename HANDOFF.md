@@ -19,7 +19,7 @@ was created by `uv`:
 
 ```bash
 uv pip install --python backend/.venv/bin/python <package>
-backend/.venv/bin/python -m pytest backend/tests -q     # 405 tests
+backend/.venv/bin/python -m pytest backend/tests -q     # 435 tests
 ```
 
 API keys live in `backend/.env` (gitignored): `TMDB_API_KEY` (v4 read token, Bearer),
@@ -30,7 +30,8 @@ API keys live in `backend/.env` (gitignored): `TMDB_API_KEY` (v4 read token, Bea
 SQLite at `backend/data/league.db`, four tables:
 
 ```
-leagues    id, name, year, rounds, status, draft_order, settles_on, frozen_at, created_at
+leagues    id, name, year, rounds, status, draft_order, settles_on, frozen_at,
+           created_at, pick_seconds, clock_started_at
 players    id, league_id -> leagues.id, name
 entries    id, league_id, player_id, round, pick_number, tmdb_id, title, poster_path,
            + ratings / financials / derived scores / sources (JSON provenance)
@@ -46,7 +47,39 @@ Two constraints enforce rules application code used to get wrong:
 - `PK(entry_id, player_id)` — a watch is a row, so concurrent toggles cannot overwrite
 
 `backend/data/league_data.json` is a **readable export, not the source of truth**.
-`db/porting.py` round-trips losslessly in both directions.
+
+## Backup and restore
+
+Two JSON formats live in `db/porting.py`, and confusing them loses data:
+
+| | `export_league` / `import_league` | `dump_archive` / `load_archive` |
+|---|---|---|
+| Shape | legacy `{owners, movies}` | `{format: "movie-league/1", leagues: [...]}` |
+| Carries | scores and watchers only | **everything** |
+| For | reading `league_data.json` | backup, restore, Postgres migration |
+
+The legacy pair is lossless only *against a legacy file*. Exporting the real database
+through it drops all 57 pick numbers, 80 poster paths, 22 watch timestamps, and every
+league's name, year, settle date and timer — the format has nowhere to put them. Use it to
+read `league_data.json`, never to back anything up.
+
+Back up from the UI (**BACK UP** on the league list, or `↓` on one league) or directly:
+
+```bash
+curl -sO http://localhost:8000/api/export
+```
+
+Restore is a script rather than an endpoint, deliberately: it replaces league history, and
+with no auth on the API an endpoint that could do that would be the worst hole in the app.
+
+```bash
+cd backend && .venv/bin/python -m scripts.restore backup.json [--replace] [--dry-run]
+```
+
+It refuses a non-empty database without `--replace`, and `--replace` writes a snapshot of
+what it is about to delete before deleting it. Two things are deliberately **not** in an
+archive: database ids (a restore assigns its own) and `clock_started_at` (live pick-clock
+state — a restored draft starts a fresh clock rather than inheriting an expired deadline).
 
 **Schema changes go through Alembic** (`backend/migrations/`). `env.py` takes its URL from
 the app, not `alembic.ini`, so the two cannot drift, and renders SQLite in batch mode since
@@ -113,12 +146,17 @@ believe it refreshed a season that did not move.
 
 ## Current state
 
-Branch `feature/league-draft`, 14 commits ahead of `master`, 405 tests passing.
+`master`, 435 tests passing.
 
-Three leagues: **Movie League 2026** (30 picks, 21 scored), **Movie League 2027** (42 picks),
-**Sequels Only 2027** (9 picks). All settle 31 December of their year — see the TODO's note
-on why 2026's date is worth revisiting.
+Four leagues: **Movie League 2026** (30 entries, imported so no pick numbers), **Movie League
+2027** (42 picks), **Sequels Only 2027** (9), **trish v andrew 2027** (6). All settle 31
+December of their year — see the TODO's note on why 2026's date is worth revisiting. All on a
+60-second pick clock.
 
-Screens: league list (rename inline, delete with confirmation, editable settle date),
-create league, draft board (setup / drafting / complete / rejected pick), and standings with
-score breakdowns, watch toggles, and posters.
+Screens: league list (rename inline, delete with confirmation, editable settle date and pick
+timer, export), create league, draft board (setup / drafting / complete / rejected pick, with
+a server-authoritative clock that auto-picks on expiry), and standings with score breakdowns,
+watch toggles, and posters.
+
+`.planning/TODO.md` holds the staged roadmap: accounts (Clerk) → live draft (polling) →
+hosting → Stripe in test mode, with the sequencing reasoning kept alongside.

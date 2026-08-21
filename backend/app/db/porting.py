@@ -5,6 +5,7 @@ readable, diffable, git-committable snapshot -- the database is the source of tr
 writes, but a binary file is a poor thing to be the only copy of a season's history.
 """
 import json
+from datetime import date as dateonly, datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select
@@ -107,5 +108,171 @@ def export_to_file(session: Session, league_id: int, path: str | Path) -> Path:
     payload = export_league(session, league_id)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2))
+    tmp.replace(path)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Full-fidelity archive format
+#
+# The legacy `{owners, movies}` shape above exists to read `league_data.json`, and it
+# carries only what that file could express. It is NOT a backup: exporting the four real
+# leagues through it drops 57 pick numbers, 80 poster paths, every league's name, year,
+# settle date and timer, and all 22 watch timestamps. Restoring from one would lose the
+# drafts it was supposed to preserve.
+#
+# This format carries everything that cannot be recomputed. Two deliberate omissions:
+#
+#   * Database ids. Primary keys are local to one database. Restoring into a fresh
+#     Postgres assigns new ones, and carrying the old ones only invites a restore that
+#     tries to honour them and collides. Players and watches key on name instead, which
+#     `uq_player_per_league` makes unambiguous.
+#   * `clock_started_at`. That is live pick-clock state, not league data. A league
+#     restored mid-draft should start its next clock fresh rather than inherit a deadline
+#     that expired whenever the backup was taken.
+# ---------------------------------------------------------------------------
+
+ARCHIVE_FORMAT = "movie-league/1"
+
+# Scalars copied straight across in both directions.
+LEAGUE_FIELDS = ("name", "year", "rounds", "status", "draft_order", "pick_seconds")
+ENTRY_FIELDS = ("round", "pick_number", "tmdb_id", "title", "poster_path", *SCORE_FIELDS)
+
+
+def _iso(value):
+    """Datetime/date -> ISO string, treating a naive datetime as UTC.
+
+    SQLite has no timezone type and hands back naive datetimes even from a
+    `DateTime(timezone=True)` column, so a value written as UTC-aware reads back bare.
+    Normalising here is what makes dump -> load -> dump byte-stable across engines;
+    without it a round trip through SQLite would drop the offset and fail its own test.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime) and value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
+
+
+def _parse_dt(value):
+    if value is None:
+        return None
+    parsed = datetime.fromisoformat(value)
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _parse_date(value):
+    return dateonly.fromisoformat(value) if value else None
+
+
+def dump_league(session: Session, league_id: int) -> dict:
+    """Everything about one league that cannot be recomputed from what remains."""
+    league = session.get(League, league_id)
+    if league is None:
+        raise ValueError(f"no league with id {league_id}")
+
+    names = {p.id: p.name for p in league.players}
+    entries = session.scalars(
+        select(Entry).where(Entry.league_id == league_id)).all()
+
+    # Sorted so repeated exports of an unchanged league are byte-identical and therefore
+    # diffable in git -- the whole reason for a text format over copying the .db file.
+    return {
+        **{f: getattr(league, f) for f in LEAGUE_FIELDS},
+        "created_at": _iso(league.created_at),
+        "frozen_at": _iso(league.frozen_at),
+        "settles_on": _iso(league.settles_on),
+        "players": [p.name for p in league.players],
+        "entries": [
+            {
+                "owner": names.get(entry.player_id),
+                **{f: getattr(entry, f) for f in ENTRY_FIELDS},
+                "sources": entry.sources or {},
+                "watches": sorted(
+                    ({"player": names[w.player_id], "at": _iso(w.at)}
+                     for w in entry.watches if w.player_id in names),
+                    key=lambda w: w["player"],
+                ),
+            }
+            for entry in sorted(entries, key=lambda e: (names.get(e.player_id, ""), e.round))
+        ],
+    }
+
+
+def archive(leagues: list[dict]) -> dict:
+    """Wrap dumped leagues in the versioned envelope.
+
+    One league and many leagues share a shape on purpose, so `load_archive` reads a
+    single-season export with no special case.
+    """
+    return {
+        "format": ARCHIVE_FORMAT,
+        "exported_at": _iso(datetime.now(timezone.utc)),
+        "leagues": leagues,
+    }
+
+
+def dump_archive(session: Session) -> dict:
+    """Every league in the database, version-stamped."""
+    ids = session.scalars(select(League.id).order_by(League.id)).all()
+    return archive([dump_league(session, i) for i in ids])
+
+
+def load_league(session: Session, doc: dict) -> League:
+    """Recreate a league from `dump_league` output. Always a new row, never an update."""
+    league = League(
+        **{f: doc.get(f) for f in LEAGUE_FIELDS},
+        created_at=_parse_dt(doc.get("created_at")) or datetime.now(timezone.utc),
+        frozen_at=_parse_dt(doc.get("frozen_at")),
+        settles_on=_parse_date(doc.get("settles_on")),
+    )
+    session.add(league)
+    session.flush()
+
+    players = {}
+    for name in doc.get("players") or []:
+        player = Player(league_id=league.id, name=name)
+        session.add(player)
+        players[name] = player
+    session.flush()
+
+    for row in doc.get("entries") or []:
+        owner = row.get("owner")
+        if owner not in players:
+            # A dump always names an owner that exists; a hand-edited file might not.
+            # Skipping is recoverable, inventing a player is not.
+            continue
+        entry = Entry(
+            league_id=league.id, player_id=players[owner].id,
+            sources=row.get("sources") or {},
+            **{f: row.get(f) for f in ENTRY_FIELDS if f != "penalty_notes"},
+        )
+        entry.penalty_notes = row.get("penalty_notes") or ""
+        session.add(entry)
+        session.flush()
+        for watch in row.get("watches") or []:
+            if watch.get("player") in players:
+                session.add(Watch(entry_id=entry.id,
+                                  player_id=players[watch["player"]].id,
+                                  at=_parse_dt(watch.get("at")) or datetime.now(timezone.utc)))
+    session.flush()
+    return league
+
+
+def load_archive(session: Session, doc: dict) -> list[League]:
+    """Recreate every league in an archive. Rejects a format it does not understand."""
+    found = doc.get("format")
+    if found != ARCHIVE_FORMAT:
+        raise ValueError(
+            f"unrecognised archive format {found!r}, expected {ARCHIVE_FORMAT!r}. "
+            "A legacy {owners, movies} file is read by import_league instead.")
+    return [load_league(session, lg) for lg in doc.get("leagues") or []]
+
+
+def dump_archive_to_file(session: Session, path: str | Path) -> Path:
+    """Write a whole-database archive atomically."""
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(dump_archive(session), indent=2))
     tmp.replace(path)
     return path

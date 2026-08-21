@@ -360,6 +360,8 @@ body {
 
 
 .card-error { padding: var(--space-md) var(--space-lg); color: var(--destructive); font-family: var(--font-label); font-size: var(--fs-label); }
+/* A dismissible card-error sits inline above content it must not replace. */
+.card-error .btn-small { margin-left: var(--space-md); }
 
 /* -- Responsive -- */
 @media (max-width: 600px) {
@@ -429,6 +431,7 @@ body {
   padding: var(--space-xl) var(--space-lg); }
 .league-header { display: flex; justify-content: space-between; align-items: flex-start;
   padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-bright); }
+.header-actions { display: flex; gap: var(--space-sm); align-items: center; }
 .league-wordmark { font-family: var(--font-label); font-size: var(--fs-heading);
   letter-spacing: 0.14em; text-transform: uppercase; margin: 0; color: var(--text); }
 .league-subtitle { font-family: var(--font-label); font-size: var(--fs-label);
@@ -715,6 +718,11 @@ body {
 .league-delete { background: none; border: 0; color: var(--text-faint); cursor: pointer;
   font-size: 18px; line-height: 1; padding: 0 var(--space-xs); }
 .league-delete:hover { color: var(--destructive); }
+/* Export is quiet like delete, but reads as safe rather than destructive on hover. */
+.league-export { background: none; border: 0; color: var(--text-faint); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 var(--space-xs); }
+.league-export:hover:not(:disabled) { color: var(--text); }
+.league-export:disabled { cursor: default; opacity: 0.5; }
 .confirm-strip { display: flex; align-items: center; gap: var(--space-sm); }
 .confirm-text { font-family: var(--font-body); font-size: var(--fs-label);
   color: var(--destructive); white-space: nowrap; }

@@ -32,19 +32,30 @@ transport is swappable. Start with polling; earn WebSockets with a real complain
 
 ---
 
-## Stage 1 — Export (half a day, do this first)
+## Stage 1 — Export ✅ done
 
-### 1. A download button for `db/porting.py`
+Shipped: `GET /api/export`, `GET /api/leagues/{id}/export`, a BACK UP button on the league
+list and a per-league `↓`, plus `scripts/restore.py`.
 
-`db/porting.py` round-trips a league to JSON losslessly and is well tested. Nothing in the UI
-calls it. There is currently no backup story: the entire league history is one SQLite file.
+**The plan said "wire a button to `db/porting.py`". That was wrong, and worth recording why.**
+`export_league` emits the legacy `{owners, movies}` shape, which cannot express a pick number,
+a poster path, or any league setting. It round-trips *legacy JSON → DB → legacy JSON*
+losslessly — which is what its test asserts and what the one-time migration needed — but as a
+backup it would have silently dropped, across the four real leagues, **57 pick numbers, 80
+poster paths, 22 watch timestamps, and every league's name, year, settle date and timer.**
+A backup that cannot restore the drafts is worse than no backup, because it is trusted.
 
-Two reasons this is first rather than merely early:
+So the format came first. `dump_archive`/`load_archive` (`movie-league/1`) carry everything,
+verified by the assertion the legacy suite never made: **DB → JSON → DB → JSON equality**,
+against the real database.
 
-- It is the backup, before data goes near a cloud provider.
-- **It is also the SQLite → Postgres migration path.** Export to JSON, create the schema with
-  Alembic against Postgres, import. Existing tested code doing double duty, which is the
-  cheapest possible answer to a migration that only gets harder with more data.
+Restore is a CLI, not an endpoint — it is rare, destructive, and there is still no auth in
+front of the API. It is also the SQLite → Postgres path:
+
+```bash
+DATABASE_URL=postgresql+psycopg://... python -m alembic upgrade head
+DATABASE_URL=postgresql+psycopg://... python -m scripts.restore backup.json
+```
 
 ---
 

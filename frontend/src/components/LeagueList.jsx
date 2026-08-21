@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { saveBlob } from '../download.js'
 
 const STATUS_LABEL = { setup: 'SETUP', drafting: 'DRAFTING', complete: 'COMPLETE' }
 
@@ -40,6 +41,11 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
   const [editing, setEditing] = useState(null)      // league id being renamed
   const [draftName, setDraftName] = useState('')
   const [confirming, setConfirming] = useState(null) // league id awaiting delete confirm
+  const [saving, setSaving] = useState(null)        // 'all' or a league id, while exporting
+  // Deliberately NOT the page-level `error`: that one replaces the whole list with a
+  // dead-end message, which is right for "the backend is unreachable" and badly wrong for
+  // "one download failed" -- the leagues are still there and still worth showing.
+  const [saveError, setSaveError] = useState(null)
 
   const reload = () => api.leagues().then(setLeagues).catch((e) => setError(e.message))
 
@@ -85,6 +91,20 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
     }
   }
 
+  /** `league` omitted means the whole database -- the backup. */
+  async function exportData(league) {
+    const key = league ? league.id : 'all'
+    setSaving(key)
+    setSaveError(null)
+    try {
+      saveBlob(league ? await api.exportLeague(league.id) : await api.exportArchive())
+    } catch (e) {
+      setSaveError(`Couldn't export: ${e.message}`)
+    } finally {
+      setSaving(null)
+    }
+  }
+
   async function remove(league) {
     try {
       await api.deleteLeague(league.id)
@@ -112,8 +132,25 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
             {drafting > 0 && ` · ${drafting} draft${ordinalSuffix(drafting)} in progress`}
           </p>
         </div>
-        <button className="btn" onClick={onCreate}>NEW LEAGUE</button>
+        <span className="header-actions">
+          <button
+            className="btn"
+            disabled={saving === 'all' || leagues.length === 0}
+            title="Download every league as a restorable JSON file"
+            onClick={() => exportData(null)}
+          >
+            {saving === 'all' ? 'SAVING…' : 'BACK UP'}
+          </button>
+          <button className="btn" onClick={onCreate}>NEW LEAGUE</button>
+        </span>
       </header>
+
+      {saveError && (
+        <div className="card-error" role="alert">
+          {saveError}
+          <button className="btn btn-small" onClick={() => setSaveError(null)}>DISMISS</button>
+        </div>
+      )}
 
       {leagues.length === 0 ? (
         <div className="empty-state">
@@ -221,11 +258,19 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                       </button>
                     </span>
                   ) : (
-                    <button
-                      className="league-delete"
-                      title="Delete league"
-                      onClick={() => setConfirming(league.id)}
-                    >×</button>
+                    <>
+                      <button
+                        className="league-export"
+                        title={`Download “${league.name}” as JSON`}
+                        disabled={saving === league.id}
+                        onClick={() => exportData(league)}
+                      >{saving === league.id ? '…' : '↓'}</button>
+                      <button
+                        className="league-delete"
+                        title="Delete league"
+                        onClick={() => setConfirming(league.id)}
+                      >×</button>
+                    </>
                   )}
                   {(league.frozen_at || (league.season_ended
                     && league.status === 'complete')) && (

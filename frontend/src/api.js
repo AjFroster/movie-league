@@ -26,6 +26,14 @@ async function send(method, path, body) {
   return res.status === 204 ? null : res.json()
 }
 
+/** Fetch a file, keeping the server's filename from Content-Disposition. */
+async function download(path) {
+  const res = await fetch(`${BASE}${path}`)
+  if (!res.ok) throw await describe(res, path)
+  const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')
+  return { blob: await res.blob(), filename: match ? match[1] : 'movie-league.json' }
+}
+
 async function post(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -38,6 +46,8 @@ async function post(path, body) {
 
 export const api = {
   leagues: () => get('/leagues'),
+  exportArchive: () => download('/export'),
+  exportLeague: (id) => download(`/leagues/${id}/export`),
   renameLeague: (id, name) => send('PATCH', `/leagues/${id}`, { name }),
   setSettlesOn: (id, settlesOn) => send('PATCH', `/leagues/${id}`, { settles_on: settlesOn }),
   setPickSeconds: (id, seconds) => send('PATCH', `/leagues/${id}`, { pick_seconds: seconds }),

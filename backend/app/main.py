@@ -11,6 +11,7 @@ from .storage import load_data, save_data, compute_leaderboard
 from .db import repo
 from .db.session import init_db, session_scope
 from .routes_leagues import router as leagues_router
+from .routes_export import router as export_router
 from pydantic import BaseModel
 
 from .models import Movie
@@ -168,6 +169,7 @@ async def enrich_all_movies(force: bool = False,
 
 
 app.include_router(leagues_router)
+app.include_router(export_router)
 
 
 @app.on_event("startup")
