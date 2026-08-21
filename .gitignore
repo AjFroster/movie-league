@@ -28,3 +28,8 @@ backend/data/api_cache.json
 backend/data/api_cache.tmp
 # Pre-migration rollback copies (Plan 02-02 writes league_data.json.bak)
 backend/data/*.bak
+
+# SQLite database (JSON export in backend/data/league_data.json is the readable copy)
+backend/data/league.db
+backend/data/league.db-wal
+backend/data/league.db-shm
