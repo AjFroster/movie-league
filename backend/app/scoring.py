@@ -33,7 +33,11 @@ PENALTY_RULES: list[tuple[str, float, int, str]] = [
     ("rt_crit", 50, -10, "RT Critics < 50% (-10)"),
 ]
 
-WATCH_POINTS = 5
+OWN_WATCH_POINTS = 5     # watching the film you drafted
+OTHER_WATCH_POINTS = 1   # watching someone else's pick
+
+# Kept as the old name for the own-pick value; scoring.WATCH_POINTS is referenced elsewhere.
+WATCH_POINTS = OWN_WATCH_POINTS
 
 
 def _tier(value, tiers: list[tuple[float, int]]) -> int:
@@ -75,13 +79,29 @@ def penalties(entry: dict) -> tuple[int, str]:
 
 
 def watch_points(entry: dict) -> int:
-    """Points for the owner having watched their own pick.
+    """Points THIS ROW earns for its owner: 5 when the owner watched their own pick.
 
-    Flat, not per-viewer: the one row where three people watched but the owner did not
-    scores zero, and the row watched by only the owner scores full marks.
+    Points other players earn for watching this film do not belong to this row -- they
+    belong to those players, and are attributed by `viewer_watch_points` instead. Keeping
+    them out of the row means a row's `total` still reads as "how this pick scored".
     """
     watched = entry.get("who_watched") or []
-    return WATCH_POINTS if entry.get("owner") in watched else 0
+    return OWN_WATCH_POINTS if entry.get("owner") in watched else 0
+
+
+def viewer_watch_points(movies: list[dict], viewer: str) -> int:
+    """Total watch points `viewer` earns across every film in the league.
+
+    +5 for each of their own picks they watched, +1 for each film someone else owns. The
+    league-wide view is necessary because a watch point can cross owners: the points follow
+    the person who watched, not the person who drafted.
+    """
+    total = 0
+    for entry in movies:
+        if viewer not in (entry.get("who_watched") or []):
+            continue
+        total += OWN_WATCH_POINTS if entry.get("owner") == viewer else OTHER_WATCH_POINTS
+    return total
 
 
 def _tier_label(value, tiers: list[tuple[float, int]], unit: str = "") -> str:

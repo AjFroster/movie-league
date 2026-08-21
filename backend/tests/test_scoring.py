@@ -207,3 +207,63 @@ def test_breakdown_reconciles_across_the_whole_real_dataset():
         scoring.compute_movie_scores(scored)
         assert sum(r["points"] for r in scoring.score_breakdown(scored)) == scored["total"], \
             f"breakdown does not reconcile for {m['owner']} R{m['round']}"
+
+
+# ---------------------------------------------------------------------------
+# watch points follow the watcher, not the owner
+# ---------------------------------------------------------------------------
+
+def _league(*rows):
+    return [{"owner": o, "round": r, "who_watched": list(w)} for o, r, w in rows]
+
+
+def test_viewer_earns_five_for_their_own_pick_and_one_for_others():
+    movies = _league(("A", 1, ["A", "B"]), ("B", 1, ["A", "B"]))
+    assert scoring.viewer_watch_points(movies, "A") == 5 + 1
+    assert scoring.viewer_watch_points(movies, "B") == 1 + 5
+
+
+def test_watching_nothing_earns_nothing():
+    assert scoring.viewer_watch_points(_league(("A", 1, ["B"])), "A") == 0
+
+
+def test_a_completionist_earns_own_picks_plus_everything_else():
+    """Six own picks and 24 others is the full-season ceiling: 6*5 + 24*1 = 54."""
+    movies = _league(*[("A", r, ["A"]) for r in range(1, 7)],
+                     *[("B", r, ["A"]) for r in range(1, 25)])
+    assert scoring.viewer_watch_points(movies, "A") == 6 * 5 + 24 * 1
+
+
+def test_row_watch_points_stay_owner_only():
+    """The row's own component must exclude other viewers, or the league double-counts."""
+    assert scoring.watch_points({"owner": "A", "who_watched": ["A", "B", "C"]}) == 5
+    assert scoring.watch_points({"owner": "A", "who_watched": ["B", "C"]}) == 0
+
+
+def test_leaderboard_attributes_cross_owner_watches_to_the_watcher():
+    """B watching A's pick must move B's total, not A's."""
+    from app import storage
+    data = {"owners": ["A", "B"], "movies": [
+        {"owner": "A", "round": 1, "movie": "x", "imdb": None, "who_watched": ["A", "B"],
+         "rating_score": 0, "financial_score": 0, "penalties": 0, "watch_points": 5,
+         "total": 5},
+        {"owner": "B", "round": 1, "movie": "y", "imdb": None, "who_watched": [],
+         "rating_score": 0, "financial_score": 0, "penalties": 0, "watch_points": 0,
+         "total": 0},
+    ]}
+    board = {r["owner"]: r for r in storage.compute_leaderboard(data)}
+    assert board["A"]["total"] == 5          # own pick, own watch
+    assert board["A"]["own_watch_points"] == 5
+    assert board["B"]["total"] == 1          # earned purely by watching A's film
+    assert board["B"]["other_watch_points"] == 1
+
+
+def test_leaderboard_does_not_double_count_the_owners_own_watch():
+    from app import storage
+    data = {"owners": ["A"], "movies": [
+        {"owner": "A", "round": 1, "movie": "x", "imdb": None, "who_watched": ["A"],
+         "rating_score": 10, "financial_score": 0, "penalties": 0, "watch_points": 5,
+         "total": 15},
+    ]}
+    board = storage.compute_leaderboard(data)[0]
+    assert board["total"] == 15 and board["watch_points"] == 5

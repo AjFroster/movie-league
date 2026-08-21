@@ -146,7 +146,15 @@ one directly has no effect, because it is recomputed on the next write.
 - Letterboxd < 2.5 → −10
 - RT Critics < 50% → −10
 
-**Watch points** — a flat +5 when the owner has watched their own pick. Not per viewer.
+**Watch points** — points follow the *viewer*, not the owner:
+
+- **+5** for watching a film you drafted
+- **+1** for watching a film anyone else drafted
+
+Both stack, so watching every film in a 30-film season is worth 6x5 + 24x1 = 54. A point
+earned for watching someone else's pick lands on the watcher's standing, not the owner's,
+so it is attributed league-wide by `compute_leaderboard` rather than stored on the row.
+Tick viewers in the expanded film panel; it is trust-based, with no login.
 
 `total` is the plain sum of the four. A field with no data scores nothing, and a film with
 no recorded ROI is not treated as having failed to recoup.

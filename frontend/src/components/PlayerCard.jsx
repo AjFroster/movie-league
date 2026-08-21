@@ -12,7 +12,7 @@ function signed(v) {
   return v > 0 ? `+${v}` : `${v}`
 }
 
-export default function PlayerCard({ summary, ownerCount }) {
+export default function PlayerCard({ summary, ownerCount, owners, onWatchChange }) {
   const [movies, setMovies] = useState(null)
   const [error, setError] = useState(null)
 
@@ -71,7 +71,20 @@ export default function PlayerCard({ summary, ownerCount }) {
         {error && <div className="card-error" role="alert">{error}</div>}
         {!movies && !error && <div className="state-msg">Loading rounds…</div>}
         {movies && movies.map(m => (
-          <MovieCard key={m.round} movie={m} ownerCount={ownerCount} />
+          <MovieCard
+            key={m.round}
+            movie={m}
+            ownerCount={ownerCount}
+            owners={owners}
+            onWatched={(updated) => {
+              // Patch the row in place so the panel reflects the toggle immediately,
+              // then let the parent refresh standings -- a cross-owner watch scores for
+              // someone whose card is not this one.
+              setMovies((prev) =>
+                prev.map((x) => (x.round === updated.round ? updated : x)))
+              onWatchChange?.()
+            }}
+          />
         ))}
       </div>
     </div>

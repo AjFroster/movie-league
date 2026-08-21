@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { api } from '../api.js'
 
 function statusFor(m) {
   if (!m.movie) return { dot: 'no-pick', label: 'NO PICK' }
@@ -7,10 +8,27 @@ function statusFor(m) {
   return { dot: 'scored', label: 'SCORED' }
 }
 
-function MovieDetail({ m, ownerCount }) {
+function MovieDetail({ m, ownerCount, owners, onWatched }) {
   // Supplied by GET /api/owners/{owner}; absent means an older payload, so render nothing
   // rather than recomputing the tiers here and risking drift from scoring.py.
   const breakdown = m.breakdown || []
+  const [pending, setPending] = useState(null)
+  const [watchError, setWatchError] = useState(null)
+
+  async function toggleWatched(person, watched) {
+    setPending(person)
+    setWatchError(null)
+    try {
+      // The server returns the recomputed row, so the panel never has to guess what the
+      // new score is -- it renders whatever the scoring rules actually produced.
+      const result = await api.setWatched(m.owner, m.round, person, watched)
+      onWatched?.(result.movie)
+    } catch (e) {
+      setWatchError("Couldn't save that — check the backend is running, then try again.")
+    } finally {
+      setPending(null)
+    }
+  }
   const ratingCaption = [
     m.rt_crit !== null ? `RT ${m.rt_crit}%` : null,
     m.rt_aud !== null ? `RT AUD ${m.rt_aud}%` : null,
@@ -139,6 +157,32 @@ function MovieDetail({ m, ownerCount }) {
           <div className="ownership-callout">
             Picked by <strong>{m.owner}</strong> · Round {m.round}
           </div>
+
+          <div className="detail-section-title watch-title">WHO WATCHED</div>
+          {watchError && <div className="card-error" role="alert">{watchError}</div>}
+          <ul className="watch-list">
+            {(owners || []).map((person) => {
+              const isOwner = person === m.owner
+              const checked = (m.who_watched || []).includes(person)
+              return (
+                <li key={person}>
+                  <label className={`watch-item${isOwner ? ' owner' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={pending === person}
+                      onChange={(e) => toggleWatched(person, e.target.checked)}
+                    />
+                    <span className="watch-name">{person}</span>
+                    <span className="watch-pts">{isOwner ? '+5' : '+1'}</span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="watch-hint">
+            Points go to the viewer: +5 for your own pick, +1 for anyone else's.
+          </p>
         </div>
       </div>
     </div>
@@ -152,7 +196,7 @@ const GROUPS = [
   { key: 'watch', label: 'Watch points' },
 ]
 
-export default function MovieCard({ movie: m, ownerCount }) {
+export default function MovieCard({ movie: m, ownerCount, owners, onWatched }) {
   const [open, setOpen] = useState(false)
   const isPending = m.imdb === null && m.gross === null && m.rt_crit === null
   const status = statusFor(m)
@@ -187,7 +231,7 @@ export default function MovieCard({ movie: m, ownerCount }) {
         </span>
         <span className="roster-col-watched">{m.who_watched.length}/{ownerCount}</span>
       </div>
-      {open && <MovieDetail m={m} ownerCount={ownerCount} />}
+      {open && <MovieDetail m={m} ownerCount={ownerCount} owners={owners} onWatched={onWatched} />}
     </>
   )
 }

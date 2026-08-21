@@ -7,9 +7,9 @@ export default function App() {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    api.leaderboard().then(setRows).catch((e) => setError(e.message))
-  }, [])
+  const refresh = () => api.leaderboard().then(setRows).catch((e) => setError(e.message))
+
+  useEffect(() => { refresh() }, [])
 
   return (
     <div className="app">
@@ -36,7 +36,7 @@ export default function App() {
       {rows && rows.length > 0 && (
         <div className="app-layout">
           <main className="app-main">
-            <Leaderboard rows={rows} />
+            <Leaderboard rows={rows} onWatchChange={refresh} />
           </main>
           <ThisWeekSidebar />
         </div>

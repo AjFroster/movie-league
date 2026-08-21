@@ -383,3 +383,23 @@ body {
   .stat-strip .stat-block { border-right: none; padding: 0; }
   .detail-columns { grid-template-columns: 1fr; }
 }
+
+/* Who-watched controls. Trust-based: any player can tick any other, matching how the
+   league already runs -- there is no login to enforce anything stricter. */
+.watch-title { margin-top: var(--space-lg); }
+.watch-list { list-style: none; margin: 0; padding: 0; }
+.watch-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+  gap: var(--space-sm); padding: var(--space-sm) 0; cursor: pointer;
+  border-bottom: 1px solid var(--border); font-family: var(--font-label);
+  font-size: var(--fs-label); line-height: var(--lh-label); color: var(--text-dim); }
+.watch-item:hover { color: var(--text); }
+.watch-item input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+.watch-item input:disabled { cursor: wait; opacity: 0.5; }
+.watch-item input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The owner's own row is worth 5x the others, so it is worth seeing at a glance. */
+.watch-item.owner .watch-name { color: var(--text); font-weight: 700; }
+.watch-item.owner .watch-pts { color: var(--accent); }
+.watch-name { text-transform: uppercase; letter-spacing: 0.06em; }
+.watch-pts { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.watch-hint { margin: var(--space-sm) 0 0; font-family: var(--font-body);
+  font-size: var(--fs-label); line-height: var(--lh-body); color: var(--text-faint); }

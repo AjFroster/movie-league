@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from .storage import load_data, save_data, compute_leaderboard
+from pydantic import BaseModel
+
 from .models import Movie
 from . import enrichment, provenance, scoring
 from .redaction import ProviderError, redact_secrets
@@ -92,6 +94,44 @@ def update_movie(owner: str, round_number: int, movie: Movie):
             except Exception:
                 raise HTTPException(status_code=507, detail="Failed to persist update")
             return data["movies"][i]
+    raise HTTPException(status_code=404, detail="Movie entry not found")
+
+
+class WatchUpdate(BaseModel):
+    viewer: str
+    watched: bool
+
+
+@app.post("/api/movies/{owner}/{round_number}/watch")
+def set_watched(owner: str, round_number: int, update: WatchUpdate):
+    """Record whether `viewer` has watched this film.
+
+    Points follow the watcher, not the owner: +5 for your own pick, +1 for someone else's.
+    The row's own score only moves when the owner themselves is toggled; everyone else's
+    point lands on their leaderboard row instead.
+    """
+    data = load_data()
+    if update.viewer not in data["owners"]:
+        raise HTTPException(status_code=422, detail=f"No player named {update.viewer}")
+
+    for i, m in enumerate(data["movies"]):
+        if m["owner"] == owner and m["round"] == round_number:
+            watched = [w for w in (m.get("who_watched") or []) if w in data["owners"]]
+            if update.watched and update.viewer not in watched:
+                watched.append(update.viewer)
+            elif not update.watched and update.viewer in watched:
+                watched.remove(update.viewer)
+            # Store in league order so the list is stable across toggles rather than
+            # recording the order people happened to be ticked in.
+            m["who_watched"] = [o for o in data["owners"] if o in watched]
+            scoring.compute_movie_scores(m)
+            data["movies"][i] = m
+            try:
+                save_data(data)
+            except Exception:
+                raise HTTPException(status_code=507, detail="Failed to persist update")
+            return {"movie": {**m, "breakdown": scoring.score_breakdown(m)},
+                    "leaderboard": compute_leaderboard(data)}
     raise HTTPException(status_code=404, detail="Movie entry not found")
 
 
