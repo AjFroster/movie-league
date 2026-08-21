@@ -201,6 +201,13 @@ async def enrich_entry(entry: dict, *, budget: CallBudget, force: bool = False,
         report["errors"].append(report["tmdb"])
 
     report["matched_title"] = (financials or {}).get("title")
+    # Passed back on the document so the store can persist them; they are identity and
+    # artwork rather than scoring inputs, so they bypass the no-clobber rule.
+    if financials:
+        entry.setdefault("tmdb_id", None)
+        entry["tmdb_id"] = entry.get("tmdb_id") or financials.get("tmdb_id")
+        if financials.get("poster_path"):
+            entry["poster_path"] = financials["poster_path"]
 
     imdb_id = (financials or {}).get("imdb_id")
     release_date = (financials or {}).get("release_date")

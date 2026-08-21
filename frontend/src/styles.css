@@ -694,3 +694,28 @@ body {
 .done-body { font-family: var(--font-body); font-size: var(--fs-body);
   line-height: var(--lh-body); color: var(--text-dim); margin: 0 0 var(--space-sm); }
 .draft-done .setup-actions { flex-wrap: wrap; }
+
+/* Posters in the standings view. Same fixed box as the draft board, at two sizes: a small
+   one beside a roster title, and the hero on an expanded film. */
+.poster-sm { width: 32px; height: 48px; flex: 0 0 auto; }
+.roster-col-title { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.roster-title-text { overflow: hidden; text-overflow: ellipsis; }
+.movie-hero { display: flex; align-items: flex-end; padding: var(--space-lg);
+  gap: var(--space-lg); }
+.poster-hero { width: 92px; height: 138px; }
+.poster-hero.poster-empty { font-size: 11px; }
+
+/* Poster beside the title rather than stranded in an empty band above it. */
+.movie-hero { display: flex; align-items: flex-end; gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-lg) var(--space-md); background: none; }
+.movie-hero-text { min-width: 0; }
+.movie-hero .movie-detail-title { margin-top: 0; }
+
+/* The points column was overrunning into the campaign tracker: the breakdown table sat in
+   a column narrower than its content and had nothing stopping it. Give the table room and
+   let a long tier label wrap instead of pushing the number out of its cell. */
+.detail-columns { grid-template-columns: 2.2fr 1fr 1.1fr; }
+.breakdown-table { table-layout: fixed; }
+.breakdown-table td, .breakdown-table th { overflow-wrap: anywhere; }
+.breakdown-table .tier { white-space: normal; }
+.breakdown-table .num { width: 56px; }

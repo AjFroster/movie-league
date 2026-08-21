@@ -95,6 +95,9 @@ class Entry(Base):
 
     tmdb_id: Mapped[int | None] = mapped_column(Integer, default=None)
     title: Mapped[str | None] = mapped_column(String(300), default=None)
+    # Stored rather than re-fetched: a roster renders on every page load, and TMDB should
+    # not be called to draw a list of films that have not changed.
+    poster_path: Mapped[str | None] = mapped_column(String(200), default=None)
 
     # Scoring inputs, all nullable: an undrafted or unreleased film has none of them.
     imdb: Mapped[float | None] = mapped_column(Float, default=None)

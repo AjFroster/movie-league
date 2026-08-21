@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from .. import draft as draft_rules
 from .. import scoring
+from ..services.pool import IMAGE_BASE as POSTER_BASE
 from .models import (Entry, League, Player, STATUS_COMPLETE, STATUS_DRAFTING,
                      STATUS_SETUP, Watch)
 
@@ -52,6 +53,8 @@ def _entry_dict(entry: Entry, names: dict[int, str]) -> dict:
         "round": entry.round,
         "movie": entry.title,
         "tmdb_id": entry.tmdb_id,
+        "poster_path": entry.poster_path,
+        "poster_url": (f"{POSTER_BASE}{entry.poster_path}" if entry.poster_path else None),
         "pick_number": entry.pick_number,
         "imdb": entry.imdb, "letterboxd": entry.letterboxd,
         "rt_crit": entry.rt_crit, "rt_aud": entry.rt_aud,
@@ -328,6 +331,12 @@ def apply_documents(session: Session, league_id: int, documents: list[dict],
         entry.sources = document.get("sources") or {}
         if document.get("movie"):
             entry.title = document["movie"]
+        # Identity and artwork arrive with the enrichment payload. A migrated league has
+        # neither, so this is also the backfill path for seasons that predate drafting.
+        if document.get("tmdb_id") and entry.tmdb_id is None:
+            entry.tmdb_id = document["tmdb_id"]
+        if document.get("poster_path"):
+            entry.poster_path = document["poster_path"]
         rescore_entry(session, entry, league)
     session.flush()
 
