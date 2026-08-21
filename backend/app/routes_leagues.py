@@ -1,0 +1,125 @@
+"""League creation, drafting, and the movie pool.
+
+Kept out of main.py so the legacy single-league endpoints and the multi-league ones do not
+grow into each other. Everything here is league-scoped by path.
+"""
+import httpx
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from .db import repo
+from .db.session import session_scope
+from .redaction import ProviderError, redact_secrets
+from .services import pool
+
+router = APIRouter(prefix="/api/leagues", tags=["leagues"])
+
+
+class CreateLeague(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    year: int = Field(ge=1900, le=2100)
+    players: list[str] = Field(min_length=2, max_length=20)
+    rounds: int = Field(default=6, ge=1, le=30)
+
+
+class MakePick(BaseModel):
+    player: str
+    tmdb_id: int
+    title: str = Field(min_length=1, max_length=300)
+
+
+@router.get("")
+def get_leagues():
+    with session_scope() as session:
+        return repo.list_leagues(session)
+
+
+@router.post("", status_code=201)
+def post_league(body: CreateLeague):
+    with session_scope() as session:
+        try:
+            league = repo.create_league(session, name=body.name, year=body.year,
+                                        players=body.players, rounds=body.rounds)
+        except ValueError as e:
+            # A rejected setup is the caller's input problem, not a server fault.
+            raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
+        session.flush()
+        return repo.draft_state(session, league.id)
+
+
+@router.get("/{league_id}/draft")
+def get_draft(league_id: int):
+    with session_scope() as session:
+        try:
+            return repo.draft_state(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+
+
+@router.post("/{league_id}/draft/start")
+def post_start_draft(league_id: int):
+    """Randomize the order and open the draft. Legal only from setup."""
+    with session_scope() as session:
+        try:
+            repo.start_draft(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
+        return repo.draft_state(session, league_id)
+
+
+@router.post("/{league_id}/draft/pick")
+def post_pick(league_id: int, body: MakePick):
+    with session_scope() as session:
+        try:
+            return repo.make_pick(session, league_id, player=body.player,
+                                  tmdb_id=body.tmdb_id, title=body.title)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        except ValueError as e:
+            # 409: the request was well formed but conflicts with the draft's state --
+            # someone else took the film, or it is not this player's turn.
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
+
+
+@router.get("/{league_id}/pool")
+async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_SIZE,
+                                                     ge=1, le=pool.MAX_POOL_SIZE)):
+    """The draftable films for this league's year, with drafted ones marked."""
+    with session_scope() as session:
+        try:
+            state = repo.draft_state(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        year, taken = state["year"], set(state["drafted_ids"])
+
+    try:
+        films = await pool.fetch_pool(year, size=size)
+    except (ProviderError, httpx.HTTPError) as e:
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+    if not films:
+        # An empty pool means no TMDB key far more often than it means no films.
+        raise HTTPException(
+            status_code=503,
+            detail="No movie pool available - set TMDB_API_KEY in backend/.env.")
+    return {"year": year, "films": [{**f, "drafted": f["tmdb_id"] in taken}
+                                    for f in films]}
+
+
+@router.get("/{league_id}/pool/search")
+async def get_pool_search(league_id: int, q: str = Query(min_length=1, max_length=120)):
+    """Title search, so a film outside the top N is still draftable."""
+    with session_scope() as session:
+        try:
+            state = repo.draft_state(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        year, taken = state["year"], set(state["drafted_ids"])
+
+    try:
+        films = await pool.search(q, year=year)
+    except (ProviderError, httpx.HTTPError) as e:
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+    return {"year": year, "films": [{**f, "drafted": f["tmdb_id"] in taken}
+                                    for f in films]}

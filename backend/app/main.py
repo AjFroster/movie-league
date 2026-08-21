@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from .storage import load_data, save_data, compute_leaderboard
+from .db import repo
+from .db.session import init_db, session_scope
+from .routes_leagues import router as leagues_router
 from pydantic import BaseModel
 
 from .models import Movie
@@ -24,30 +27,37 @@ app.add_middleware(
 )
 
 
+def _default_league(session):
+    """The league the legacy single-league endpoints act on: the most recent one."""
+    league_id = repo.default_league_id(session)
+    if league_id is None:
+        raise HTTPException(status_code=503, detail="No leagues yet - create one first.")
+    return league_id
+
+
 @app.get("/api/leaderboard")
 def get_leaderboard():
-    data = load_data()
-    return compute_leaderboard(data)
+    with session_scope() as session:
+        return repo.leaderboard(session, _default_league(session))
 
 
 @app.get("/api/owners/{owner}")
 def get_owner(owner: str):
-    data = load_data()
-    if owner not in data["owners"]:
-        raise HTTPException(status_code=404, detail=f"No owner named {owner}")
-    movies = [m for m in data["movies"] if m["owner"] == owner]
-    # The per-row score breakdown is attached here rather than stored: it is a view of the
-    # scoring rules, so it must never go stale against them or be editable via PUT.
-    enriched = []
-    for m in sorted(movies, key=lambda m: m["round"]):
-        enriched.append({**m, "breakdown": scoring.score_breakdown(m)})
-    return {"owner": owner, "movies": enriched}
+    with session_scope() as session:
+        movies = repo.owner_movies(session, _default_league(session), owner)
+        if not movies:
+            raise HTTPException(status_code=404, detail=f"No owner named {owner}")
+        # The per-row breakdown is attached here rather than stored: it is a view of the
+        # scoring rules, so it must never go stale against them or be editable via PUT.
+        return {"owner": owner,
+                "movies": [{**m, "breakdown": scoring.score_breakdown(m)} for m in movies]}
 
 
 @app.get("/api/rounds/{round_number}")
 def get_round(round_number: int):
-    data = load_data()
-    movies = [m for m in data["movies"] if m["round"] == round_number]
+    with session_scope() as session:
+        movies = [m for m in repo.league_movies(session, _default_league(session))
+                  if m["round"] == round_number]
     if not movies:
         raise HTTPException(status_code=404, detail=f"No data for round {round_number}")
     return movies
@@ -55,46 +65,21 @@ def get_round(round_number: int):
 
 @app.get("/api/movies")
 def get_all_movies():
-    return load_data()["movies"]
+    with session_scope() as session:
+        return repo.league_movies(session, _default_league(session))
 
 
 @app.put("/api/movies/{owner}/{round_number}")
 def update_movie(owner: str, round_number: int, movie: Movie):
-    data = load_data()
-    for i, m in enumerate(data["movies"]):
-        if m["owner"] == owner and m["round"] == round_number:
-            entry = movie.model_dump()
-            entry["owner"] = owner
-            entry["round"] = round_number
-
-            # Provenance is recomputed from the stored row, never taken from the request
-            # body: a client that could assert its own `sources` could pin any field
-            # against enrichment, or expose a hand-entered one to being overwritten.
-            entry["sources"] = dict(m.get("sources") or {})
-            changed = [f for f in provenance.ENRICHABLE_FIELDS if entry.get(f) != m.get(f)]
-            for field in changed:
-                provenance.mark_manual(entry, field)
-
-            # A human supplying budget and gross by hand implies a manual roi, unless they
-            # set roi explicitly (in which case it is already stamped above).
-            if "roi" not in changed:
-                b, g = entry.get("budget"), entry.get("gross")
-                if isinstance(b, (int, float)) and isinstance(g, (int, float)) and b > 0:
-                    entry["roi"] = round(g / b, 3)
-                    provenance.set_source(entry, "roi", provenance.MANUAL)
-
-            # A hand-edited rating or financial changes the derived scores too. Scores are
-            # always recomputed rather than accepted from the request body: they are a
-            # cached calculation, not data a client gets to assert.
-            scoring.compute_movie_scores(entry)
-
-            data["movies"][i] = entry
-            try:
-                save_data(data)
-            except Exception:
-                raise HTTPException(status_code=507, detail="Failed to persist update")
-            return data["movies"][i]
-    raise HTTPException(status_code=404, detail="Movie entry not found")
+    """Apply a hand edit. Changed fields are stamped manual so enrichment leaves them be."""
+    with session_scope() as session:
+        league_id = _default_league(session)
+        try:
+            return repo.update_entry(session, league_id, owner=owner,
+                                     round_number=round_number,
+                                     payload=movie.model_dump())
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
 
 
 class WatchUpdate(BaseModel):
@@ -107,97 +92,82 @@ def set_watched(owner: str, round_number: int, update: WatchUpdate):
     """Record whether `viewer` has watched this film.
 
     Points follow the watcher, not the owner: +5 for your own pick, +1 for someone else's.
-    The row's own score only moves when the owner themselves is toggled; everyone else's
-    point lands on their leaderboard row instead.
+    The whole read-modify-write happens in one transaction, so two people ticking boxes at
+    the same moment cannot overwrite each other -- the JSON store lost 3 of 4 here.
     """
-    data = load_data()
-    if update.viewer not in data["owners"]:
-        raise HTTPException(status_code=422, detail=f"No player named {update.viewer}")
-
-    for i, m in enumerate(data["movies"]):
-        if m["owner"] == owner and m["round"] == round_number:
-            watched = [w for w in (m.get("who_watched") or []) if w in data["owners"]]
-            if update.watched and update.viewer not in watched:
-                watched.append(update.viewer)
-            elif not update.watched and update.viewer in watched:
-                watched.remove(update.viewer)
-            # Store in league order so the list is stable across toggles rather than
-            # recording the order people happened to be ticked in.
-            m["who_watched"] = [o for o in data["owners"] if o in watched]
-            scoring.compute_movie_scores(m)
-            data["movies"][i] = m
-            try:
-                save_data(data)
-            except Exception:
-                raise HTTPException(status_code=507, detail="Failed to persist update")
-            return {"movie": {**m, "breakdown": scoring.score_breakdown(m)},
-                    "leaderboard": compute_leaderboard(data)}
-    raise HTTPException(status_code=404, detail="Movie entry not found")
+    with session_scope() as session:
+        league_id = _default_league(session)
+        try:
+            row = repo.set_watched(session, league_id, owner=owner,
+                                   round_number=round_number,
+                                   viewer=update.viewer, watched=update.watched)
+        except LookupError as e:
+            detail = redact_secrets(str(e))
+            code = 422 if "no player" in detail else 404
+            raise HTTPException(status_code=code, detail=detail)
+        return {"movie": {**row, "breakdown": scoring.score_breakdown(row)},
+                "leaderboard": repo.leaderboard(session, league_id)}
 
 
 @app.post("/api/movies/{owner}/{round_number}/enrich")
 async def enrich_movie(owner: str, round_number: int, force: bool = False):
-    """Fill budget/gross from TMDB and imdb/rt_crit from OMDb for one entry.
+    """Fill budget/gross from TMDB and the ratings from MDBList for one entry.
 
     Hand-entered values are protected; pass ?force=true to overwrite them. Results are
-    served from backend/data/api_cache.json when fresh, so a repeat call costs no API
-    calls. Scores ARE recomputed from the new values (see scoring.py), so the leaderboard
-    reflects the fetched data.
+    served from the cache when fresh, so a repeat call costs no API calls. Scores are
+    recomputed from the new values.
     """
-    data = load_data()
-    for i, m in enumerate(data["movies"]):
-        if m["owner"] == owner and m["round"] == round_number:
-            budget = enrichment.CallBudget(enrichment.MAX_CALLS_PER_ENTRY)
-            try:
-                report = await enrichment.enrich_entry(m, budget=budget, force=force)
-            except (ProviderError, httpx.HTTPError) as e:
-                # redact_secrets is mandatory here: OMDb has no header auth, so its key is
-                # a query parameter, and httpx puts the full URL into its error messages.
-                # Passing the raw exception text through unredacted would leak OMDB_API_KEY
-                # into this 502 body.
-                raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
-            # Fresh ratings/financials mean the derived scores are now stale.
-            scoring.compute_movie_scores(m)
-            data["movies"][i] = m
-            try:
-                save_data(data)
-            except Exception:
-                raise HTTPException(status_code=507, detail="Failed to persist update")
-            return {"movie": m, "report": report, "api_calls_used": budget.used}
-    raise HTTPException(status_code=404, detail="Movie entry not found")
+    with session_scope() as session:
+        league_id = _default_league(session)
+        documents, index = repo.entries_as_documents(session, league_id)
+        target = next((d for d in documents
+                       if d["owner"] == owner and d["round"] == round_number), None)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Movie entry not found")
+
+        budget = enrichment.CallBudget(enrichment.MAX_CALLS_PER_ENTRY)
+        try:
+            report = await enrichment.enrich_entry(target, budget=budget, force=force)
+        except (ProviderError, httpx.HTTPError) as e:
+            # redact_secrets is mandatory: OMDb and MDBList authenticate by query
+            # parameter, and httpx puts the full URL into its error messages.
+            raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+
+        repo.apply_documents(session, league_id, [target], index)
+        row = repo.owner_movies(session, league_id, owner)
+        movie = next(m for m in row if m["round"] == round_number)
+        return {"movie": movie, "report": report, "api_calls_used": budget.used}
 
 
 @app.post("/api/enrich-all")
 async def enrich_all_movies(force: bool = False,
                             max_calls: int = enrichment.DEFAULT_MAX_CALLS):
-    """Manually-triggered bulk enrichment across every movie row.
-
-    There is no scheduler and no refresh-on-page-load by design -- this runs only when
-    called. Rows are processed sequentially with a delay, and `max_calls` hard-caps total
-    outbound requests so an accidental loop cannot exhaust OMDb's 1,000/day free tier.
-    Hand-entered values are protected unless ?force=true.
-    """
+    """Enrich every entry in one paced, capped run, then rescore the league."""
     if not 1 <= max_calls <= enrichment.HARD_MAX_CALLS:
         raise HTTPException(
             status_code=422,
             detail=f"max_calls must be between 1 and {enrichment.HARD_MAX_CALLS}")
 
-    data = load_data()
-    try:
-        summary = await enrichment.enrich_all(data, force=force, max_calls=max_calls)
-    except (ProviderError, httpx.HTTPError) as e:
-        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+    with session_scope() as session:
+        league_id = _default_league(session)
+        documents, index = repo.entries_as_documents(session, league_id)
+        payload = {"movies": documents}
+        try:
+            summary = await enrichment.enrich_all(payload, force=force,
+                                                  max_calls=max_calls)
+        except (ProviderError, httpx.HTTPError) as e:
+            raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        repo.apply_documents(session, league_id, documents, index)
+        return summary
 
-    # Rescore every row, not just the enriched ones: watch_points depends on who_watched,
-    # which enrichment never touches, so a row can need rescoring without being fetched.
-    for m in data["movies"]:
-        scoring.compute_movie_scores(m)
 
-    try:
-        save_data(data)
-    except Exception:
-        raise HTTPException(status_code=507, detail="Failed to persist enrichment results")
-    return summary
+app.include_router(leagues_router)
+
+
+@app.on_event("startup")
+def _startup():
+    """Create tables on first run. Alembic owns schema changes; this is bootstrap only."""
+    init_db()
 
 
 @app.get("/api/health")

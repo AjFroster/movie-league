@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from app import enrichment, provenance
 from app.main import app
-from app.services import cache, omdb, tmdb
+from app.services import cache, mdblist, omdb, tmdb
 
 TMDB_PAYLOAD = {"tmdb_id": 1, "budget_millions": 170.0, "gross_millions": 100.5,
                 "vote_average": 9.9, "imdb_id": "tt0111161", "release_date": "2001-04-01"}
@@ -37,6 +37,12 @@ def api(tmp_league, tmp_cache, monkeypatch):
         calls["omdb"] += 1
         return dict(OMDB_PAYLOAD)
 
+    async def fake_mdblist(imdb_id, *, client=None):
+        calls["mdblist"] = calls.get("mdblist", 0) + 1
+        return {"imdb": 6.1, "rt_crit": 54.0}
+
+    monkeypatch.setenv("MDBLIST_API_KEY", "MDBSENTINEL")
+    monkeypatch.setattr(mdblist, "fetch_ratings", fake_mdblist)
     monkeypatch.setattr(tmdb, "fetch_movie_financials", fake_tmdb)
     monkeypatch.setattr(omdb, "fetch_ratings", fake_omdb)
     with TestClient(app) as client:
@@ -61,7 +67,7 @@ def test_enrich_fills_an_empty_row(api):
     assert movie["roi"] == round(
         TMDB_PAYLOAD["gross_millions"] / TMDB_PAYLOAD["budget_millions"], 3)
     assert body["api_calls_used"] == 2
-    assert calls == {"tmdb": 1, "omdb": 1}
+    assert calls == {"tmdb": 1, "omdb": 0, "mdblist": 1}
 
 
 def test_enrich_second_call_is_served_from_cache(api):
@@ -131,6 +137,13 @@ def test_no_response_body_ever_contains_the_api_key(tmp_league, tmp_cache, monke
                                    params={"i": imdb_id, "apikey": "SUPERSECRET123"})
             response.raise_for_status()
 
+    async def partial_mdblist(imdb_id, *, client=None):
+        # Deliberately incomplete: a missing rt_crit forces the OMDb fallback to run,
+        # which is the whole point here -- OMDb is where the key can leak.
+        return {"imdb": 6.1}
+
+    monkeypatch.setenv("MDBLIST_API_KEY", "MDBSENTINEL")
+    monkeypatch.setattr(mdblist, "fetch_ratings", partial_mdblist)
     monkeypatch.setattr(tmdb, "fetch_movie_financials", fake_tmdb)
     monkeypatch.setattr(omdb, "fetch_ratings", exploding_omdb)
 
@@ -259,7 +272,7 @@ def test_enrich_all_max_calls_two_caps_the_run(api):
     body = response.json()
     assert body["api_calls_used"] == 2
     assert body["cap_reached"] is True
-    assert calls == {"tmdb": 1, "omdb": 1}
+    assert calls == {"tmdb": 1, "omdb": 0, "mdblist": 1}
 
 
 @pytest.mark.parametrize("bad", [0, -1, 99999])

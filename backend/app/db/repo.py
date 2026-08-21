@@ -256,3 +256,97 @@ def rescore_entry(session: Session, entry: Entry, league: League) -> Entry:
                   "watch_points", "total"):
         setattr(entry, field, payload[field])
     return entry
+
+
+# ---------------------------------------------------------------------------
+# enrichment and manual edits
+# ---------------------------------------------------------------------------
+
+INPUT_FIELDS = ("imdb", "letterboxd", "rt_crit", "rt_aud", "budget", "gross", "roi",
+                "bo_rank", "awards")
+
+
+def entries_as_documents(session: Session, league_id: int) -> tuple[list[dict], dict]:
+    """League rows in the plain-dict shape enrichment.py already understands.
+
+    Returned alongside a {(owner, round): Entry} index so the caller can write results
+    back without a second query. Enrichment stays engine-agnostic this way -- it never
+    learns what a database is.
+    """
+    league = get_league(session, league_id)
+    names = player_names(league)
+    entries = session.scalars(
+        select(Entry).where(Entry.league_id == league_id)
+        .options(selectinload(Entry.watches))).all()
+    documents, index = [], {}
+    for entry in entries:
+        document = _entry_dict(entry, names)
+        documents.append(document)
+        index[(document["owner"], document["round"])] = entry
+    return documents, index
+
+
+def apply_documents(session: Session, league_id: int, documents: list[dict],
+                    index: dict) -> None:
+    """Write enriched documents back onto their rows and rescore them."""
+    league = get_league(session, league_id)
+    for document in documents:
+        entry = index.get((document["owner"], document["round"]))
+        if entry is None:
+            continue
+        for field in INPUT_FIELDS:
+            setattr(entry, field, document.get(field))
+        entry.sources = document.get("sources") or {}
+        if document.get("movie"):
+            entry.title = document["movie"]
+        rescore_entry(session, entry, league)
+    session.flush()
+
+
+def update_entry(session: Session, league_id: int, *, owner: str, round_number: int,
+                 payload: dict) -> dict:
+    """Apply a hand edit, stamping changed fields as manual, then rescore."""
+    from .. import provenance
+
+    league = get_league(session, league_id)
+    by_name = {p.name: p for p in league.players}
+    if owner not in by_name:
+        raise LookupError(f"no player named {owner!r}")
+    entry = session.scalar(
+        select(Entry).where(Entry.league_id == league_id,
+                            Entry.player_id == by_name[owner].id,
+                            Entry.round == round_number))
+    if entry is None:
+        raise LookupError("movie entry not found")
+
+    # Provenance is recomputed from the stored row, never taken from the request body: a
+    # client that could assert its own sources could pin any field against enrichment.
+    document = {"sources": dict(entry.sources or {})}
+    changed = [f for f in provenance.ENRICHABLE_FIELDS
+               if payload.get(f) != getattr(entry, f)]
+    for field in changed:
+        provenance.mark_manual(document, field)
+
+    for field in INPUT_FIELDS:
+        if field in payload:
+            setattr(entry, field, payload[field])
+    if payload.get("movie"):
+        entry.title = payload["movie"]
+
+    # A human supplying budget and gross by hand implies a manual roi, unless they set it
+    # explicitly (in which case it is already stamped above).
+    if "roi" not in changed:
+        budget, gross = entry.budget, entry.gross
+        if isinstance(budget, (int, float)) and isinstance(gross, (int, float)) and budget > 0:
+            entry.roi = round(gross / budget, 3)
+            provenance.set_source(document, "roi", provenance.MANUAL)
+
+    entry.sources = document["sources"]
+    rescore_entry(session, entry, league)
+    session.flush()
+
+    names = player_names(league)
+    order = league.draft_order or list(names.values())
+    row = _entry_dict(entry, names)
+    row["who_watched"] = [n for n in order if n in row["who_watched"]]
+    return row
