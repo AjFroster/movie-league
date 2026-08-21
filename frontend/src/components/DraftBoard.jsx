@@ -183,7 +183,8 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
     setBusy(true)
     setRejected(null)
     try {
-      const next = await api.makePick(leagueId, player, film.tmdb_id, film.title)
+      const next = await api.makePick(leagueId, player, film.tmdb_id, film.title,
+                                      film.poster_path)
       setState(next)
       // Refresh the pool so the film shows as taken, by whom, at which pick.
       const refreshed = await api.pool(leagueId)

@@ -203,3 +203,27 @@ def test_watch_points_follow_the_viewer_through_the_repo(maker):
         assert board[other]["other_watch_points"] == 1
         assert board[other]["total"] == 1
         assert board[owner]["watch_points"] == 0        # the owner did not watch it
+
+
+def test_a_pick_keeps_the_artwork_the_pool_supplied(session):
+    """Drafting knows the poster; discarding it left new leagues with no images at all
+    until someone thought to run enrichment."""
+    league = _league(session)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    first = league.draft_order[0]
+    repo.make_pick(session, league.id, player=first, tmdb_id=42, title="Dune",
+                   poster_path="/abc.jpg")
+    row = repo.owner_movies(session, league.id, first)[0]
+    assert row["poster_path"] == "/abc.jpg"
+    assert row["poster_url"].endswith("/abc.jpg")
+
+
+def test_a_pick_without_artwork_stores_none_not_an_empty_string(session):
+    """Many future films have no poster; None is what the client tests for."""
+    league = _league(session)
+    repo.start_draft(session, league.id, rng=random.Random(1))
+    first = league.draft_order[0]
+    repo.make_pick(session, league.id, player=first, tmdb_id=43, title="Untitled",
+                   poster_path="")
+    row = repo.owner_movies(session, league.id, first)[0]
+    assert row["poster_path"] is None and row["poster_url"] is None

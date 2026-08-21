@@ -206,7 +206,7 @@ def draft_state(session: Session, league_id: int) -> dict:
 
 
 def make_pick(session: Session, league_id: int, *, player: str, tmdb_id: int,
-              title: str) -> dict:
+              title: str, poster_path: str | None = None) -> dict:
     """Record one pick, or raise ValueError explaining why it is not legal."""
     league = get_league(session, league_id)
     if league.status != STATUS_DRAFTING:
@@ -226,9 +226,13 @@ def make_pick(session: Session, league_id: int, *, player: str, tmdb_id: int,
     slot = draft_rules.validate_pick(order=order, rounds=league.rounds, picks=picks,
                                      player=player, movie_id=tmdb_id)
 
+    # The pool already knows the artwork at the moment of the pick. Storing it here means
+    # a freshly drafted league shows posters immediately, rather than only after someone
+    # remembers to run enrichment.
     session.add(Entry(league_id=league_id, player_id=by_name[player].id,
                       round=slot["round"], pick_number=slot["pick"],
-                      tmdb_id=int(tmdb_id), title=title, sources={}))
+                      tmdb_id=int(tmdb_id), title=title,
+                      poster_path=poster_path or None, sources={}))
     session.flush()
 
     if len(picks) + 1 >= draft_rules.total_picks(len(order), league.rounds):

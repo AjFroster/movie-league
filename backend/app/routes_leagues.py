@@ -27,6 +27,7 @@ class MakePick(BaseModel):
     player: str
     tmdb_id: int
     title: str = Field(min_length=1, max_length=300)
+    poster_path: str | None = Field(default=None, max_length=200)
 
 
 def _mark(film: dict, taken: dict) -> dict:
@@ -99,7 +100,8 @@ def post_pick(league_id: int, body: MakePick):
     with session_scope() as session:
         try:
             return repo.make_pick(session, league_id, player=body.player,
-                                  tmdb_id=body.tmdb_id, title=body.title)
+                                  tmdb_id=body.tmdb_id, title=body.title,
+                                  poster_path=body.poster_path)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         except ValueError as e:

@@ -35,8 +35,9 @@ export const api = {
   poolSize: (year) => get(`/leagues/pool-size?year=${year}`),
   draft: (id) => get(`/leagues/${id}/draft`),
   startDraft: (id) => post(`/leagues/${id}/draft/start`, {}),
-  makePick: (id, player, tmdbId, title) =>
-    post(`/leagues/${id}/draft/pick`, { player, tmdb_id: tmdbId, title }),
+  makePick: (id, player, tmdbId, title, posterPath) =>
+    post(`/leagues/${id}/draft/pick`,
+         { player, tmdb_id: tmdbId, title, poster_path: posterPath ?? null }),
   pool: (id, size = 300) => get(`/leagues/${id}/pool?size=${size}`),
   poolSearch: (id, q) => get(`/leagues/${id}/pool/search?q=${encodeURIComponent(q)}`),
   setWatched: (owner, round, viewer, watched) =>
