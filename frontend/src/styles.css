@@ -146,13 +146,6 @@ body {
   line-height: var(--lh-heading);
   color: var(--text-dim);
 }
-  font-family: var(--font-label);
-  font-size: var(--fs-label);
-  line-height: var(--lh-label);
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
 .this-week-item { padding: var(--space-md) 0; border-top: 1px solid var(--border); }
 .this-week-item:first-of-type { border-top: none; padding-top: 0; }
 .this-week-tag {
@@ -432,6 +425,13 @@ body {
 .league-header { display: flex; justify-content: space-between; align-items: flex-start;
   padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-bright); }
 .header-actions { display: flex; gap: var(--space-sm); align-items: center; }
+/* Claiming a slot: quiet, one line, and absent entirely when there are no accounts. */
+.claim-strip { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap;
+  font-family: var(--font-label); font-size: var(--fs-label); color: var(--text-dim);
+  margin-bottom: var(--space-xs); }
+.claim-strip strong { color: var(--text); }
+.signin-page { display: flex; flex-direction: column; align-items: center; gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-lg); }
 .league-wordmark { font-family: var(--font-label); font-size: var(--fs-heading);
   letter-spacing: 0.14em; text-transform: uppercase; margin: 0; color: var(--text); }
 .league-subtitle { font-family: var(--font-label); font-size: var(--fs-label);
@@ -687,12 +687,9 @@ body {
 .poster-sm { width: 32px; height: 48px; flex: 0 0 auto; }
 .roster-col-title { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
 .roster-title-text { overflow: hidden; text-overflow: ellipsis; }
-  gap: var(--space-lg); }
 .poster-hero { width: 92px; height: 138px; }
 .poster-hero.poster-empty { font-size: 11px; }
 
-/* Poster beside the title rather than stranded in an empty band above it. */
-  padding: var(--space-lg) var(--space-lg) var(--space-md); background: none; }
 .movie-hero-text { min-width: 0; }
 .movie-hero .movie-detail-title { margin-top: 0; }
 

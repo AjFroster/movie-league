@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+from .auth import CurrentUser, require_actor, require_creator, verify_startup_configuration
 from .storage import load_data, save_data, compute_leaderboard
 from .db import repo
 from .db.session import init_db, session_scope
@@ -29,7 +30,13 @@ app.add_middleware(
 
 
 def _default_league(session):
-    """The league the legacy single-league endpoints act on: the most recent one."""
+    """The league the legacy single-league endpoints act on: the most recent one.
+
+    DEPRECATED. Acting on "whichever league is newest" is already wrong with four leagues
+    in the database -- toggling a watch while looking at 2026 writes to 2027. The
+    league-scoped routes in routes_leagues.py are the correct ones; these remain only
+    because the standings view still has a no-league path. See the TODO for retirement.
+    """
     league_id = repo.default_league_id(session)
     if league_id is None:
         raise HTTPException(status_code=503, detail="No leagues yet - create one first.")
@@ -71,10 +78,11 @@ def get_all_movies():
 
 
 @app.put("/api/movies/{owner}/{round_number}")
-def update_movie(owner: str, round_number: int, movie: Movie):
+def update_movie(owner: str, round_number: int, movie: Movie, user: str = CurrentUser):
     """Apply a hand edit. Changed fields are stamped manual so enrichment leaves them be."""
     with session_scope() as session:
         league_id = _default_league(session)
+        require_creator(session, league_id, user)
         try:
             return repo.update_entry(session, league_id, owner=owner,
                                      round_number=round_number,
@@ -89,7 +97,8 @@ class WatchUpdate(BaseModel):
 
 
 @app.post("/api/movies/{owner}/{round_number}/watch")
-def set_watched(owner: str, round_number: int, update: WatchUpdate):
+def set_watched(owner: str, round_number: int, update: WatchUpdate,
+                user: str = CurrentUser):
     """Record whether `viewer` has watched this film.
 
     Points follow the watcher, not the owner: +5 for your own pick, +1 for someone else's.
@@ -98,6 +107,7 @@ def set_watched(owner: str, round_number: int, update: WatchUpdate):
     """
     with session_scope() as session:
         league_id = _default_league(session)
+        require_actor(session, league_id, user, update.viewer)
         try:
             row = repo.set_watched(session, league_id, owner=owner,
                                    round_number=round_number,
@@ -111,7 +121,8 @@ def set_watched(owner: str, round_number: int, update: WatchUpdate):
 
 
 @app.post("/api/movies/{owner}/{round_number}/enrich")
-async def enrich_movie(owner: str, round_number: int, force: bool = False):
+async def enrich_movie(owner: str, round_number: int, force: bool = False,
+                       user: str = CurrentUser):
     """Fill budget/gross from TMDB and the ratings from MDBList for one entry.
 
     Hand-entered values are protected; pass ?force=true to overwrite them. Results are
@@ -120,6 +131,7 @@ async def enrich_movie(owner: str, round_number: int, force: bool = False):
     """
     with session_scope() as session:
         league_id = _default_league(session)
+        require_creator(session, league_id, user)
         documents, index = repo.entries_as_documents(session, league_id)
         target = next((d for d in documents
                        if d["owner"] == owner and d["round"] == round_number), None)
@@ -145,7 +157,8 @@ async def enrich_movie(owner: str, round_number: int, force: bool = False):
 
 @app.post("/api/enrich-all")
 async def enrich_all_movies(force: bool = False,
-                            max_calls: int = enrichment.DEFAULT_MAX_CALLS):
+                            max_calls: int = enrichment.DEFAULT_MAX_CALLS,
+                            user: str = CurrentUser):
     """Enrich every entry in one paced, capped run, then rescore the league."""
     if not 1 <= max_calls <= enrichment.HARD_MAX_CALLS:
         raise HTTPException(
@@ -154,6 +167,7 @@ async def enrich_all_movies(force: bool = False,
 
     with session_scope() as session:
         league_id = _default_league(session)
+        require_creator(session, league_id, user)
         documents, index = repo.entries_as_documents(session, league_id)
         payload = {"movies": documents}
         try:
@@ -175,6 +189,10 @@ app.include_router(export_router)
 @app.on_event("startup")
 def _startup():
     """Create tables on first run. Alembic owns schema changes; this is bootstrap only."""
+    # Before anything else: refuse to serve at all if this looks like a deployment with no
+    # identity provider behind it. A startup crash is recoverable; silently treating every
+    # request on the internet as the same trusted local user is not.
+    verify_startup_configuration()
     init_db()
 
 

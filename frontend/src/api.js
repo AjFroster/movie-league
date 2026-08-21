@@ -1,5 +1,19 @@
 const BASE = '/api'
 
+// Every request funnels through get/send/post/download, so attaching credentials is one
+// place rather than thirty. Left as a hook rather than importing Clerk directly: the app
+// runs with no identity provider at all on a laptop, and api.js should not know or care.
+let tokenProvider = async () => null
+
+export function setTokenProvider(fn) {
+  tokenProvider = fn
+}
+
+async function authHeaders() {
+  const token = await tokenProvider()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 // The server explains a rejected pick ("Frozen III has already been drafted"); surfacing
 // that verbatim is far more useful than a status code, and the draft board shows it inline.
 async function describe(res, path) {
@@ -11,7 +25,7 @@ async function describe(res, path) {
 }
 
 async function get(path) {
-  const res = await fetch(`${BASE}${path}`)
+  const res = await fetch(`${BASE}${path}`, { headers: await authHeaders() })
   if (!res.ok) throw await describe(res, path)
   return res.json()
 }
@@ -19,7 +33,7 @@ async function get(path) {
 async function send(method, path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(await authHeaders()) },
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) throw await describe(res, path)
@@ -28,7 +42,7 @@ async function send(method, path, body) {
 
 /** Fetch a file, keeping the server's filename from Content-Disposition. */
 async function download(path) {
-  const res = await fetch(`${BASE}${path}`)
+  const res = await fetch(`${BASE}${path}`, { headers: await authHeaders() })
   if (!res.ok) throw await describe(res, path)
   const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '')
   return { blob: await res.blob(), filename: match ? match[1] : 'movie-league.json' }
@@ -37,7 +51,7 @@ async function download(path) {
 async function post(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw await describe(res, path)
@@ -48,6 +62,9 @@ export const api = {
   leagues: () => get('/leagues'),
   exportArchive: () => download('/export'),
   exportLeague: (id) => download(`/leagues/${id}/export`),
+  claimSlot: (id, player) => post(`/leagues/${id}/claim`, { player }),
+  releaseSlot: (id, player) =>
+    send('DELETE', `/leagues/${id}/claim/${encodeURIComponent(player)}`),
   renameLeague: (id, name) => send('PATCH', `/leagues/${id}`, { name }),
   setSettlesOn: (id, settlesOn) => send('PATCH', `/leagues/${id}`, { settles_on: settlesOn }),
   setPickSeconds: (id, seconds) => send('PATCH', `/leagues/${id}`, { pick_seconds: seconds }),

@@ -56,9 +56,14 @@ def tmp_league(tmp_path, monkeypatch, sample_movie, never_touch_the_real_databas
     path.write_text(json.dumps(document, indent=2))
     monkeypatch.setattr(storage, "DATA_PATH", path)
 
+    from app.auth import LOCAL_USER_ID
     from app.db.porting import import_league
     with never_touch_the_real_database() as session:
-        import_league(session, document, name="Test League", year=2026)
+        league = import_league(session, document, name="Test League", year=2026)
+        # Owned by the local identity, which is who an unauthenticated test request is.
+        # Without this every mutating endpoint correctly answers 403 and the fixture is
+        # useless -- which is exactly what happened when accounts landed.
+        league.owner_user_id = LOCAL_USER_ID
         session.commit()
     return path
 

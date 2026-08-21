@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { saveBlob } from '../download.js'
+import { AccountBadge, accountsEnabled } from '../auth.jsx'
 
 const STATUS_LABEL = { setup: 'SETUP', drafting: 'DRAFTING', complete: 'COMPLETE' }
 
@@ -105,6 +106,26 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
     }
   }
 
+  async function claim(league, player) {
+    setSaveError(null)
+    try {
+      await api.claimSlot(league.id, player)
+      await reload()
+    } catch (e) {
+      setSaveError(e.message)
+    }
+  }
+
+  async function release(league, player) {
+    setSaveError(null)
+    try {
+      await api.releaseSlot(league.id, player)
+      await reload()
+    } catch (e) {
+      setSaveError(e.message)
+    }
+  }
+
   async function remove(league) {
     try {
       await api.deleteLeague(league.id)
@@ -142,6 +163,7 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
             {saving === 'all' ? 'SAVING…' : 'BACK UP'}
           </button>
           <button className="btn" onClick={onCreate}>NEW LEAGUE</button>
+          <AccountBadge />
         </span>
       </header>
 
@@ -176,6 +198,28 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
             return (
               <div className={`league-row${archived ? ' archived' : ''}`} key={league.id}>
                 <span className="league-name-cell">
+                  {/* Only meaningful once there are real accounts. In local mode there is
+                      one user, so "which slot are you" has no answer worth asking for. */}
+                  {accountsEnabled && (
+                    league.your_player ? (
+                      <span className="claim-strip">
+                        Playing as <strong>{league.your_player}</strong>
+                        <button
+                          className="btn btn-small"
+                          title="Give this slot back"
+                          onClick={() => release(league, league.your_player)}
+                        >RELEASE</button>
+                      </span>
+                    ) : league.unclaimed?.length > 0 ? (
+                      <span className="claim-strip">
+                        Claim your slot:
+                        {league.unclaimed.map((name) => (
+                          <button key={name} className="btn btn-small"
+                                  onClick={() => claim(league, name)}>{name}</button>
+                        ))}
+                      </span>
+                    ) : null
+                  )}
                   {editing === league.id ? (
                     <input
                       className="input input-inline"

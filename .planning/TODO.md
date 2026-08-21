@@ -59,68 +59,44 @@ DATABASE_URL=postgresql+psycopg://... python -m scripts.restore backup.json
 
 ---
 
-## Stage 2 — Accounts (2-3 days, local)
+## Stage 2 — Accounts ✅ done
 
-### 2. Clerk, not a hand-rolled session layer
+Clerk, wired so the app still runs with no Clerk account at all.
 
-**Clerk over Auth0** for this app: better React drop-ins, and backend verification is a JWT
-check against a JWKS endpoint rather than an SDK. Free tier covers a league by orders of
-magnitude. No passwords stored here at all.
+**No `AUTH_ENABLED` flag.** The permission code always runs; only the identity source
+changes. Unconfigured, there is exactly one user (`LOCAL_USER_ID`), ownership is still
+checked and simply always matches — so running without accounts is a database with one
+account in it, not a branch that skips checks. `verify_startup_configuration()` refuses to
+boot in that mode unless the database is SQLite *and* `CORS_ORIGIN` is localhost.
 
-### 3. The schema change that keeps today's app working
+`players.user_id` is nullable and that is the design: name six players, draft tonight, and
+the other five claim their slots whenever they sign up. An unclaimed slot is acted on by the
+league creator — the single-laptop draft, unchanged. Once claimed, the creator loses it.
 
-The critical design decision, because it decides whether accounts are additive or a rewrite:
+Every mutating route is guarded; see HANDOFF.md for the three tiers. 472 tests, most of them
+denials, including a forged-signature token and a startup guard simulated against Postgres.
 
-```
-leagues.owner_user_id   TEXT NULL     -- Clerk user id of the creator
-players.user_id         TEXT NULL     -- Clerk user id, NULL = slot not yet claimed
-```
+**Still needs your Clerk keys to run multi-user** — see "What is left in stage 2" below.
 
-**Both nullable, and `players.user_id` especially.** A commissioner types six names and drafts
-that evening; the other five have not signed up and should not have to before the draft can
-start. A slot gets *claimed* later via an invite link. This keeps the current flow intact and
-makes accounts strictly additive.
+### Deviation from the plan, recorded
 
-`owner_user_id` nullable also means the four existing leagues survive the migration. Backfill
-them to the first account created — one script, run once, before anything is hosted. Do not
-leave them null and treat null as "anyone may edit"; that is the hole this stage exists to
-close.
+The plan said to retire `PUT /api/movies/{owner}/{round}` and `POST /api/enrich-all` rather
+than "invent a rule" for them. They were authorized against the default league instead.
+Retiring them means rewriting 46 test references and a live frontend fallback path, and
+that is a *correctness* fix (they act on whichever league is newest, which is already wrong
+with four leagues) rather than the *security* fix stage 2 is for. The hole is closed either
+way. Retirement is item 15 below.
 
-### 4. Three permission tiers, not one
+### What is left in stage 2
 
-```
-any signed-in user   POST   /leagues                       create
-league member        POST   /leagues/{id}/draft/pick       pick (must be on the clock)
-                     POST   /leagues/{id}/.../watch        tick your OWN box only
-creator only         PATCH  /leagues/{id}                  rename, settle date, pick_seconds
-                     DELETE /leagues/{id}                  delete league + all picks
-                     POST   /leagues/{id}/freeze           settle / reopen
-                     POST   /leagues/{id}/draft/start      randomize order
-                     POST   /leagues/{id}/enrich-all       spends API quota
-                     POST   /enrich-all                    spends API quota
-                     PUT    /movies/{owner}/{round}        hand-edit scores
-```
+Nothing in code. One manual step, which needs your account:
 
-Watch toggles become "I watched this" rather than ticking someone else's box — simpler *and*
-safer. **Caveat:** an unclaimed player slot has nobody to tick it, so the creator needs an
-override for unclaimed slots or a mid-season league goes stale.
-
-The two legacy unscoped routes (`PUT /api/movies/...`, `POST /api/enrich-all`) are
-league-agnostic and cannot be authorized cleanly. Retire them in this stage rather than
-inventing a rule for them.
-
-### 5. `api.js` needs one token injection point
-
-Every call already funnels through `get` / `send` / `post`. That is three functions to change,
-which is the whole reason this is cheap. Attach the Clerk bearer token there.
-
-### 6. Test fixtures need an auth override
-
-`conftest.py`'s autouse in-memory fixture already exists. Add a FastAPI dependency override
-supplying a fake identity, plus at least one test per tier asserting a *non-member is refused*
-— an auth test suite that only ever tests the happy path proves nothing.
-
----
+1. Sign up at https://dashboard.clerk.com and create an application.
+2. Copy the **Publishable key** into `frontend/.env` as `VITE_CLERK_PUBLISHABLE_KEY=pk_test_…`
+3. Copy the **Frontend API URL** (the issuer) into `backend/.env` as `CLERK_ISSUER=…`
+4. Restart both. A sign-in screen appears; your four existing leagues belong to `"local"`,
+   so reassign them — `UPDATE leagues SET owner_user_id = '<your clerk user id>'` — or
+   create fresh ones.
 
 ## Stage 3 — Live draft (1-2 days, still local)
 
@@ -229,8 +205,14 @@ layout too, so consider these one job rather than two.
 
 ### 15. Small ones
 
-- League names are not unique; two leagues can share a name. Rename exists, uniqueness does
-  not. Accounts make this worse (whose namespace?) — decide during stage 2.
+- League names are not unique; two leagues can share a name. Now that leagues are scoped to
+  an owner this matters less — you only ever see your own — but two of *your* leagues can
+  still share a name.
+- **Retire the legacy unscoped routes** (`PUT /api/movies/{owner}/{round}`,
+  `POST /api/enrich-all`, and the two sibling `/api/movies/...` routes). They act on
+  whichever league is newest, which is wrong with four leagues in the database. They are
+  authorized now, so this is correctness rather than security. Costs ~46 test references
+  plus the no-league path in `App.jsx`.
 - `bo_rank` and `awards` are in the schema and scored by nothing.
 - The favicon 404s on every page load; there is no `frontend/public/` at all.
 - Stray `*:Zone.Identifier` files in `frontend/src/components/` — WSL artifacts from the

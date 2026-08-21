@@ -5,3 +5,5 @@ pydantic==2.9.2
 python-dotenv==1.2.2
 SQLAlchemy==2.0.52
 alembic==1.19.1
+# RS256 verification of Clerk session tokens; [crypto] pulls in `cryptography`.
+PyJWT[crypto]==2.13.0

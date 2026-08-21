@@ -1,8 +1,9 @@
 """Tests for POST /api/movies/{owner}/{round}/watch.
 
-The endpoint is trust-based by design -- there is no login, and any player can tick any
-other player -- so these tests cover the input validation that does exist rather than
-authorisation, which does not.
+These cover the scoring and input validation. Authorisation is covered in test_auth.py:
+the caller must be the person being ticked, or the league's creator acting for a slot
+nobody has claimed. This fixture is the latter -- the local identity creates the league
+and every slot is unclaimed, which is the single-laptop case.
 """
 import pytest
 from fastapi.testclient import TestClient
@@ -28,9 +29,11 @@ def client(never_touch_the_real_database):
     ]}
     # never_touch_the_real_database (conftest, autouse) already redirected the app at a
     # throwaway database and handed back its session factory; just seed it.
+    from app.auth import LOCAL_USER_ID
     maker = never_touch_the_real_database
     with maker() as s:
-        import_league(s, data, name="Test", year=2026)
+        league = import_league(s, data, name="Test", year=2026)
+        league.owner_user_id = LOCAL_USER_ID
         s.commit()
     return TestClient(app)
 

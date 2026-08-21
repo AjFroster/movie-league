@@ -135,7 +135,8 @@ def export_to_file(session: Session, league_id: int, path: str | Path) -> Path:
 ARCHIVE_FORMAT = "movie-league/1"
 
 # Scalars copied straight across in both directions.
-LEAGUE_FIELDS = ("name", "year", "rounds", "status", "draft_order", "pick_seconds")
+LEAGUE_FIELDS = ("name", "year", "rounds", "status", "draft_order", "pick_seconds",
+                 "owner_user_id")
 ENTRY_FIELDS = ("round", "pick_number", "tmdb_id", "title", "poster_path", *SCORE_FIELDS)
 
 
@@ -182,7 +183,9 @@ def dump_league(session: Session, league_id: int) -> dict:
         "created_at": _iso(league.created_at),
         "frozen_at": _iso(league.frozen_at),
         "settles_on": _iso(league.settles_on),
-        "players": [p.name for p in league.players],
+        # Objects rather than bare names so a slot's claim survives a restore. Losing
+        # `user_id` would hand every claimed slot back to the league's creator.
+        "players": [{"name": p.name, "user_id": p.user_id} for p in league.players],
         "entries": [
             {
                 "owner": names.get(entry.player_id),
@@ -230,8 +233,12 @@ def load_league(session: Session, doc: dict) -> League:
     session.flush()
 
     players = {}
-    for name in doc.get("players") or []:
-        player = Player(league_id=league.id, name=name)
+    for row in doc.get("players") or []:
+        # Bare strings are the shape this format used before slots could be claimed.
+        # Accepted so an archive taken then still restores.
+        name = row if isinstance(row, str) else row.get("name")
+        user_id = None if isinstance(row, str) else row.get("user_id")
+        player = Player(league_id=league.id, name=name, user_id=user_id)
         session.add(player)
         players[name] = player
     session.flush()
