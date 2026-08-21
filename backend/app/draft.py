@@ -92,3 +92,56 @@ def validate_pick(*, order: list[str], rounds: int, picks: list[dict],
     if any(str(p.get("movie_id")) == str(movie_id) for p in picks):
         raise ValueError("that film has already been drafted")
     return slot
+
+
+def board_grid(order: list[str], rounds: int) -> list[dict]:
+    """The draft as a grid of rounds, which is how a snake becomes legible.
+
+    Each round carries its direction and its cells in pick order, so a board can render
+    round 2 running right-to-left without recomputing the reversal itself.
+    """
+    grid = []
+    for round_number in range(1, rounds + 1):
+        forward = round_number % 2 == 1
+        cells = [s for s in pick_sequence(order, rounds) if s["round"] == round_number]
+        grid.append({
+            "round": round_number,
+            "forward": forward,
+            "direction": f"1 -> {len(order)}" if forward else f"{len(order)} -> 1",
+            "cells": cells,
+        })
+    return grid
+
+
+def upcoming_picks(order: list[str], rounds: int, picks_made: int,
+                   limit: int = 4) -> list[dict]:
+    """The next few picks after the current one, annotated with what a player needs to know.
+
+    `round_ends` marks the last pick of a round and `back_to_back` the player who picks last
+    in one round and first in the next -- the snake's one counter-intuitive consequence, and
+    the thing people most often miss when planning a pick.
+    """
+    sequence = pick_sequence(order, rounds)
+    upcoming = []
+    for slot in sequence[picks_made + 1: picks_made + 1 + limit]:
+        index = slot["pick"] - 1
+        following = sequence[index + 1] if index + 1 < len(sequence) else None
+        upcoming.append({
+            **slot,
+            "round_ends": following is None or following["round"] != slot["round"],
+            "back_to_back": following is not None and following["player"] == slot["player"],
+        })
+    return upcoming
+
+
+def picks_until_next_turn(order: list[str], rounds: int, picks_made: int,
+                          player: str) -> int | None:
+    """How many picks a player waits before their next turn. None if they are done.
+
+    The number that makes a snake draft's cost concrete: going first means waiting longest.
+    """
+    sequence = pick_sequence(order, rounds)
+    for offset, slot in enumerate(sequence[picks_made:]):
+        if slot["player"] == player:
+            return offset
+    return None

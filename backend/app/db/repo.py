@@ -163,13 +163,38 @@ def draft_state(session: Session, league_id: int) -> dict:
     made = [{"pick": e.pick_number, "round": e.round, "player": names.get(e.player_id),
              "tmdb_id": e.tmdb_id, "title": e.title} for e in picks]
     clock = draft_rules.on_the_clock(order, league.rounds, len(made))
+    if clock is not None:
+        # The snake's one counter-intuitive consequence: the player picking last in a round
+        # picks first in the next. Worth surfacing at the moment someone is choosing.
+        following = draft_rules.on_the_clock(order, league.rounds, len(made) + 1)
+        clock = {**clock,
+                 "back_to_back": following is not None
+                 and following["player"] == clock["player"]}
+
+    # Rosters, so the board can show each player's picks forming without a second request.
+    rosters = []
+    for name in order:
+        owned = [p for p in made if p["player"] == name]
+        rosters.append({
+            "player": name, "picks": owned,
+            "count": len(owned), "of": league.rounds,
+            "waits": draft_rules.picks_until_next_turn(order, league.rounds,
+                                                       len(made), name),
+        })
+
     return {
         "league_id": league.id, "name": league.name, "year": league.year,
         "rounds": league.rounds, "status": league.status, "order": order,
         "picks": made, "picks_made": len(made),
         "total_picks": draft_rules.total_picks(len(order), league.rounds),
         "on_the_clock": clock,
+        "upcoming": draft_rules.upcoming_picks(order, league.rounds, len(made)),
+        "board": draft_rules.board_grid(order, league.rounds),
+        "rosters": rosters,
         "drafted_ids": [e.tmdb_id for e in picks],
+        # Who took what, so the pool can say "TAKEN - ANDREW - PICK 1" rather than just
+        # marking a film unavailable with no explanation.
+        "taken": {p["tmdb_id"]: {"player": p["player"], "pick": p["pick"]} for p in made},
     }
 
 

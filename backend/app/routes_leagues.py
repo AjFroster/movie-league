@@ -28,6 +28,14 @@ class MakePick(BaseModel):
     title: str = Field(min_length=1, max_length=300)
 
 
+def _mark(film: dict, taken: dict) -> dict:
+    """Tag a pool film with who drafted it, so the board can explain its unavailability."""
+    claim = taken.get(film["tmdb_id"])
+    return {**film, "drafted": claim is not None,
+            "taken_by": claim["player"] if claim else None,
+            "taken_at_pick": claim["pick"] if claim else None}
+
+
 @router.get("")
 def get_leagues():
     with session_scope() as session:
@@ -45,6 +53,22 @@ def post_league(body: CreateLeague):
             raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
         session.flush()
         return repo.draft_state(session, league.id)
+
+
+@router.get("/pool-size")
+async def get_pool_size(year: int = Query(ge=1900, le=2100),
+                        size: int = Query(default=pool.DEFAULT_POOL_SIZE, ge=1,
+                                          le=pool.MAX_POOL_SIZE)):
+    """How many films a year offers, before any league exists to scope it to.
+
+    The create screen quotes this while you are still choosing a year, so it cannot be
+    league-scoped like the other pool routes.
+    """
+    try:
+        films = await pool.fetch_pool(year, size=size)
+    except (ProviderError, httpx.HTTPError) as e:
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+    return {"year": year, "count": len(films)}
 
 
 @router.get("/{league_id}/draft")
@@ -92,7 +116,7 @@ async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_S
             state = repo.draft_state(session, league_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
-        year, taken = state["year"], set(state["drafted_ids"])
+        year, taken = state["year"], state["taken"]
 
     try:
         films = await pool.fetch_pool(year, size=size)
@@ -103,8 +127,7 @@ async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_S
         raise HTTPException(
             status_code=503,
             detail="No movie pool available - set TMDB_API_KEY in backend/.env.")
-    return {"year": year, "films": [{**f, "drafted": f["tmdb_id"] in taken}
-                                    for f in films]}
+    return {"year": year, "films": [_mark(f, taken) for f in films]}
 
 
 @router.get("/{league_id}/pool/search")
@@ -115,11 +138,10 @@ async def get_pool_search(league_id: int, q: str = Query(min_length=1, max_lengt
             state = repo.draft_state(session, league_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
-        year, taken = state["year"], set(state["drafted_ids"])
+        year, taken = state["year"], state["taken"]
 
     try:
         films = await pool.search(q, year=year)
     except (ProviderError, httpx.HTTPError) as e:
         raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
-    return {"year": year, "films": [{**f, "drafted": f["tmdb_id"] in taken}
-                                    for f in films]}
+    return {"year": year, "films": [_mark(f, taken) for f in films]}
