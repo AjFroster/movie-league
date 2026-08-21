@@ -95,6 +95,22 @@ def patch_league(league_id: int, body: EditLeague):
                 "status": league.status}
 
 
+@router.post("/{league_id}/freeze")
+def post_freeze(league_id: int, frozen: bool = Query(default=True)):
+    """Settle a season so its scores stop moving, or reopen it.
+
+    The league's rule is that a season ends on 31 December; this is the action that makes
+    that stick, since films keep earning and ratings keep drifting long afterwards.
+    """
+    with session_scope() as session:
+        try:
+            league = repo.freeze_league(session, league_id, frozen=frozen)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        return {"id": league.id, "name": league.name,
+                "frozen_at": league.frozen_at.isoformat() if league.frozen_at else None}
+
+
 @router.delete("/{league_id}", status_code=204)
 def delete_league(league_id: int):
     """Remove a league and everything drafted in it. Cascades to players and entries."""
@@ -188,7 +204,10 @@ async def post_league_enrich(league_id: int, force: bool = False,
                                                   max_calls=max_calls)
         except (ProviderError, httpx.HTTPError) as e:
             raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
-        repo.apply_documents(session, league_id, documents, index)
+        try:
+            repo.apply_documents(session, league_id, documents, index)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         return summary
 
 

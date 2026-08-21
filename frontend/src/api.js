@@ -39,6 +39,8 @@ async function post(path, body) {
 export const api = {
   leagues: () => get('/leagues'),
   renameLeague: (id, name) => send('PATCH', `/leagues/${id}`, { name }),
+  freezeLeague: (id, frozen = true) =>
+    send('POST', `/leagues/${id}/freeze?frozen=${frozen}`),
   deleteLeague: (id) => send('DELETE', `/leagues/${id}`),
   leagueLeaderboard: (id) => get(`/leagues/${id}/leaderboard`),
   leagueOwner: (id, name) => get(`/leagues/${id}/owners/${encodeURIComponent(name)}`),

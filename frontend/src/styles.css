@@ -738,3 +738,6 @@ body {
   color: var(--destructive); white-space: nowrap; }
 .btn-danger { border-color: var(--destructive); color: var(--destructive); }
 .btn-danger:hover { background: var(--destructive); color: var(--bg); }
+
+/* A settled season reads as a record rather than a state in progress. */
+.status-dot.frozen { background: var(--text-faint); }

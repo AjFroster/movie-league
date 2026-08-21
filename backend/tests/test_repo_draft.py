@@ -272,3 +272,60 @@ def test_deleting_a_league_removes_its_entries_and_watches(session):
 def test_deleting_an_unknown_league_raises(session):
     with pytest.raises(LookupError):
         repo.delete_league(session, 9999)
+
+
+# ---------------------------------------------------------------------------
+# freezing a settled season
+# ---------------------------------------------------------------------------
+
+def test_freezing_stops_enrichment_from_rewriting_scores(session):
+    """The whole point: a settled season's numbers must stop moving."""
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    documents, index = repo.entries_as_documents(session, league.id)
+    repo.freeze_league(session, league.id)
+    with pytest.raises(ValueError, match="frozen"):
+        repo.apply_documents(session, league.id, documents, index)
+
+
+def test_a_refusal_rather_than_a_silent_skip(session):
+    """A caller must not be able to believe it refreshed a season that did not move."""
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    documents, index = repo.entries_as_documents(session, league.id)
+    repo.freeze_league(session, league.id)
+    try:
+        repo.apply_documents(session, league.id, documents, index)
+        raise AssertionError("expected a refusal")
+    except ValueError as e:
+        assert league.name in str(e)      # says which league, not just "frozen"
+
+
+def test_unfreezing_lets_a_season_finish_counting(session):
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    repo.freeze_league(session, league.id)
+    repo.freeze_league(session, league.id, frozen=False)
+    assert league.frozen_at is None
+    documents, index = repo.entries_as_documents(session, league.id)
+    repo.apply_documents(session, league.id, documents, index)   # no longer raises
+
+
+def test_freezing_does_not_alter_any_score(session):
+    league = _league(session, rounds=1)
+    _run_full_draft(session, league)
+    before = [(m["owner"], m["total"]) for m in repo.league_movies(session, league.id)]
+    repo.freeze_league(session, league.id)
+    assert [(m["owner"], m["total"]) for m in
+            repo.league_movies(session, league.id)] == before
+
+
+def test_freezing_one_league_leaves_others_refreshable(session):
+    frozen = _league(session, rounds=1)
+    _run_full_draft(session, frozen)
+    repo.freeze_league(session, frozen.id)
+
+    live = repo.create_league(session, name="Live", year=2027, players=PLAYERS, rounds=1)
+    session.flush()
+    documents, index = repo.entries_as_documents(session, live.id)
+    repo.apply_documents(session, live.id, documents, index)      # unaffected

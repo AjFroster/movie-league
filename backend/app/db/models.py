@@ -51,6 +51,11 @@ class League(Base):
     # because it is the one part of a draft that must not change once picking starts.
     draft_order: Mapped[list | None] = mapped_column(JSON, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # When set, the season is settled: enrichment leaves it alone and its scores stop
+    # moving. Without this a finished league keeps recalculating from live APIs, so a
+    # final standing quietly changes months after everyone agreed who won.
+    frozen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None)
 
     players: Mapped[list["Player"]] = relationship(
         back_populates="league", cascade="all, delete-orphan", order_by="Player.id")

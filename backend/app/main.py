@@ -133,7 +133,10 @@ async def enrich_movie(owner: str, round_number: int, force: bool = False):
             # parameter, and httpx puts the full URL into its error messages.
             raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
 
-        repo.apply_documents(session, league_id, [target], index)
+        try:
+            repo.apply_documents(session, league_id, [target], index)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         row = repo.owner_movies(session, league_id, owner)
         movie = next(m for m in row if m["round"] == round_number)
         return {"movie": movie, "report": report, "api_calls_used": budget.used}
@@ -157,7 +160,10 @@ async def enrich_all_movies(force: bool = False,
                                                   max_calls=max_calls)
         except (ProviderError, httpx.HTTPError) as e:
             raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
-        repo.apply_documents(session, league_id, documents, index)
+        try:
+            repo.apply_documents(session, league_id, documents, index)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         return summary
 
 

@@ -5,6 +5,8 @@ the transaction boundary is always a whole operation rather than a read and a wr
 another request can interleave between -- the failure that lost three of four simultaneous
 watch toggles under the JSON store.
 """
+from datetime import date
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -31,7 +33,10 @@ def list_leagues(session: Session) -> list[dict]:
              # Once a draft is done the meaningful progress is no longer picks but how
              # many films have ratings in yet -- the season running rather than the draft.
              "films_scored": sum(1 for e in l.entries if e.imdb is not None),
-             "films_total": len(l.entries)}
+             "films_total": len(l.entries),
+             "frozen_at": l.frozen_at.isoformat() if l.frozen_at else None,
+             # A season is over once its year is, which is the rule the league agreed.
+             "season_ended": date.today() > date(l.year, 12, 31)}
             for l in leagues]
 
 
@@ -142,6 +147,19 @@ def create_league(session: Session, *, name: str, year: int, players: list[str],
     session.flush()
     for player_name in names:
         session.add(Player(league_id=league.id, name=player_name))
+    session.flush()
+    return league
+
+
+def freeze_league(session: Session, league_id: int, *, frozen: bool = True) -> League:
+    """Settle a season, or reopen it.
+
+    Reversible on purpose: a freeze is a bookkeeping decision, not a destructive one, and
+    a league that froze too early should be able to finish counting.
+    """
+    from datetime import datetime, timezone
+    league = get_league(session, league_id)
+    league.frozen_at = datetime.now(tz=timezone.utc) if frozen else None
     session.flush()
     return league
 
@@ -348,6 +366,10 @@ def apply_documents(session: Session, league_id: int, documents: list[dict],
                     index: dict) -> None:
     """Write enriched documents back onto their rows and rescore them."""
     league = get_league(session, league_id)
+    if league.frozen_at is not None:
+        # The whole point of freezing: refuse the write rather than silently skip it, so a
+        # caller cannot believe it refreshed a season that did not move.
+        raise ValueError(f"{league.name!r} is frozen; unfreeze it to refresh its scores")
     for document in documents:
         entry = index.get((document["owner"], document["round"]))
         if entry is None:

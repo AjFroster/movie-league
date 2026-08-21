@@ -11,6 +11,11 @@ function ordinalSuffix(n) {
  *  Mid-draft the number that matters is picks; once every slot is filled the season is
  *  running and the live number becomes how many films have ratings in yet. */
 function progressFor(league) {
+  if (league.frozen_at) {
+    const on = new Date(league.frozen_at).toLocaleDateString()
+    return { done: league.films_scored, total: league.films_total,
+             caption: `Final · settled ${on} · scores no longer update` }
+  }
   if (league.status === 'complete') {
     return { done: league.films_scored, total: league.films_total,
              caption: `Season running · ${league.films_scored} of ${league.films_total} films scored` }
@@ -44,6 +49,15 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
     try {
       await api.renameLeague(league.id, name)
       setEditing(null)
+      await reload()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  async function toggleFreeze(league) {
+    try {
+      await api.freezeLeague(league.id, !league.frozen_at)
       await reload()
     } catch (e) {
       setError(e.message)
@@ -129,8 +143,8 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                 </span>
                 <span className="league-year">{league.year}</span>
                 <span className="league-status">
-                  <span className={`status-dot ${league.status}`} />
-                  {STATUS_LABEL[league.status]}
+                  <span className={`status-dot ${league.frozen_at ? 'frozen' : league.status}`} />
+                  {league.frozen_at ? 'FINAL' : STATUS_LABEL[league.status]}
                 </span>
                 <span className="num league-players">{league.players.length}</span>
                 <span className="league-progress">
@@ -160,6 +174,18 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                       title="Delete league"
                       onClick={() => setConfirming(league.id)}
                     >×</button>
+                  )}
+                  {(league.frozen_at || (league.season_ended
+                    && league.status === 'complete')) && (
+                    <button
+                      className="btn btn-small"
+                      title={league.frozen_at
+                        ? 'Reopen so scores update again'
+                        : 'Settle this season so its scores stop moving'}
+                      onClick={() => toggleFreeze(league)}
+                    >
+                      {league.frozen_at ? 'REOPEN' : 'SETTLE SEASON'}
+                    </button>
                   )}
                   <button
                     className={`btn${action.primary ? ' btn-primary' : ''}`}
