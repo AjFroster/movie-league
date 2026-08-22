@@ -39,3 +39,7 @@ backend/data/league.db-shm
 # would be broken paths for anyone else.
 .agents/
 .claude/skills/
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/
