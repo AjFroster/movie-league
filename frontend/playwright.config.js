@@ -41,16 +41,30 @@ export default defineConfig({
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       reuseExistingServer: false,
       timeout: 60_000,
-      // Empty rather than absent: main.py calls load_dotenv(), and backend/.env would put
-      // CLERK_ISSUER back -- load_dotenv does not override a variable that is already set.
-      env: { CLERK_ISSUER: '', CLERK_JWKS_URL: '', CORS_ORIGIN: `http://127.0.0.1:${WEB_PORT}` },
+      // Spread process.env: a bare `env` object REPLACES the environment rather than
+      // extending it, which drops PATH and leaves `python` unresolvable. That is invisible
+      // locally, where E2E_PYTHON is a relative path, and fails in CI where it is not.
+      //
+      // CLERK_* are empty rather than absent: main.py calls load_dotenv(), and
+      // backend/.env would put CLERK_ISSUER back -- load_dotenv does not override a
+      // variable that is already set.
+      env: {
+        ...process.env,
+        CLERK_ISSUER: '',
+        CLERK_JWKS_URL: '',
+        CORS_ORIGIN: `http://127.0.0.1:${WEB_PORT}`,
+      },
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: `npx vite --mode test --port ${WEB_PORT} --strictPort`,
       url: `http://127.0.0.1:${WEB_PORT}`,
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { VITE_API_PORT: String(API_PORT) },
+      env: { ...process.env, VITE_API_PORT: String(API_PORT) },
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
 })
