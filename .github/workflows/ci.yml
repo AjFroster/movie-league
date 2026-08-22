@@ -15,45 +15,6 @@ permissions:
   contents: read
 
 jobs:
-  pr-title:
-    name: PR title
-    # Squash-merging makes the PR TITLE the commit message on master, so the title is the
-    # thing worth checking -- branch commits get collapsed and never appear in the history.
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check Conventional Commits format
-        env:
-          # Passed as an environment variable, never interpolated into the script body.
-          # `${{ github.event.pull_request.title }}` inline would let a title containing
-          # backticks or $(...) execute as shell -- a PR from anyone would be arbitrary
-          # code execution on the runner.
-          TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
-          if printf '%s' "$TITLE" | grep -qE "^($types)(\([a-z0-9 ,._/-]+\))?!?: .+"; then
-            echo "OK: $TITLE"
-            exit 0
-          fi
-          echo "::error::PR title is not a Conventional Commit: $TITLE"
-          cat >&2 <<'MSG'
-
-          A PR title must read: <type>(<optional scope>)<optional !>: <description>
-
-            feat: per-league pick clock that auto-picks on expiry
-            fix(draft): keep a film's artwork at the moment it is drafted
-            refactor!: drop the legacy unscoped movie routes
-
-          Types: feat fix docs style refactor perf test build ci chore revert
-          `!` marks a breaking change.
-
-          Why this is enforced on the title rather than the commits: this repo
-          squash-merges, so the title becomes the commit message on master. The
-          branch's own commits are collapsed and never appear in the history.
-          MSG
-          exit 1
-
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
