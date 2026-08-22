@@ -108,68 +108,42 @@ test('the app renders without an account', async ({ page }) => {
 })
 
 
-test('a league can be created, drafted, and read back', async ({ page }) => {
-  await stubPool(page)
+test('a league is created, snake-drafted over three rounds, and read back', async ({ page }) => {
+  const pickOrder = await stubPool(page)
   const name = `Browser ${Date.now()}`
 
-  await createLeague(page, name)
+  await createLeague(page, name, { players: ['Ann', 'Bob'], rounds: 3 })
 
-  // Creation lands on the draft board in setup.
   await page.getByRole('button', { name: /START DRAFT/ }).click()
 
-  // Two players, one round: two picks.
-  for (let pick = 0; pick < 2; pick++) {
+  for (let pick = 0; pick < 6; pick++) {
     const row = page.locator('.pool-row', { hasText: FILMS[pick].title })
     await expect(row).toBeVisible()
     await row.getByRole('button', { name: 'DRAFT' }).click()
-    // No assertion on the row here: the final pick replaces the pool with the completion
-    // screen, so the row it was in is gone. The DRAFTED badge has its own test below.
   }
 
   await expect(page.getByRole('button', { name: 'VIEW STANDINGS' })).toBeVisible()
   await capture(page, '2-draft-complete')
 
+  // Three rounds of two: the snake shows as back-to-back picks at each round boundary. A
+  // straight repeating order would alternate the whole way through and never do that.
+  expect(pickOrder).toHaveLength(6)
+  const [r1, r2, r3] = [pickOrder.slice(0, 2), pickOrder.slice(2, 4), pickOrder.slice(4, 6)]
+  expect(r2).toEqual([...r1].reverse())
+  expect(r3).toEqual(r1)
+  expect(pickOrder[1]).toBe(pickOrder[2])      // last of round 1 picks first of round 2
+  expect(pickOrder[3]).toBe(pickOrder[4])      // and again into round 3
+  for (const round of [r1, r2, r3]) {
+    expect(new Set(round).size).toBe(2)        // nobody picks twice within a round
+  }
+
   await page.getByRole('button', { name: 'VIEW STANDINGS' }).click()
   await expect(page.getByText('Ann')).toBeVisible()
   await expect(page.getByText('Bob')).toBeVisible()
+
+  // Three films each. This is the assertion the standings screenshot exists to show.
+  await expect(page.locator('.roster-row')).toHaveCount(6)
   await capture(page, '3-standings')
-})
-
-
-test('a three-round snake reverses every round in the browser', async ({ page }) => {
-  // Three players over three rounds is the smallest draft where the snake is unambiguous:
-  // two rounds could pass by accident on a reversed list, and two players make every round
-  // look the same. Nine picks, driven through the UI.
-  const pickOrder = await stubPool(page)
-  await createLeague(page, `Snake ${Date.now()}`, {
-    players: ['Ann', 'Bob', 'Cal'], rounds: 3,
-  })
-  await page.getByRole('button', { name: /START DRAFT/ }).click()
-
-  for (let pick = 0; pick < 9; pick++) {
-    const row = page.locator('.pool-row', { hasText: FILMS[pick].title })
-    await expect(row).toBeVisible()
-    await row.getByRole('button', { name: 'DRAFT' }).click()
-  }
-
-  await expect(page.getByRole('button', { name: 'VIEW STANDINGS' })).toBeVisible()
-  await capture(page, '4-snake-complete')
-
-  expect(pickOrder).toHaveLength(9)
-  const [one, two, three] = [pickOrder.slice(0, 3), pickOrder.slice(3, 6), pickOrder.slice(6, 9)]
-
-  // Round 2 runs backwards, round 3 forwards again.
-  expect(two).toEqual([...one].reverse())
-  expect(three).toEqual(one)
-
-  // Every player picks once per round, and nobody twice.
-  for (const round of [one, two, three]) {
-    expect(new Set(round).size).toBe(3)
-  }
-
-  // The point of the snake: over an even number of rounds the pick positions balance, and
-  // whoever went last in round 1 goes first in round 2.
-  expect(two[0]).toBe(one[2])
 })
 
 
