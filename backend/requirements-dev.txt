@@ -1,5 +1,12 @@
 # Dev-only. Runtime deps stay in requirements.txt.
-# Install with:  uv pip install --python .venv/bin/python -r requirements-dev.txt
-# (this project's venv has no pip; uv is the package manager)
+#
+# Locally (this project's venv has no pip; uv is the package manager):
+#   uv pip install --python .venv/bin/python -r requirements-dev.txt
+# In CI, where pip exists, this one file installs everything:
+#   pip install -r requirements-dev.txt
+-r requirements.txt
+
 pytest==9.1.1
+# Pinned explicitly because pytest.ini sets asyncio_mode=auto: without this plugin every
+# async test is skipped silently rather than failing, which is the worst way to be wrong.
 pytest-asyncio==1.4.0
