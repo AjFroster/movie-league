@@ -7,9 +7,7 @@
  *  the server refuses to start in local mode unless it is on SQLite and localhost.
  */
 import { useEffect, useState } from 'react'
-import {
-  ClerkProvider, SignedIn, SignedOut, SignIn, UserButton, useAuth, useUser,
-} from '@clerk/clerk-react'
+import { ClerkProvider, Show, SignIn, UserButton, useAuth, useUser } from '@clerk/react'
 import { setTokenProvider } from './api.js'
 
 const KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -44,14 +42,15 @@ export function AuthProvider({ children }) {
   return (
     <ClerkProvider publishableKey={KEY} afterSignOutUrl="/">
       <TokenBridge>
-        <SignedIn>{children}</SignedIn>
-        <SignedOut>
+        {/* v6 replaced <SignedIn>/<SignedOut> with <Show when="...">. */}
+        <Show when="signed-in">{children}</Show>
+        <Show when="signed-out">
           <div className="signin-page">
             <h1 className="league-wordmark"><span className="header-mark" />Movie League</h1>
             <p className="league-subtitle">Sign in to see your leagues.</p>
             <SignIn routing="hash" />
           </div>
-        </SignedOut>
+        </Show>
       </TokenBridge>
     </ClerkProvider>
   )

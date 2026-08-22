@@ -24,10 +24,18 @@ from app.services import cache  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def no_real_api_keys(monkeypatch):
-    """Every test runs with zero provider credentials unless it sets its own."""
+    """Every test runs with zero provider credentials unless it sets its own.
+
+    CLERK_* belongs here for the same reason as the rest: `main.py` calls `load_dotenv()`
+    at import, so the moment a real CLERK_ISSUER landed in backend/.env every test request
+    started 401ing against a live Clerk instance. A test's identity must come from the
+    test, never from whatever the developer happens to have configured.
+    """
     monkeypatch.delenv("TMDB_API_KEY", raising=False)
     monkeypatch.delenv("OMDB_API_KEY", raising=False)
     monkeypatch.delenv("MDBLIST_API_KEY", raising=False)
+    monkeypatch.delenv("CLERK_ISSUER", raising=False)
+    monkeypatch.delenv("CLERK_JWKS_URL", raising=False)
 
 
 @pytest.fixture
