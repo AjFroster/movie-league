@@ -135,6 +135,9 @@ function CompleteState({ state, onStandings, onExit, onScore, scoring, scored })
  *  pool otherwise.
  */
 function useFilmPool(leagueId, active, onError) {
+  const [films, setFilms] = useState(null)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState(null)
 
   const load = () => api.pool(leagueId)
     .then((r) => { setFilms(r.films); return r.films })
