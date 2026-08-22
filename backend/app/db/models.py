@@ -17,10 +17,21 @@ The old JSON store lost 3 of 4 simultaneous watch toggles because every write re
 whole file from a stale read. Both problems are transactional, not schema-shaped, but the
 constraints make the invariants explicit rather than implicit.
 """
-from datetime import date as dateonly, datetime, timezone
+from datetime import date as dateonly
+from datetime import datetime, timezone
 
-from sqlalchemy import (JSON, CheckConstraint, Date, DateTime, Float, ForeignKey,
-                        Integer, String, Text, UniqueConstraint)
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 

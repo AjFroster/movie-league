@@ -10,13 +10,20 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from .auth import (CurrentUser, MaybeUser, require_actor, require_creator,
-                   require_member, require_viewer)
+from . import enrichment, scoring
+from .auth import (
+    CurrentUser,
+    MaybeUser,
+    require_actor,
+    require_creator,
+    require_member,
+    require_viewer,
+)
 from .db import repo
 from .db.session import session_scope
+from .errors import http_errors
 from .models import Movie
 from .redaction import ProviderError, redact_secrets
-from . import enrichment, scoring
 from .services import pool
 
 router = APIRouter(prefix="/api/leagues", tags=["leagues"])
@@ -84,16 +91,13 @@ def get_leagues(user: str | None = MaybeUser):
 @router.post("", status_code=201)
 def post_league(body: CreateLeague, user: str = CurrentUser):
     with session_scope() as session:
-        try:
+        with http_errors(ValueError=422):
             league = repo.create_league(session, name=body.name, year=body.year,
                                         players=body.players, rounds=body.rounds,
                                         settles_on=body.settles_on,
                                         pick_seconds=body.pick_seconds,
                                         visibility=body.visibility,
                                         owner_user_id=user)
-        except ValueError as e:
-            # A rejected setup is the caller's input problem, not a server fault.
-            raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
         session.flush()
         return repo.draft_state(session, league.id)
 
@@ -110,14 +114,14 @@ async def get_pool_size(year: int = Query(ge=1900, le=2100),
     try:
         films = await pool.fetch_pool(year, size=size)
     except (ProviderError, httpx.HTTPError) as e:
-        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e))) from None
     return {"year": year, "count": len(films)}
 
 
 @router.patch("/{league_id}")
 def patch_league(league_id: int, body: EditLeague, user: str = CurrentUser):
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404, ValueError=422):
             league = require_creator(session, league_id, user)
             if body.name is not None:
                 league = repo.rename_league(session, league_id, name=body.name)
@@ -129,10 +133,6 @@ def patch_league(league_id: int, body: EditLeague, user: str = CurrentUser):
             if body.visibility is not None:
                 league = repo.set_visibility(session, league_id,
                                              visibility=body.visibility)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
-        except ValueError as e:
-            raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
         return {"id": league.id, "name": league.name, "year": league.year,
                 "status": league.status,
                 "settles_on": league.settles_on.isoformat() if league.settles_on else None,
@@ -148,11 +148,9 @@ def post_freeze(league_id: int, frozen: bool = Query(default=True),
     that stick, since films keep earning and ratings keep drifting long afterwards.
     """
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             require_creator(session, league_id, user)
             league = repo.freeze_league(session, league_id, frozen=frozen)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         return {"id": league.id, "name": league.name,
                 "frozen_at": league.frozen_at.isoformat() if league.frozen_at else None}
 
@@ -161,11 +159,9 @@ def post_freeze(league_id: int, frozen: bool = Query(default=True),
 def delete_league(league_id: int, user: str = CurrentUser):
     """Remove a league and everything drafted in it. Cascades to players and entries."""
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             require_creator(session, league_id, user)
             repo.delete_league(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
     return None
 
 
@@ -184,13 +180,9 @@ def post_claim(league_id: int, body: ClaimSlot, user: str = CurrentUser):
     release one.
     """
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404, ValueError=409):
             player = repo.claim_slot(session, league_id, player_name=body.player,
                                      user_id=user)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
-        except ValueError as e:
-            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         return {"league_id": league_id, "player": player.name, "claimed": True}
 
 
@@ -202,7 +194,7 @@ def delete_claim(league_id: int, player_name: str, user: str = CurrentUser):
     grabbed the wrong name has locked that slot for the season.
     """
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             league = repo.get_league(session, league_id)
             player = next((p for p in league.players if p.name == player_name), None)
             if player is None:
@@ -213,49 +205,35 @@ def delete_claim(league_id: int, player_name: str, user: str = CurrentUser):
                     status_code=403,
                     detail="Only the league's creator can release someone else's slot.")
             repo.release_slot(session, league_id, player_name=player_name)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
     return None
 
 
 @router.get("/{league_id}/draft")
 def get_draft(league_id: int, user: str | None = MaybeUser):
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
             return repo.draft_state(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
 
 
 @router.post("/{league_id}/draft/start")
 def post_start_draft(league_id: int, user: str = CurrentUser):
     """Randomize the order and open the draft. Legal only from setup."""
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404, ValueError=409):
             require_creator(session, league_id, user)
             repo.start_draft(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
-        except ValueError as e:
-            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         return repo.draft_state(session, league_id)
 
 
 @router.post("/{league_id}/draft/pick")
 def post_pick(league_id: int, body: MakePick, user: str = CurrentUser):
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404, ValueError=409):
             require_actor(session, league_id, user, body.player)
             return repo.make_pick(session, league_id, player=body.player,
                                   tmdb_id=body.tmdb_id, title=body.title,
                                   poster_path=body.poster_path)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
-        except ValueError as e:
-            # 409: the request was well formed but conflicts with the draft's state --
-            # someone else took the film, or it is not this player's turn.
-            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
 
 
 @router.get("/{league_id}/leaderboard")
@@ -266,21 +244,17 @@ def get_league_leaderboard(league_id: int, user: str | None = MaybeUser):
     exists, reviewing a specific season needs to name it.
     """
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
             return repo.leaderboard(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
 
 
 @router.get("/{league_id}/owners/{owner}")
 def get_league_owner(league_id: int, owner: str, user: str | None = MaybeUser):
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
             movies = repo.owner_movies(session, league_id, owner)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         if not movies:
             raise HTTPException(status_code=404, detail=f"No owner named {owner}")
         return {"owner": owner,
@@ -297,20 +271,16 @@ async def post_league_enrich(league_id: int, force: bool = False,
             status_code=422,
             detail=f"max_calls must be between 1 and {enrichment.HARD_MAX_CALLS}")
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             require_creator(session, league_id, user)
             documents, index = repo.entries_as_documents(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         try:
             summary = await enrichment.enrich_all({"movies": documents}, force=force,
                                                   max_calls=max_calls)
         except (ProviderError, httpx.HTTPError) as e:
-            raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
-        try:
+            raise HTTPException(status_code=502, detail=redact_secrets(str(e))) from None
+        with http_errors(ValueError=409):
             repo.apply_documents(session, league_id, documents, index)
-        except ValueError as e:
-            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         return summary
 
 
@@ -339,7 +309,7 @@ def post_league_watch(league_id: int, owner: str, round_number: int, body: Watch
         except LookupError as e:
             detail = redact_secrets(str(e))
             raise HTTPException(status_code=422 if "no player" in detail else 404,
-                                detail=detail)
+                                detail=detail) from None
         return {"movie": {**row, "breakdown": scoring.score_breakdown(row)},
                 "leaderboard": repo.leaderboard(session, league_id)}
 
@@ -350,12 +320,10 @@ def put_league_movie(league_id: int, owner: str, round_number: int, movie: Movie
     """Hand-edit an entry. Changed fields are stamped manual so enrichment leaves them."""
     with session_scope() as session:
         require_creator(session, league_id, user)
-        try:
+        with http_errors(LookupError=404):
             return repo.update_entry(session, league_id, owner=owner,
                                      round_number=round_number,
                                      payload=movie.model_dump())
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
 
 
 @router.post("/{league_id}/movies/{owner}/{round_number}/enrich")
@@ -367,10 +335,8 @@ async def post_league_movie_enrich(league_id: int, owner: str, round_number: int
     """
     with session_scope() as session:
         require_creator(session, league_id, user)
-        try:
+        with http_errors(LookupError=404):
             documents, index = repo.entries_as_documents(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         target = next((d for d in documents
                        if d["owner"] == owner and d["round"] == round_number), None)
         if target is None:
@@ -382,11 +348,9 @@ async def post_league_movie_enrich(league_id: int, owner: str, round_number: int
         except (ProviderError, httpx.HTTPError) as e:
             # redact_secrets is mandatory: OMDb and MDBList authenticate by query
             # parameter, and httpx puts the full URL into its error messages.
-            raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
-        try:
+            raise HTTPException(status_code=502, detail=redact_secrets(str(e))) from None
+        with http_errors(ValueError=409):
             repo.apply_documents(session, league_id, [target], index)
-        except ValueError as e:
-            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         row = repo.owner_movies(session, league_id, owner)
         movie = next(m for m in row if m["round"] == round_number)
         return {"movie": movie, "report": report, "api_calls_used": budget.used}
@@ -402,10 +366,8 @@ async def post_autopick(league_id: int, user: str = CurrentUser):
     from the caller.
     """
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             league = require_member(session, league_id, user)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         if not repo.clock_expired(league):
             raise HTTPException(status_code=409,
                                 detail="the clock has not run out for this pick")
@@ -418,7 +380,7 @@ async def post_autopick(league_id: int, user: str = CurrentUser):
     try:
         films = await pool.fetch_pool(year)
     except (ProviderError, httpx.HTTPError) as e:
-        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e))) from None
     choice = next((f for f in films if f["tmdb_id"] not in taken), None)
     if choice is None:
         raise HTTPException(status_code=409, detail="no films left to auto-pick")
@@ -430,12 +392,10 @@ async def post_autopick(league_id: int, user: str = CurrentUser):
         if not repo.clock_expired(league):
             raise HTTPException(status_code=409,
                                 detail="the pick was made before the clock ran out")
-        try:
+        with http_errors(ValueError=409):
             result = repo.make_pick(session, league_id, player=clock["player"],
                                     tmdb_id=choice["tmdb_id"], title=choice["title"],
                                     poster_path=choice.get("poster_path"))
-        except ValueError as e:
-            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
         return {**result, "autopicked": {"player": clock["player"],
                                          "title": choice["title"]}}
 
@@ -446,16 +406,14 @@ async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_S
                    user: str = CurrentUser):
     """The draftable films for this league's year, with drafted ones marked."""
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             state = repo.draft_state(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         year, taken = state["year"], state["taken"]
 
     try:
         films = await pool.fetch_pool(year, size=size)
     except (ProviderError, httpx.HTTPError) as e:
-        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e))) from None
     if not films:
         # An empty pool means no TMDB key far more often than it means no films.
         raise HTTPException(
@@ -469,14 +427,12 @@ async def get_pool_search(league_id: int, q: str = Query(min_length=1, max_lengt
                           user: str = CurrentUser):
     """Title search, so a film outside the top N is still draftable."""
     with session_scope() as session:
-        try:
+        with http_errors(LookupError=404):
             state = repo.draft_state(session, league_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         year, taken = state["year"], state["taken"]
 
     try:
         films = await pool.search(q, year=year)
     except (ProviderError, httpx.HTTPError) as e:
-        raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        raise HTTPException(status_code=502, detail=redact_secrets(str(e))) from None
     return {"year": year, "films": [_mark(f, taken) for f in films]}

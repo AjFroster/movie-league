@@ -34,7 +34,7 @@ def _mismatches(original: dict, exported: dict) -> list[str]:
         return (m.get("owner"), m.get("round"))
 
     for before, after in zip(sorted(original["movies"], key=key),
-                             sorted(exported["movies"], key=key)):
+                             sorted(exported["movies"], key=key), strict=True):
         before, after = dict(before), dict(after)
         if set(before.pop("who_watched", []) or []) != set(after.pop("who_watched", []) or []):
             problems.append(f"watchers differ: {key(before)}")

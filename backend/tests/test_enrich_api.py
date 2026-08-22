@@ -13,9 +13,9 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app import enrichment, provenance
+from app import enrichment
 from app.main import app
-from app.services import cache, mdblist, omdb, tmdb
+from app.services import mdblist, omdb, tmdb
 
 TMDB_PAYLOAD = {"tmdb_id": 1, "budget_millions": 170.0, "gross_millions": 100.5,
                 "vote_average": 9.9, "imdb_id": "tt0111161", "release_date": "2001-04-01"}

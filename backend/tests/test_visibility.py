@@ -7,9 +7,10 @@ purely to hold that line.
 import pytest
 from fastapi.testclient import TestClient
 
-from app import auth
 from app.db.models import VISIBILITY_PRIVATE, VISIBILITY_PUBLIC
 from app.main import app
+
+from .helpers import act_as
 
 CREATOR = "user_creator"
 MEMBER = "user_member"
@@ -21,18 +22,6 @@ def client(never_touch_the_real_database):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
-
-
-def act_as(user_id):
-    """Sign requests as `user_id`; None means signed out."""
-    app.dependency_overrides[auth.current_user_optional] = lambda: user_id
-    if user_id is None:
-        def _401():
-            from fastapi import HTTPException
-            raise HTTPException(status_code=401, detail="Sign in to do that.")
-        app.dependency_overrides[auth.current_user] = _401
-    else:
-        app.dependency_overrides[auth.current_user] = lambda: user_id
 
 
 @pytest.fixture
@@ -194,7 +183,7 @@ def test_a_public_league_appears_on_everyones_list(client, league):
     make_public(client, league)
     act_as(STRANGER)
     listed = client.get("/api/leagues").json()
-    assert [l["name"] for l in listed] == ["Test"]
+    assert [lg["name"] for lg in listed] == ["Test"]
     assert listed[0]["mine"] is False
     assert listed[0]["is_creator"] is False
 
@@ -209,7 +198,7 @@ def test_a_signed_out_visitor_sees_public_leagues(client, league):
     make_public(client, league)
     act_as(None)
     listed = client.get("/api/leagues").json()
-    assert [l["name"] for l in listed] == ["Test"]
+    assert [lg["name"] for lg in listed] == ["Test"]
     assert listed[0]["mine"] is False
 
 

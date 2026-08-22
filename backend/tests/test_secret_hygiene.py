@@ -57,7 +57,10 @@ def test_no_route_module_returns_a_raw_exception_string():
         )
         checked += text.count("detail=redact_secrets(str(e))")
 
-    assert checked >= 2, f"only {checked} redacted handler(s) across {len(modules)} modules"
+    # Redaction is centralised in errors.http_errors now, so counting call sites measures
+    # less than it used to. What still matters is that nothing bypasses it: the assertion
+    # above is the real guard, and test_errors.py proves the helper itself redacts.
+    assert checked >= 1, f"no redacted handler found across {len(modules)} modules"
 
 
 def test_env_example_documents_both_keys_as_placeholders_only():

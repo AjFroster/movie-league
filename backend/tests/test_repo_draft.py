@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.db import repo
-from app.db.models import Base, STATUS_COMPLETE, STATUS_DRAFTING, STATUS_SETUP
+from app.db.models import STATUS_COMPLETE, STATUS_DRAFTING, STATUS_SETUP, Base
 from app.db.session import create_db_engine
 
 PLAYERS = ["Ann", "Bob", "Cal"]
@@ -22,12 +22,6 @@ def maker(tmp_path):
     engine = create_db_engine(f"sqlite:///{tmp_path / 'draft.db'}")
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
-
-
-@pytest.fixture
-def session(maker):
-    with maker() as s:
-        yield s
 
 
 def _league(session, rounds=2, players=PLAYERS):

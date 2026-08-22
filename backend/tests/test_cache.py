@@ -7,7 +7,6 @@ import pytest
 
 from app.services import cache
 
-
 # -- make_key -------------------------------------------------------------------
 
 def test_make_key_prefers_imdb_id():
