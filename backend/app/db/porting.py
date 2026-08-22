@@ -5,13 +5,14 @@ readable, diffable, git-committable snapshot -- the database is the source of tr
 writes, but a binary file is a poor thing to be the only copy of a season's history.
 """
 import json
-from datetime import date as dateonly, datetime, timezone
+from datetime import date as dateonly
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Entry, League, Player, Watch, STATUS_COMPLETE
+from .models import STATUS_COMPLETE, Entry, League, Player, Watch
 
 # Fields carried verbatim between an Entry row and a JSON movie object.
 SCORE_FIELDS = ("imdb", "letterboxd", "rt_crit", "rt_aud", "budget", "gross", "roi",
