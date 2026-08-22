@@ -444,7 +444,7 @@ body {
 /* Leagues beside the sign-in panel. Single column below the breakpoint, with the panel
    FIRST there -- on a phone, "sign in" above the list beats scrolling past every league
    to find it. */
-.league-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+.league-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px;
   gap: var(--space-xl); align-items: start; }
 .league-main { min-width: 0; }
 @media (max-width: 900px) {
@@ -459,8 +459,10 @@ body {
 .league-group-note { font-family: var(--font-body); font-size: var(--fs-label);
   letter-spacing: 0; text-transform: none; color: var(--text-faint); }
 
-.auth-panel { border: 1px solid var(--border); padding: var(--space-lg);
-  display: flex; flex-direction: column; gap: var(--space-md); }
+.auth-panel { border: 1px solid var(--border); padding: var(--space-md);
+  display: flex; flex-direction: column; gap: var(--space-sm); }
+.auth-panel-actions { display: flex; flex-direction: column; gap: var(--space-xs); }
+.auth-panel-actions .btn { width: 100%; text-align: center; justify-content: center; }
 .auth-panel-title { font-family: var(--font-label); font-size: var(--fs-label);
   letter-spacing: 0.14em; color: var(--text-dim); }
 .auth-panel-note { font-family: var(--font-body); font-size: var(--fs-label);
@@ -468,8 +470,8 @@ body {
 .auth-panel-who { display: flex; align-items: center; gap: var(--space-sm); }
 .auth-panel-name { font-family: var(--font-body); font-size: var(--fs-body);
   color: var(--text); }
-/* Clerk renders a fixed-width card by default, which overflows a 300px column. */
-.auth-panel .cl-rootBox, .auth-panel .cl-card { width: 100% !important; max-width: 100%; }
+/* Clerk's modal renders in a portal at the document root, so nothing here needs to
+   contain it -- the panel holds only two buttons. */
 .signin-page { display: flex; flex-direction: column; align-items: center; gap: var(--space-lg);
   padding: var(--space-xl) var(--space-lg); }
 .league-wordmark { font-family: var(--font-label); font-size: var(--fs-heading);
