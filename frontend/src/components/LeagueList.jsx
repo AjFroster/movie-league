@@ -2,39 +2,35 @@ import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { saveBlob } from '../download.js'
 import { AuthPanel, accountsEnabled, useSignedIn } from '../auth.jsx'
+import LeagueRow from './LeagueRow.jsx'
+import { ordinalSuffix } from './leagueDisplay.js'
 
-const STATUS_LABEL = { setup: 'SETUP', drafting: 'DRAFTING', complete: 'COMPLETE' }
-
-function ordinalSuffix(n) {
-  return n === 1 ? '' : 's'
+/** The rows plus their header. Module scope, not defined during render. */
+function LeagueTable({ rows, newest, editing, draftName, saving, confirming, on }) {
+  return (
+    <div className="league-table">
+      <div className="league-row league-head">
+        <span>League</span><span>Year</span><span>Status</span>
+        <span className="num">Players</span><span>Draft progress</span><span />
+      </div>
+      {rows.map((league) => (
+        <LeagueRow
+          key={league.id}
+          league={league}
+          // Not a stored status: a completed league that is no longer the current season
+          // reads as history, so it is dimmed rather than flagged.
+          archived={league.status === 'complete' && league.id !== newest}
+          editing={editing === league.id}
+          draftName={draftName}
+          saving={saving === league.id}
+          confirming={confirming === league.id}
+          on={on}
+        />
+      ))}
+    </div>
+  )
 }
 
-/** Progress means different things before and after a draft finishes.
- *  Mid-draft the number that matters is picks; once every slot is filled the season is
- *  running and the live number becomes how many films have ratings in yet. */
-function progressFor(league) {
-  if (league.frozen_at) {
-    const on = new Date(league.frozen_at).toLocaleDateString()
-    return { done: league.films_scored, total: league.films_total,
-             caption: `Final · settled ${on} · scores no longer update` }
-  }
-  if (league.status === 'complete') {
-    return { done: league.films_scored, total: league.films_total,
-             caption: `Season running · ${league.films_scored} of ${league.films_total} films scored` }
-  }
-  if (league.status === 'setup') {
-    return { done: 0, total: league.total_picks,
-             caption: `Order not drawn · ${league.players.length} player${ordinalSuffix(league.players.length)} invited` }
-  }
-  return { done: league.picks_made, total: league.total_picks,
-           caption: league.players.join(', ') }
-}
-
-function actionFor(league) {
-  if (league.status === 'drafting') return { label: 'RESUME DRAFT', primary: true }
-  if (league.status === 'setup') return { label: 'OPEN', primary: false }
-  return { label: 'STANDINGS', primary: false }
-}
 
 export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) {
   const signedIn = useSignedIn()
@@ -51,52 +47,58 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
 
   const reload = () => api.leagues().then(setLeagues).catch((e) => setError(e.message))
 
+  /** Run a mutation, refresh, and report failure inline. Returns whether it worked.
+   *
+   *  Inline, not page-level: the list is still valid when one change fails, and five of
+   *  these handlers used to call setError, which replaces the whole page with a dead end.
+   */
+  async function mutate(call) {
+    setSaveError(null)
+    try {
+      await call()
+      await reload()
+      return true
+    } catch (e) {
+      setSaveError(e.message)
+      return false
+    }
+  }
+
   async function saveName(league) {
     const name = draftName.trim()
     if (!name || name === league.name) { setEditing(null); return }
-    try {
-      await api.renameLeague(league.id, name)
-      setEditing(null)
-      await reload()
-    } catch (e) {
-      setError(e.message)
-    }
+    if (await mutate(() => api.renameLeague(league.id, name))) setEditing(null)
   }
 
-  async function saveSettleDate(league, value) {
+  function saveSettleDate(league, value) {
     if (!value || value === league.settles_on) return
-    try {
-      await api.setSettlesOn(league.id, value)
-      await reload()
-    } catch (e) {
-      setError(e.message)
-    }
+    return mutate(() => api.setSettlesOn(league.id, value))
   }
 
-  async function savePickSeconds(league, value) {
+  function savePickSeconds(league, value) {
     const seconds = Number(value)
     if (Number.isNaN(seconds) || seconds === league.pick_seconds) return
-    try {
-      await api.setPickSeconds(league.id, seconds)
-      await reload()
-    } catch (e) {
-      setError(e.message)
-    }
+    return mutate(() => api.setPickSeconds(league.id, seconds))
   }
 
-  async function toggleFreeze(league) {
-    try {
-      await api.freezeLeague(league.id, !league.frozen_at)
-      await reload()
-    } catch (e) {
-      setError(e.message)
-    }
+  const toggleFreeze = (league) =>
+    mutate(() => api.freezeLeague(league.id, !league.frozen_at))
+
+  const toggleVisibility = (league) =>
+    mutate(() => api.setVisibility(
+      league.id, league.visibility === 'public' ? 'private' : 'public'))
+
+  const claim = (league, player) => mutate(() => api.claimSlot(league.id, player))
+
+  const release = (league, player) => mutate(() => api.releaseSlot(league.id, player))
+
+  async function remove(league) {
+    if (await mutate(() => api.deleteLeague(league.id))) setConfirming(null)
   }
 
   /** `league` omitted means the whole database -- the backup. */
   async function exportData(league) {
-    const key = league ? league.id : 'all'
-    setSaving(key)
+    setSaving(league ? league.id : 'all')
     setSaveError(null)
     try {
       saveBlob(league ? await api.exportLeague(league.id) : await api.exportArchive())
@@ -104,46 +106,6 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
       setSaveError(`Couldn't export: ${e.message}`)
     } finally {
       setSaving(null)
-    }
-  }
-
-  async function toggleVisibility(league) {
-    setSaveError(null)
-    try {
-      await api.setVisibility(league.id, league.visibility === 'public' ? 'private' : 'public')
-      await reload()
-    } catch (e) {
-      setSaveError(e.message)
-    }
-  }
-
-  async function claim(league, player) {
-    setSaveError(null)
-    try {
-      await api.claimSlot(league.id, player)
-      await reload()
-    } catch (e) {
-      setSaveError(e.message)
-    }
-  }
-
-  async function release(league, player) {
-    setSaveError(null)
-    try {
-      await api.releaseSlot(league.id, player)
-      await reload()
-    } catch (e) {
-      setSaveError(e.message)
-    }
-  }
-
-  async function remove(league) {
-    try {
-      await api.deleteLeague(league.id)
-      setConfirming(null)
-      await reload()
-    } catch (e) {
-      setError(e.message)
     }
   }
 
@@ -156,6 +118,15 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
   const mine = leagues.filter((l) => l.mine)
   const publicLeagues = leagues.filter((l) => !l.mine)
   const drafting = mine.filter((l) => l.status === 'drafting').length
+  const newest = leagues.length > 0 ? leagues[0].id : null
+
+  const on = {
+    saveName, saveSettleDate, savePickSeconds, toggleFreeze, toggleVisibility,
+    claim, release, remove, exportData,
+    setEditing, setDraftName, setConfirming,
+    openLeague: onOpenLeague, openStandings: onOpenStandings,
+  }
+  const tableProps = { newest, editing, draftName, saving, confirming, on }
 
   return (
     <div className="league-page">
@@ -193,229 +164,45 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
 
       {/* One renderer, used for both groups: the row markup is identical, only the
           heading and the source list differ. */}
-      {(() => {
-        const Table = ({ rows }) => (
-          <div className="league-table">
-            <div className="league-row league-head">
-              <span>League</span><span>Year</span><span>Status</span>
-              <span className="num">Players</span><span>Draft progress</span><span />
-            </div>
-          {rows.map((league) => {
-            const progress = progressFor(league)
-            const action = actionFor(league)
-            // "Archived" is not a stored status -- a completed league that is no longer the
-            // current season simply reads as history, so it is dimmed rather than flagged.
-            const archived = league.status === 'complete' && league.id !== leagues[0].id
-            const percent = progress.total
-              ? Math.round((progress.done / progress.total) * 100) : 0
-            return (
-              <div className={`league-row${archived ? ' archived' : ''}`} key={league.id}>
-                <span className="league-name-cell">
-                  {/* Only meaningful once there are real accounts. In local mode there is
-                      one user, so "which slot are you" has no answer worth asking for. */}
-                  {accountsEnabled && (
-                    league.your_player ? (
-                      <span className="claim-strip">
-                        Playing as <strong>{league.your_player}</strong>
-                        <button
-                          className="btn btn-small"
-                          title="Give this slot back"
-                          onClick={() => release(league, league.your_player)}
-                        >RELEASE</button>
-                      </span>
-                    ) : league.unclaimed?.length > 0 ? (
-                      <span className="claim-strip">
-                        Claim your slot:
-                        {league.unclaimed.map((name) => (
-                          <button key={name} className="btn btn-small"
-                                  onClick={() => claim(league, name)}>{name}</button>
-                        ))}
-                      </span>
-                    ) : null
-                  )}
-                  {!league.is_creator ? (
-                    <span className="league-name">{league.name}</span>
-                  ) : editing === league.id ? (
-                    <input
-                      className="input input-inline"
-                      autoFocus
-                      value={draftName}
-                      onChange={(e) => setDraftName(e.target.value)}
-                      onBlur={() => saveName(league)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveName(league)
-                        if (e.key === 'Escape') setEditing(null)
-                      }}
-                    />
-                  ) : (
-                    <button
-                      className="league-name league-name-button"
-                      title="Rename"
-                      onClick={() => { setEditing(league.id); setDraftName(league.name) }}
-                    >
-                      {league.name}
-                    </button>
-                  )}
-                  <span className="league-meta">
-                    {!league.is_creator ? (
-                      <span className={`visibility-pill static ${league.visibility}`}>
-                        {league.visibility === 'public' ? 'PUBLIC' : 'PRIVATE'}
-                      </span>
-                    ) : (
-                    <button
-                      className={`visibility-pill ${league.visibility}`}
-                      title={league.visibility === 'public'
-                        ? 'Anyone with the link can view the standings. Click to make private.'
-                        : 'Only league members can view this. Click to make it public.'}
-                      onClick={() => toggleVisibility(league)}
-                    >
-                      {league.visibility === 'public' ? 'PUBLIC' : 'PRIVATE'}
-                    </button>
-                    )}
-                    {' · '}
-                    {progress.caption}
-                    {league.status !== 'complete' && league.is_creator && (
-                      <>
-                        {' · '}
-                        <select
-                          className="settle-date"
-                          value={league.pick_seconds}
-                          title="Seconds each player gets on the clock"
-                          onChange={(e) => savePickSeconds(league, e.target.value)}
-                        >
-                          {[0, 30, 60, 120, 300].map((s) => (
-                            <option key={s} value={s}>
-                              {s === 0 ? 'untimed' : `${s}s per pick`}
-                            </option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                    {!league.frozen_at && league.is_creator && (
-                      <>
-                        {' · books close '}
-                        <input
-                          type="date"
-                          className="settle-date"
-                          value={league.settles_on || ''}
-                          title="When this season's scores stop updating"
-                          onChange={(e) => saveSettleDate(league, e.target.value)}
-                        />
-                      </>
-                    )}
-                  </span>
-                </span>
-                <span className="league-year">{league.year}</span>
-                <span className="league-status">
-                  <span className={`status-dot ${league.frozen_at ? 'frozen' : league.status}`} />
-                  {league.frozen_at ? 'FINAL' : STATUS_LABEL[league.status]}
-                </span>
-                <span className="num league-players">{league.players.length}</span>
-                <span className="league-progress">
-                  <span className="league-progress-bar">
-                    <span className="league-progress-fill" style={{ width: `${percent}%` }} />
-                  </span>
-                  <span className="league-progress-count">
-                    {progress.done} / {progress.total}
-                  </span>
-                </span>
-                <span className="league-action">
-                  {league.is_creator && (confirming === league.id ? (
-                    <span className="confirm-strip">
-                      <span className="confirm-text">
-                        Delete “{league.name}” and its {league.picks_made} picks?
-                      </span>
-                      <button className="btn btn-danger" onClick={() => remove(league)}>
-                        DELETE
-                      </button>
-                      <button className="btn" onClick={() => setConfirming(null)}>
-                        CANCEL
-                      </button>
-                    </span>
-                  ) : (
-                    <>
-                      <button
-                        className="league-export"
-                        title={`Download “${league.name}” as JSON`}
-                        disabled={saving === league.id}
-                        onClick={() => exportData(league)}
-                      >{saving === league.id ? '…' : '↓'}</button>
-                      <button
-                        className="league-delete"
-                        title="Delete league"
-                        onClick={() => setConfirming(league.id)}
-                      >×</button>
-                    </>
-                  ))}
-                  {league.is_creator
-                    && (league.frozen_at || (league.season_ended
-                        && league.status === 'complete')) && (
-                    <button
-                      className="btn btn-small"
-                      title={league.frozen_at
-                        ? 'Reopen so scores update again'
-                        : 'Settle this season so its scores stop moving'}
-                      onClick={() => toggleFreeze(league)}
-                    >
-                      {league.frozen_at ? 'REOPEN' : 'SETTLE SEASON'}
-                    </button>
-                  )}
-                  <button
-                    className={`btn${action.primary ? ' btn-primary' : ''}`}
-                    onClick={() => (league.status === 'complete'
-                      ? onOpenStandings(league)
-                      : onOpenLeague(league))}
-                  >
-                    {action.label}
-                  </button>
-                </span>
-              </div>
-            )
-          })}
-          </div>
-        )
-
-        return (
-          <div className="league-layout">
-            <div className="league-main">
-              {signedIn && (
-                <>
-                  <h2 className="league-group-title">YOUR LEAGUES</h2>
-                  {mine.length === 0 ? (
-                    <div className="empty-state">
-                      <div className="empty-state-heading">No leagues yet</div>
-                      <div className="empty-state-body">
-                        Create one to name your players and draft a season.
-                      </div>
-                    </div>
-                  ) : <Table rows={mine} />}
-                </>
-              )}
-
-              <h2 className="league-group-title">
-                PUBLIC LEAGUES
-                {signedIn && publicLeagues.length > 0 && (
-                  <span className="league-group-note">
-                    Anyone can read these. You cannot change them.
-                  </span>
-                )}
-              </h2>
-              {publicLeagues.length === 0 ? (
+      {/* Row markup lives in LeagueRow; this is only which rows go where. */}
+      <div className="league-layout">
+        <div className="league-main">
+          {signedIn && (
+            <>
+              <h2 className="league-group-title">YOUR LEAGUES</h2>
+              {mine.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-state-heading">No public leagues</div>
+                  <div className="empty-state-heading">No leagues yet</div>
                   <div className="empty-state-body">
-                    {signedIn
-                      ? 'Mark one of yours public to share its standings with anyone.'
-                      : 'Nothing has been shared publicly yet. Sign in to see your own.'}
+                    Create one to name your players and draft a season.
                   </div>
                 </div>
-              ) : <Table rows={publicLeagues} />}
-            </div>
+              ) : <LeagueTable rows={mine} {...tableProps} />}
+            </>
+          )}
 
-            <AuthPanel />
-          </div>
-        )
-      })()}
+          <h2 className="league-group-title">
+            PUBLIC LEAGUES
+            {signedIn && publicLeagues.length > 0 && (
+              <span className="league-group-note">
+                Anyone can read these. You cannot change them.
+              </span>
+            )}
+          </h2>
+          {publicLeagues.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-heading">No public leagues</div>
+              <div className="empty-state-body">
+                {signedIn
+                  ? 'Mark one of yours public to share its standings with anyone.'
+                  : 'Nothing has been shared publicly yet. Sign in to see your own.'}
+              </div>
+            </div>
+          ) : <LeagueTable rows={publicLeagues} {...tableProps} />}
+        </div>
+
+        <AuthPanel />
+      </div>
     </div>
   )
 }
