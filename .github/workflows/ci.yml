@@ -51,6 +51,14 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      # A real uvicorn on a real migrated file database, driven over HTTP. The suite above
+      # runs in-process against an in-memory database, so it never exercises the things
+      # that actually break a deployment. This caught `alembic upgrade head` failing on an
+      # empty database -- no migration created any table, so a fresh Postgres could not be
+      # provisioned at all.
+      - name: Smoke test
+        run: python -m scripts.smoke_test
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
@@ -82,3 +90,185 @@ jobs:
       # catches a broken import, a bad JSX edit, or malformed CSS. Both have happened here.
       - name: Build
         run: npm run build
+
+  browser:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # pushes screenshots to the ci-screenshots branch
+      pull-requests: write   # posts them on the PR
+    # Not required to merge yet. Browser tests are the flakiest thing in any pipeline, and
+    # a new one deserves a few weeks of proving itself before it can block a PR. It found a
+    # crash on master the first time it ran, so it is earning that trust quickly.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # E2E_PYTHON points at the runner's python; locally the config defaults to the venv.
+      - name: Run browser tests
+        working-directory: frontend
+        env:
+          E2E_PYTHON: python
+        run: npx playwright test
+
+      # Always, not just on failure: the point is to confirm a GREEN run actually rendered
+      # something. Assertions say an element is present; they cannot say the page looks
+      # right, and a blank page with one correct element still passes.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        id: shots
+        with:
+          name: ui-screenshots
+          path: frontend/e2e-screenshots/
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      # Inline, not collapsed, and not only as a download. The summary is where someone
+      # actually looks; a zip they have to fetch and unpack gets checked once and then
+      # never again. GitHub's summary accepts a data: URI, so the images ride along.
+      #
+      # The whole summary is capped at 1MB, and base64 costs about a third on top of the
+      # file size, so the loop stops adding images before it would be truncated -- a
+      # summary that silently cuts off mid-page is worse than one that says what it
+      # dropped.
+      # GitHub strips data: URIs from <img> in job summaries and PR comments, so an
+      # inline base64 image renders as a dead link. The images need a real URL, and the
+      # cheapest one for a public repo is a branch: push them to `ci-screenshots` and
+      # reference them through raw.githubusercontent, which needs no auth and renders
+      # inline everywhere.
+      - name: Publish the screenshots
+        if: always() && github.event_name == 'pull_request'
+        id: publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          test -d frontend/e2e-screenshots || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # A worktree keeps the checkout under test untouched.
+          git fetch origin ci-screenshots --depth=1 2>/dev/null \
+            && git worktree add ../shots ci-screenshots \
+            || git worktree add --orphan -b ci-screenshots ../shots
+
+          # The path carries the commit sha. GitHub proxies images through camo, which
+          # caches by source URL -- a stable path means the first version ever published
+          # is the one everyone keeps seeing, however many times it is overwritten.
+          SHA=$(git rev-parse --short HEAD)
+          DIR="pr-$PR/$SHA"
+
+          rm -rf "../shots/pr-$PR"        # only the current commit's shots are kept
+          mkdir -p "../shots/$DIR"
+          cp frontend/e2e-screenshots/*.png "../shots/$DIR/"
+
+          cd ../shots
+          git add -A
+          if git diff --cached --quiet; then
+            echo "screenshots unchanged"
+          else
+            git commit -q -m "ci: screenshots for PR #$PR at $SHA"
+            git push -q origin ci-screenshots
+          fi
+          echo "base=https://raw.githubusercontent.com/${{ github.repository }}/ci-screenshots/$DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Put the screenshots in the run summary
+        if: always()
+        working-directory: frontend
+        env:
+          SHOTS_URL: ${{ steps.shots.outputs.artifact-url }}
+          BASE: ${{ steps.publish.outputs.base }}
+        run: |
+          {
+            echo "## UI screenshots"
+            echo
+            echo "Captured while the browser tests ran, so a green tick can be checked by eye."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for f in $(ls e2e-screenshots/*.png 2>/dev/null | sort); do
+            name=$(basename "$f" .png | sed 's/^[0-9]*-//; s/-/ /g')
+            {
+              echo "### ${name}"
+              echo
+              if [ -n "$BASE" ]; then
+                echo "![${name}](${BASE}/$(basename "$f"))"
+              else
+                echo "_Published only for pull requests._"
+              fi
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo "[Download at full resolution]($SHOTS_URL)" >> "$GITHUB_STEP_SUMMARY"
+
+      # And on the PR itself, so it is visible without opening the run at all.
+      - name: Show them on the pull request
+        if: always() && github.event_name == 'pull_request' && steps.publish.outputs.base != ''
+        uses: actions/github-script@v7
+        env:
+          BASE: ${{ steps.publish.outputs.base }}
+        with:
+          script: |
+            const shots = ['1-league-list', '2-draft-complete', '3-standings']
+            const body = [
+              '<!-- ui-screenshots -->',
+              '### UI screenshots',
+              '',
+              'From the browser tests on this commit.',
+              '',
+              ...shots.map((s) => {
+                const label = s.replace(/^[0-9]+-/, '').replace(/-/g, ' ')
+                return `<details open><summary>${label}</summary>\n\n` +
+                       `![${label}](${process.env.BASE}/${s}.png)\n\n</details>`
+              }),
+            ].join('\n')
+
+            // Update one comment rather than adding one per run.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const mine = comments.find((c) => c.body.includes('<!-- ui-screenshots -->'))
+            if (mine) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: mine.id, body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              })
+            }

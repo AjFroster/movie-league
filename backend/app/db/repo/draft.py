@@ -31,7 +31,11 @@ def draft_state(session: Session, league_id: int) -> dict:
         .order_by(Entry.pick_number)).all()
     made = [{"pick": e.pick_number, "round": e.round, "player": names.get(e.player_id),
              "tmdb_id": e.tmdb_id, "title": e.title} for e in picks]
-    clock = draft_rules.on_the_clock(order, league.rounds, len(made))
+    # Nobody is on the clock until the draft opens. Before that `order` is the order the
+    # names were typed in, not the randomised one, so naming a player here would name the
+    # wrong player -- a wrong answer that happens not to be read yet.
+    clock = (draft_rules.on_the_clock(order, league.rounds, len(made))
+             if league.status == STATUS_DRAFTING else None)
     if clock is not None:
         # The snake's one counter-intuitive consequence: the player picking last in a round
         # picks first in the next. Worth surfacing at the moment someone is choosing.
