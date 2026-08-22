@@ -11,7 +11,8 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from .db import porting
+from .auth import CurrentUser, require_viewer
+from .db import porting, repo
 from .db.session import session_scope
 
 router = APIRouter(prefix="/api", tags=["export"])
@@ -34,21 +35,38 @@ def _download(payload: dict, filename: str) -> JSONResponse:
 
 
 @router.get("/export")
-def get_archive():
-    """Every league, in one restorable file. This is the backup."""
+def get_archive(user: str = CurrentUser):
+    """Your leagues, in one restorable file. This is the backup.
+
+    Scoped to the caller. Before accounts existed this route dumped every league in the
+    database to anyone who asked -- owner ids, player names and all -- because the Stage 2
+    audit only inspected mutating routes and a GET that reads everything did not look like
+    one. A backup is *your* data; the whole database is not yours to download.
+    """
     with session_scope() as session:
-        payload = porting.dump_archive(session)
+        mine = [lg["id"] for lg in repo.list_leagues(session, user_id=user)]
+        payload = porting.archive([porting.dump_league(session, i) for i in mine])
     return _download(payload, f"movie-league-backup-{date.today().isoformat()}.json")
 
 
 @router.get("/leagues/{league_id}/export")
-def get_league_archive(league_id: int):
-    """One league, same format, so a single season can be shared or archived alone."""
+def get_league_archive(league_id: int, user: str = CurrentUser):
+    """One league, same format, so a single season can be shared or archived alone.
+
+    Members only, even for a public league. Public grants reading the standings; an archive
+    additionally carries every account id that has claimed a slot, which is not the same
+    thing and should not ride along with a shared link.
+    """
     with session_scope() as session:
         try:
-            league = porting.dump_league(session, league_id)
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            member = repo.is_member(session, league_id, user)
+        except LookupError:
+            member = False
+        # One answer for "does not exist" and "not yours", deliberately: distinguishing
+        # them would let anyone enumerate which league ids are real.
+        if not member:
+            raise HTTPException(status_code=404, detail="No such league.")
+        league = porting.dump_league(session, league_id)
         payload = porting.archive([league])
         name = league["name"]
     return _download(payload, f"{_slug(name)}-{date.today().isoformat()}.json")

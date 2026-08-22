@@ -30,7 +30,7 @@ from fastapi import Depends, HTTPException, Request
 from jwt import PyJWKClient
 
 from .db import repo
-from .db.models import League, Player
+from .db.models import VISIBILITY_PUBLIC, League, Player
 
 # The single identity used when no identity provider is configured. Deliberately unlike a
 # Clerk subject (`user_2ab...`) so the two can never be confused in a database or a log.
@@ -140,7 +140,25 @@ def current_user(request: Request) -> str:
     return _subject_from_token(token.strip())
 
 
+def current_user_optional(request: Request) -> str | None:
+    """The identity behind this request, or None if there is not one.
+
+    Read routes need this: a public league is readable by someone who is not signed in at
+    all, so a missing token is an answer ("anonymous") rather than an error. A token that
+    is *present but invalid* still 401s -- a forged token must never be quietly downgraded
+    to anonymous, or the check becomes "send a bad token to look like a stranger".
+    """
+    if not clerk_configured():
+        return LOCAL_USER_ID
+    header = request.headers.get("Authorization") or ""
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return None
+    return _subject_from_token(token.strip())
+
+
 CurrentUser = Depends(current_user)
+MaybeUser = Depends(current_user_optional)
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +187,25 @@ def require_member(session, league_id: int, user_id: str) -> League:
     if not repo.is_member(session, league_id, user_id):
         raise HTTPException(status_code=403, detail="You are not in this league.")
     return league
+
+
+def require_viewer(session, league_id: int, user_id: str | None) -> League:
+    """May this caller READ this league?
+
+    Public: anyone, including signed-out. Private: members only.
+
+    Deliberately separate from write permission, which is always ownership-based -- making
+    a league public grants reading and nothing else.
+    """
+    league = repo.get_league(session, league_id)
+    if league.visibility == VISIBILITY_PUBLIC:
+        return league
+    if user_id is not None and repo.is_member(session, league_id, user_id):
+        return league
+    # 404, not 403: answering "forbidden" for a private league confirms it exists, which
+    # leaks the very thing privacy is for. An outsider cannot distinguish a private league
+    # from one that was never created.
+    raise HTTPException(status_code=404, detail="No such league.")
 
 
 def require_actor(session, league_id: int, user_id: str, player_name: str) -> Player:

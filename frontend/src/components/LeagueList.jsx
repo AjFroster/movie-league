@@ -106,6 +106,16 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
     }
   }
 
+  async function toggleVisibility(league) {
+    setSaveError(null)
+    try {
+      await api.setVisibility(league.id, league.visibility === 'public' ? 'private' : 'public')
+      await reload()
+    } catch (e) {
+      setSaveError(e.message)
+    }
+  }
+
   async function claim(league, player) {
     setSaveError(null)
     try {
@@ -242,6 +252,16 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
                     </button>
                   )}
                   <span className="league-meta">
+                    <button
+                      className={`visibility-pill ${league.visibility}`}
+                      title={league.visibility === 'public'
+                        ? 'Anyone with the link can view the standings. Click to make private.'
+                        : 'Only league members can view this. Click to make it public.'}
+                      onClick={() => toggleVisibility(league)}
+                    >
+                      {league.visibility === 'public' ? 'PUBLIC' : 'PRIVATE'}
+                    </button>
+                    {' · '}
                     {progress.caption}
                     {league.status !== 'complete' && (
                       <>
