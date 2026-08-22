@@ -128,6 +128,44 @@ function CompleteState({ state, onStandings, onExit, onScore, scoring, scored })
 /** Seconds left on the current pick, recomputed from the server's deadline every tick.
  *  Not a local countdown: a refresh, a slow load, or a sleeping laptop would all drift a
  *  browser-owned stopwatch, and the deadline has to be the same for everyone in the room. */
+/** The draftable pool, plus the search over it.
+ *
+ *  Three pieces of state that only ever move together: the full pool, the query, and the
+ *  matches for it. `shown` is what the board renders -- matches when searching, the whole
+ *  pool otherwise.
+ */
+function useFilmPool(leagueId, active, onError) {
+
+  const load = () => api.pool(leagueId)
+    .then((r) => { setFilms(r.films); return r.films })
+    .catch((e) => onError(e.message))
+
+  useEffect(() => {
+    if (active) load()
+  }, [leagueId, active])
+
+  // Debounced so typing a title does not fire a request per keystroke.
+  useEffect(() => {
+    if (!query.trim()) { setResults(null); return }
+    const timer = setTimeout(() => {
+      api.poolSearch(leagueId, query).then((r) => setResults(r.films)).catch(() => {})
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query, leagueId])
+
+  /** Re-read the pool after a pick, keeping any active search in step. */
+  async function refresh() {
+    await load()
+    if (results) {
+      const again = await api.poolSearch(leagueId, query)
+      setResults(again.films)
+    }
+  }
+
+  return { films, query, setQuery, shown: results ?? films, refresh }
+}
+
+
 function useClock(state, onExpire) {
   const [left, setLeft] = useState(null)
 
@@ -179,15 +217,15 @@ function Clock({ left, seconds }) {
 
 export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }) {
   const [state, setState] = useState(null)
-  const [films, setFilms] = useState(null)
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState(null)
   const [error, setError] = useState(null)
   const [rejected, setRejected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [scoringNow, setScoringNow] = useState(false)
   const [scored, setScored] = useState(null)
   const [autopicked, setAutopicked] = useState(null)
+  const pool = useFilmPool(leagueId, Boolean(state) && state?.status !== 'setup',
+                           (message) => setError(message))
+  const { films, query, setQuery, shown } = pool
 
   async function expire() {
     if (busy) return
@@ -196,8 +234,7 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
       const result = await api.autopick(leagueId)
       setAutopicked(result.autopicked)
       setState(result)
-      const refreshed = await api.pool(leagueId)
-      setFilms(refreshed.films)
+      await pool.refresh()
       if (result.status === 'complete') onFinished?.(result)
     } catch (e) {
       // 409 means the player picked in the moment the clock ran out -- their pick wins,
@@ -213,19 +250,6 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
     api.draft(leagueId).then(setState).catch((e) => setError(e.message))
   }, [leagueId])
 
-  useEffect(() => {
-    if (!state || state.status === 'setup') return
-    api.pool(leagueId).then((r) => setFilms(r.films)).catch((e) => setError(e.message))
-  }, [leagueId, state?.status])
-
-  // Debounced so typing a title does not fire a request per keystroke.
-  useEffect(() => {
-    if (!query.trim()) { setResults(null); return }
-    const timer = setTimeout(() => {
-      api.poolSearch(leagueId, query).then((r) => setResults(r.films)).catch(() => {})
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [query, leagueId])
 
   async function start() {
     setBusy(true)
@@ -260,29 +284,20 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
                                       film.poster_path)
       setState(next)
       // Refresh the pool so the film shows as taken, by whom, at which pick.
-      const refreshed = await api.pool(leagueId)
-      setFilms(refreshed.films)
-      if (results) {
-        const again = await api.poolSearch(leagueId, query)
-        setResults(again.films)
-      }
+      await pool.refresh()
       if (next.status === 'complete') onFinished?.(next)
     } catch (e) {
       // A rejection means someone else took the film or it is not this player's turn.
       // Both are recoverable, so the board stays exactly where it was and explains.
       setRejected(e.message)
-      const [next, refreshed] = await Promise.all([
-        api.draft(leagueId), api.pool(leagueId),
-      ])
+      const [next] = await Promise.all([api.draft(leagueId), pool.refresh()])
       setState(next)
-      setFilms(refreshed.films)
     } finally {
       setBusy(false)
     }
   }
 
   const secondsLeft = useClock(state, expire)
-  const shown = results ?? films
   const clock = state?.on_the_clock
   const percent = useMemo(() => (
     state && state.total_picks
