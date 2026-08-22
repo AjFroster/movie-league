@@ -94,3 +94,21 @@ def never_touch_the_real_database(tmp_path, monkeypatch):
     monkeypatch.setattr(db_session, "_SessionLocal", maker)
     monkeypatch.setattr(db_session, "DEFAULT_DB_PATH", tmp_path / "autouse.db")
     return maker
+
+
+@pytest.fixture
+def session(tmp_path):
+    """A throwaway database session on its own file.
+
+    Was defined three times, near-identically, in test_archive / test_db_porting /
+    test_repo_draft. One copy, so a change to how tests get a session happens once.
+    """
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.models import Base
+    from app.db.session import create_db_engine
+
+    engine = create_db_engine(f"sqlite:///{tmp_path / 'test.db'}")
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine, expire_on_commit=False, future=True)() as s:
+        yield s

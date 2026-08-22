@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from app import auth
 from app.db import repo
 from app.main import app
+from .helpers import act_as
 
 CREATOR = "user_creator"
 OTHER = "user_other"
@@ -25,16 +26,6 @@ def client(never_touch_the_real_database):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
-
-
-def act_as(user_id):
-    """Sign every subsequent request as `user_id`.
-
-    Both dependencies: read routes take the optional one, so overriding only `current_user`
-    leaves reads resolving to the real local identity and answering 404 on a private league.
-    """
-    app.dependency_overrides[auth.current_user] = lambda: user_id
-    app.dependency_overrides[auth.current_user_optional] = lambda: user_id
 
 
 @pytest.fixture

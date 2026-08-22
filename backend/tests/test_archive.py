@@ -21,14 +21,6 @@ from app.main import app
 
 
 @pytest.fixture
-def session(tmp_path) -> Session:
-    engine = create_db_engine(f"sqlite:///{tmp_path / 'test.db'}")
-    Base.metadata.create_all(engine)
-    with sessionmaker(bind=engine, expire_on_commit=False, future=True)() as s:
-        yield s
-
-
-@pytest.fixture
 def fresh(tmp_path) -> Session:
     """A second, empty database to restore into."""
     engine = create_db_engine(f"sqlite:///{tmp_path / 'restored.db'}")

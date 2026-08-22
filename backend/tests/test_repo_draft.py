@@ -24,12 +24,6 @@ def maker(tmp_path):
     return sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
-@pytest.fixture
-def session(maker):
-    with maker() as s:
-        yield s
-
-
 def _league(session, rounds=2, players=PLAYERS):
     league = repo.create_league(session, name="T", year=2026, players=players,
                                 rounds=rounds)

@@ -18,15 +18,6 @@ from app.db.session import create_db_engine
 REAL_DATA = Path(__file__).resolve().parent.parent / "data" / "league_data.json"
 
 
-@pytest.fixture
-def session(tmp_path) -> Session:
-    engine = create_db_engine(f"sqlite:///{tmp_path / 'test.db'}")
-    Base.metadata.create_all(engine)
-    maker = sessionmaker(bind=engine, expire_on_commit=False, future=True)
-    with maker() as s:
-        yield s
-
-
 SMALL = {
     "owners": ["Ann", "Bob"],
     "movies": [
