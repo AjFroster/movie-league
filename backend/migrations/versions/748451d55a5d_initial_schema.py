@@ -9,7 +9,7 @@ Deliberately the schema as it stood BEFORE the six migrations that follow, not t
 one, so those still apply exactly as they did.
 
 Revision ID: 748451d55a5d
-Revises: 
+Revises:
 Create Date: 2026-08-22 11:26:23.742404
 
 """
