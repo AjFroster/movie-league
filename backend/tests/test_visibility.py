@@ -38,9 +38,12 @@ def act_as(user_id):
 @pytest.fixture
 def league(client):
     act_as(CREATOR)
+    # Explicitly private: most of this file tests private behaviour, and a fixture that
+    # leans on whatever the default happens to be silently changes meaning when the
+    # default does -- which is exactly what happened when creation moved to public.
     created = client.post("/api/leagues", json={
         "name": "Test", "year": 2027, "players": ["Ann", "Bob"], "rounds": 1,
-        "pick_seconds": 0})
+        "pick_seconds": 0, "visibility": "private"})
     assert created.status_code == 201, created.text
     league_id = created.json()["league_id"]
     act_as(MEMBER)
@@ -63,10 +66,42 @@ READ_ROUTES = ["/draft", "/leaderboard"]
 # the default
 # ---------------------------------------------------------------------------
 
-def test_a_new_league_is_private(client, league):
-    """The safe direction: a league exposed by accident cannot be un-seen."""
+def test_a_new_league_is_public_by_default(client):
+    """The product default. A league nobody can find is not much of a league, and the
+    people you want reading it mostly do not have accounts."""
+    client.post("/api/leagues", json={"name": "Default", "year": 2027,
+                                      "players": ["Ann", "Bob"], "rounds": 1})
+    listed = client.get("/api/leagues").json()
+    assert listed[0]["visibility"] == VISIBILITY_PUBLIC
+
+
+def test_creation_can_ask_for_private(client):
+    client.post("/api/leagues", json={"name": "Hidden", "year": 2027,
+                                      "players": ["Ann", "Bob"], "rounds": 1,
+                                      "visibility": "private"})
     listed = client.get("/api/leagues").json()
     assert listed[0]["visibility"] == VISIBILITY_PRIVATE
+
+
+def test_creation_rejects_an_unknown_visibility(client):
+    response = client.post("/api/leagues", json={"name": "Odd", "year": 2027,
+                                                 "players": ["Ann", "Bob"], "rounds": 1,
+                                                 "visibility": "unlisted"})
+    assert response.status_code == 422
+
+
+def test_the_storage_default_stays_private(never_touch_the_real_database):
+    """The column default is a safety net, not the product default.
+
+    A row created by code that forgot to say is private; a user creating a league through
+    the API gets public. The two differ on purpose -- forgetting should fail closed.
+    """
+    from app.db.models import League
+    with never_touch_the_real_database() as s:
+        league = League(name="Bare", year=2027, rounds=1)
+        s.add(league)
+        s.commit()
+        assert league.visibility == VISIBILITY_PRIVATE
 
 
 # ---------------------------------------------------------------------------

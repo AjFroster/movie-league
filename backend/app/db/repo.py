@@ -14,7 +14,8 @@ from .. import draft as draft_rules
 from .. import scoring
 from ..services.pool import IMAGE_BASE as POSTER_BASE
 from .models import (Entry, League, Player, STATUS_COMPLETE, STATUS_DRAFTING,
-                     STATUS_SETUP, VISIBILITIES, VISIBILITY_PUBLIC, Watch)
+                     STATUS_SETUP, VISIBILITIES, VISIBILITY_PRIVATE, VISIBILITY_PUBLIC,
+                     Watch)
 
 
 # ---------------------------------------------------------------------------
@@ -185,11 +186,15 @@ def default_settles_on(year: int) -> date:
 
 def create_league(session: Session, *, name: str, year: int, players: list[str],
                   rounds: int = 6, settles_on: date | None = None,
-                  pick_seconds: int = 60, owner_user_id: str | None = None) -> League:
+                  pick_seconds: int = 60, owner_user_id: str | None = None,
+                  visibility: str = VISIBILITY_PRIVATE) -> League:
     names = [p.strip() for p in players]
     draft_rules.validate_setup(names, rounds)
+    if visibility not in VISIBILITIES:
+        raise ValueError(f"visibility must be one of {VISIBILITIES}, not {visibility!r}")
     league = League(name=name.strip() or f"League {year}", year=year, rounds=rounds,
                     status=STATUS_SETUP, owner_user_id=owner_user_id,
+                    visibility=visibility,
                     settles_on=settles_on or default_settles_on(year),
                     pick_seconds=max(0, min(int(pick_seconds), 3600)))
     session.add(league)
