@@ -33,3 +33,9 @@ backend/data/*.bak
 backend/data/league.db
 backend/data/league.db-wal
 backend/data/league.db-shm
+
+# Vendored agent skills (clerk/skills). skills-lock.json pins them; re-install with
+# `npx skills add clerk/skills`. .claude/skills holds symlinks into .agents, which
+# would be broken paths for anyone else.
+.agents/
+.claude/skills/
