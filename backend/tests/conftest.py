@@ -5,7 +5,6 @@ The autouse fixture below enforces that -- if a test starts passing only because
 developer has TMDB_API_KEY exported in their shell, that is a broken test, and
 stripping the env vars makes it fail loudly instead.
 """
-import json
 import sys
 from pathlib import Path
 

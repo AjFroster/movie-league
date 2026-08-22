@@ -120,7 +120,7 @@ def _subject_from_token(token: str) -> str:
     except jwt.PyJWTError as e:
         # The message is the library's, never the token: a token in a response body or a
         # log is a session someone else can replay.
-        raise HTTPException(status_code=401, detail=f"Invalid session token: {e}")
+        raise HTTPException(status_code=401, detail=f"Invalid session token: {e}") from None
 
     subject = claims.get("sub")
     if not subject:

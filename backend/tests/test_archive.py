@@ -14,9 +14,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import Base, Entry, League, Player, Watch, STATUS_COMPLETE
-from app.db.porting import (ARCHIVE_FORMAT, dump_archive, dump_league, load_archive,
-                            load_league)
+from app.db.models import STATUS_COMPLETE, Base, Entry, League, Player, Watch
+from app.db.porting import ARCHIVE_FORMAT, dump_archive, load_archive
 from app.db.session import create_db_engine
 from app.main import app
 

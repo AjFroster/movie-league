@@ -20,6 +20,7 @@ What is deliberately NOT read from OMDb: `BoxOffice` is domestic-US only, so `gr
 from TMDB's worldwide `revenue` instead (RESEARCH section 1). There is no free source for
 `rt_aud` or `letterboxd`; those stay manual.
 """
+import math
 import os
 import re
 
@@ -45,7 +46,7 @@ def _parse_rating_10(value) -> float | None:
         rating = float(str(value).strip())
     except (TypeError, ValueError):
         return None
-    if rating != rating or not (0.0 <= rating <= 10.0):
+    if math.isnan(rating) or not (0.0 <= rating <= 10.0):
         return None
     return round(rating, 1)
 
@@ -58,7 +59,7 @@ def _parse_percent(value) -> float | None:
         percent = float(str(value).strip().rstrip("%").strip())
     except (TypeError, ValueError):
         return None
-    if percent != percent or not (0.0 <= percent <= 100.0):
+    if math.isnan(percent) or not (0.0 <= percent <= 100.0):
         return None
     return round(percent, 1)
 

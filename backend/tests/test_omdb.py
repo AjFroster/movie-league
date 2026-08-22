@@ -8,10 +8,8 @@ conftest.py strips both provider keys from the environment before every test).
 import httpx
 import pytest
 
-from app.redaction import REDACTED
-from app.redaction import ProviderError
+from app.redaction import REDACTED, ProviderError
 from app.services import omdb
-
 
 # ---------------------------------------------------------------------------
 # parse_omdb_payload -- the parse matrix

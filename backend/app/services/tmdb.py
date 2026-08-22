@@ -7,6 +7,7 @@ Get a free API key at https://www.themoviedb.org/settings/api and set it as
 the TMDB_API_KEY environment variable. Until a key is set, these functions
 return None so the rest of the app keeps working with manually-entered data.
 """
+import math
 import os
 import re
 from decimal import ROUND_HALF_UP, Decimal
@@ -59,7 +60,7 @@ def _millions(value) -> float | None:
     """Raw dollars -> millions, matching the spreadsheet's units. 0/negative/bad -> None."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    if value != value or value <= 0:
+    if math.isnan(value) or value <= 0:
         return None
     return round(value / 1_000_000, 2)
 
@@ -67,7 +68,7 @@ def _millions(value) -> float | None:
 def _vote_average(value) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    if value != value or not (0.0 < value <= 10.0):
+    if math.isnan(value) or not (0.0 < value <= 10.0):
         return None
     # Plain round(value, 1) uses banker's rounding on the *binary* float, which
     # mis-rounds e.g. 7.35 -> 7.3 instead of 7.4 because 7.35 is not exactly

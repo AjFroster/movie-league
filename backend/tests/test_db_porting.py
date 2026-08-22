@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import Base, Entry, League, Player, Watch, STATUS_COMPLETE
+from app.db.models import STATUS_COMPLETE, Base, Entry, Player, Watch
 from app.db.porting import export_league, export_to_file, import_league
 from app.db.session import create_db_engine
 
@@ -98,7 +98,7 @@ def test_round_trip_preserves_the_real_league(session):
         return (m["owner"], m["round"])
 
     for before, after in zip(sorted(original["movies"], key=key),
-                             sorted(exported["movies"], key=key)):
+                             sorted(exported["movies"], key=key), strict=True):
         # who_watched is deliberately normalised to league order on export, so repeated
         # exports are byte-stable. Compare membership, not sequence.
         assert set(before.pop("who_watched")) == set(after.pop("who_watched")), \

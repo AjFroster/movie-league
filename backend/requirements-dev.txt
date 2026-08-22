@@ -10,3 +10,6 @@ pytest==9.1.1
 # Pinned explicitly because pytest.ini sets asyncio_mode=auto: without this plugin every
 # async test is skipped silently rather than failing, which is the worst way to be wrong.
 pytest-asyncio==1.4.0
+
+# Linting. Narrow rule set -- see ruff.toml.
+ruff==0.16.4

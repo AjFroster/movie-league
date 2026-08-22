@@ -12,7 +12,6 @@ import pytest
 
 from app.services import tmdb
 
-
 # release_date must be >= tmdb.SEASON_FLOOR_YEAR: _pick_result rejects older/undated hits
 SEARCH_RESULT = {"results": [{"id": 42, "title": "Test Film", "release_date": "2026-05-22"}]}
 

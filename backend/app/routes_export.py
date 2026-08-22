@@ -11,7 +11,7 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
-from .auth import CurrentUser, require_viewer
+from .auth import CurrentUser
 from .db import porting, repo
 from .db.session import session_scope
 

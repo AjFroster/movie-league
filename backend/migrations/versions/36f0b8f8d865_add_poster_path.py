@@ -4,15 +4,14 @@ Adds the film artwork path to a roster entry, so a standings page can show
 posters without calling TMDB on every render.
 
 Revision ID: 36f0b8f8d865
-Revises: 
+Revises:
 Create Date: 2026-08-20 21:57:30.396059
 
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '36f0b8f8d865'

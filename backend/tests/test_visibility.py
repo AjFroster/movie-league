@@ -194,7 +194,7 @@ def test_a_public_league_appears_on_everyones_list(client, league):
     make_public(client, league)
     act_as(STRANGER)
     listed = client.get("/api/leagues").json()
-    assert [l["name"] for l in listed] == ["Test"]
+    assert [lg["name"] for lg in listed] == ["Test"]
     assert listed[0]["mine"] is False
     assert listed[0]["is_creator"] is False
 
@@ -209,7 +209,7 @@ def test_a_signed_out_visitor_sees_public_leagues(client, league):
     make_public(client, league)
     act_as(None)
     listed = client.get("/api/leagues").json()
-    assert [l["name"] for l in listed] == ["Test"]
+    assert [lg["name"] for lg in listed] == ["Test"]
     assert listed[0]["mine"] is False
 
 

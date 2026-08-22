@@ -11,6 +11,7 @@ Get a key from https://mdblist.com Preferences and set MDBLIST_API_KEY.
 Like OMDb, MDBList authenticates by query parameter, so its key travels in the URL and any
 unredacted error text would leak it. Every failure here raises a redacted ProviderError.
 """
+import math
 import os
 import re
 
@@ -48,7 +49,7 @@ def _clean(field: str, value) -> float | None:
     """Coerce a rating to a float inside its expected range, else None."""
     if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    if value != value:                      # NaN
+    if math.isnan(value):                      # NaN
         return None
     low, high = FIELD_RANGES[field]
     if not (low <= value <= high):

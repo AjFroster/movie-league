@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from app.db import repo
-from app.db.models import Base, STATUS_COMPLETE, STATUS_DRAFTING, STATUS_SETUP
+from app.db.models import STATUS_COMPLETE, STATUS_DRAFTING, STATUS_SETUP, Base
 from app.db.session import create_db_engine
 
 PLAYERS = ["Ann", "Bob", "Cal"]

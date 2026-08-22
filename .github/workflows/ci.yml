@@ -40,6 +40,14 @@ jobs:
       # strips TMDB/OMDB/MDBLIST/CLERK from the environment, and a suite that only passes
       # because a developer happened to export a key is a broken suite. CI is the honest
       # check that the tests are self-contained.
+      # Ruff before the tests: an undefined name or a duplicate definition should fail in
+      # a second rather than after the suite has run. It found four real defects on the
+      # day it was added -- a NaN check written as `value != value`, three shadowed
+      # imports, and every `raise HTTPException` inside an `except` chaining the original
+      # exception, whose httpx message carries the API key redaction exists to strip.
+      - name: Lint
+        run: ruff check .
+
       - name: Run tests
         run: pytest -q
 

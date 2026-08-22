@@ -6,11 +6,11 @@ the entire reason accounts exist.
 """
 import time
 
+import jwt as pyjwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
-import jwt as pyjwt
 
 from app import auth
 from app.db import repo
@@ -363,13 +363,13 @@ def test_your_league_list_holds_only_your_leagues(client, league):
     assert client.get("/api/leagues").json() == []
 
     act_as(CREATOR)
-    assert [l["id"] for l in client.get("/api/leagues").json()] == [league]
+    assert [lg["id"] for lg in client.get("/api/leagues").json()] == [league]
 
 
 def test_claiming_a_slot_puts_the_league_on_your_list(client, league):
     act_as(OTHER)
     client.post(f"/api/leagues/{league}/claim", json={"player": "Ann"})
     listed = client.get("/api/leagues").json()
-    assert [l["id"] for l in listed] == [league]
+    assert [lg["id"] for lg in listed] == [league]
     assert listed[0]["your_player"] == "Ann"
     assert "Ann" not in listed[0]["unclaimed"]

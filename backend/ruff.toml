@@ -1,0 +1,27 @@
+line-length = 96
+
+[lint]
+# Deliberately narrow. These catch defects and keep imports honest; style beyond that is
+# left alone, because a linter that mostly reports taste gets ignored and then stops
+# catching the real ones.
+select = [
+    "F",      # pyflakes: undefined names, unused imports, redefinitions
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "I",      # import sorting
+    "B",      # bugbear: mutable defaults, loop-variable capture, and friends
+    "PLR0124",# comparison with itself
+]
+ignore = [
+    "E501",   # line length is checked by line-length above, not per-line noise
+]
+
+[lint.per-file-ignores]
+# Fixtures are referenced by name, not by use; pytest calls them for their side effects.
+"tests/*" = ["F811", "B008"]
+# FastAPI's Depends() in a default argument is the framework's documented pattern.
+"app/routes_*.py" = ["B008"]
+"app/auth.py" = ["B008"]
+# load_dotenv() must run before the modules that read the environment import.
+"app/main.py" = ["E402"]
+"migrations/env.py" = ["E402"]
