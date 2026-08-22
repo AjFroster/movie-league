@@ -10,7 +10,9 @@
  *  having them.
  */
 import { useEffect, useState } from 'react'
-import { ClerkProvider, SignIn, UserButton, useAuth, useUser } from '@clerk/react'
+import {
+  ClerkProvider, SignInButton, SignUpButton, UserButton, useAuth, useUser,
+} from '@clerk/react'
 import { setTokenProvider } from './api.js'
 
 const KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -42,10 +44,26 @@ function TokenBridge({ children }) {
   return children
 }
 
+// Clerk's own chrome defaults to a light card, which reads as a flash of white on this
+// palette. These are the app's design tokens restated, because Clerk renders the modal in
+// its own subtree where the CSS variables are not in scope.
+const CLERK_APPEARANCE = {
+  variables: {
+    colorBackground: '#121218',
+    colorInputBackground: '#0a0a0f',
+    colorText: '#e4e7f5',
+    colorTextSecondary: '#8890ab',
+    colorInputText: '#e4e7f5',
+    colorPrimary: '#e0a339',
+    colorNeutral: '#e4e7f5',
+    borderRadius: '2px',
+  },
+}
+
 export function AuthProvider({ children }) {
   if (!accountsEnabled) return children
   return (
-    <ClerkProvider publishableKey={KEY} afterSignOutUrl="/">
+    <ClerkProvider publishableKey={KEY} afterSignOutUrl="/" appearance={CLERK_APPEARANCE}>
       <TokenBridge>{children}</TokenBridge>
     </ClerkProvider>
   )
@@ -98,14 +116,25 @@ export function AuthPanel() {
     )
   }
 
+  // A modal rather than an embedded <SignIn/>. Clerk's card carries a header, social
+  // buttons, a divider, the form and a footer, and sizes itself around 400px -- it
+  // overflowed the column and dwarfed the thing it sits beside. The modal is the same
+  // flow at a fraction of the resting footprint, and Clerk sizes it against the viewport.
   return (
     <aside className="auth-panel">
       <div className="auth-panel-title">SIGN IN</div>
       <p className="auth-panel-note">
-        Browsing public leagues. Sign in to see your own, draft, and record what you have
-        watched.
+        You are browsing public leagues. Sign in to see your own, draft, and record what
+        you have watched.
       </p>
-      <SignIn routing="hash" appearance={{ elements: { rootBox: { width: '100%' } } }} />
+      <div className="auth-panel-actions">
+        <SignInButton mode="modal">
+          <button className="btn btn-primary">SIGN IN</button>
+        </SignInButton>
+        <SignUpButton mode="modal">
+          <button className="btn">CREATE ACCOUNT</button>
+        </SignUpButton>
+      </div>
     </aside>
   )
 }
