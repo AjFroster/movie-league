@@ -64,6 +64,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A bundler does not care whether your CSS is complete, so a lost block of rules
+      # builds green and ships an unstyled component. This catches that; a rebase's
+      # auto-merge silently deleted one.
+      - name: Check CSS coverage
+        run: npm run check:css
+
       # There are no frontend unit tests yet, but the build is not a formality: it is what
       # catches a broken import, a bad JSX edit, or malformed CSS. Both have happened here.
       - name: Build

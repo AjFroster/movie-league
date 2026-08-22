@@ -500,6 +500,20 @@ body {
   display: flex; flex-direction: column; gap: var(--space-sm); }
 .auth-panel-actions { display: flex; flex-direction: column; gap: var(--space-xs); }
 .auth-panel-actions .btn { width: 100%; text-align: center; justify-content: center; }
+
+/* Fixed rather than in a header: the app has four views with four different headers, and
+   the theme control belongs to the window, not to whichever screen is open. */
+.theme-toggle { position: fixed; top: var(--space-sm); right: var(--space-sm); z-index: 40;
+  width: 30px; height: 30px; padding: 0; display: flex; align-items: center;
+  justify-content: center; background: var(--surface); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 2px; cursor: pointer; }
+.theme-toggle:hover { color: var(--text); border-color: var(--border-bright); }
+.theme-toggle svg { width: 15px; height: 15px; display: block; }
+/* Reserve the corner so header content can never run underneath the fixed button: .app
+   has no top padding at all, and .league-page's action buttons reach the right edge of
+   the content box on a narrow viewport. */
+.app, .league-page, .create-page, .draft-page { padding-top: var(--space-2xl); }
+.header, .league-header { padding-right: 38px; }
 .auth-panel-title { font-family: var(--font-label); font-size: var(--fs-label);
   letter-spacing: 0.14em; color: var(--text-dim); }
 .auth-panel-note { font-family: var(--font-body); font-size: var(--fs-label);
