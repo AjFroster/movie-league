@@ -51,6 +51,14 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      # A real uvicorn on a real migrated file database, driven over HTTP. The suite above
+      # runs in-process against an in-memory database, so it never exercises the things
+      # that actually break a deployment. This caught `alembic upgrade head` failing on an
+      # empty database -- no migration created any table, so a fresh Postgres could not be
+      # provisioned at all.
+      - name: Smoke test
+        run: python -m scripts.smoke_test
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
