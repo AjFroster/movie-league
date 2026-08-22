@@ -133,9 +133,45 @@ jobs:
           E2E_PYTHON: python
         run: npx playwright test
 
+      # Always, not just on failure: the point is to confirm a GREEN run actually rendered
+      # something. Assertions say an element is present; they cannot say the page looks
+      # right, and a blank page with one correct element still passes.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        id: shots
+        with:
+          name: ui-screenshots
+          path: frontend/e2e-screenshots/
+          retention-days: 14
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+      - name: Put the screenshots in the run summary
+        if: always()
+        working-directory: frontend
+        env:
+          SHOTS_URL: ${{ steps.shots.outputs.artifact-url }}
+        run: |
+          {
+            echo "## UI screenshots"
+            echo
+            echo "Captured while the browser tests ran, so a green tick can be confirmed by eye."
+            echo
+            for f in e2e-screenshots/*.png; do
+              [ -e "$f" ] || continue
+              echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1)"
+            done
+            echo
+            echo "[Download all]($SHOTS_URL)"
+            echo
+            echo "<details><summary>Inline attempt (does GitHub allow a data: URI here?)</summary>"
+            echo
+            echo "<img alt=\"draft complete\" src=\"data:image/png;base64,$(base64 -w0 e2e-screenshots/2-draft-complete.png)\" width=\"640\">"
+            echo
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,4 +1,19 @@
+import { mkdirSync } from 'node:fs'
+
 import { expect, test } from '@playwright/test'
+
+const SHOTS = 'e2e-screenshots'
+mkdirSync(SHOTS, { recursive: true })
+
+/** Capture the screen for a human to glance at.
+ *
+ *  Assertions say a thing is present; they cannot say it looks right. A blank page with
+ *  one correct element still passes. These go to the CI summary so a green run can be
+ *  confirmed by eye in a second.
+ */
+async function capture(page, name) {
+  await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
+}
 
 /** The app driven the way a person drives it.
  *
@@ -76,6 +91,7 @@ test('the app renders without an account', async ({ page }) => {
   // Local mode: one user, so there is nothing to sign in to.
   await expect(page.getByRole('button', { name: 'SIGN IN' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'NEW LEAGUE' })).toBeVisible()
+  await capture(page, '1-league-list')
 })
 
 
@@ -98,9 +114,12 @@ test('a league can be created, drafted, and read back', async ({ page }) => {
   }
 
   await expect(page.getByRole('button', { name: 'VIEW STANDINGS' })).toBeVisible()
+  await capture(page, '2-draft-complete')
+
   await page.getByRole('button', { name: 'VIEW STANDINGS' }).click()
   await expect(page.getByText('Ann')).toBeVisible()
   await expect(page.getByText('Bob')).toBeVisible()
+  await capture(page, '3-standings')
 })
 
 
