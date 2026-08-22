@@ -1,0 +1,102 @@
+name: Nightly
+
+# Not on PRs, deliberately. These make real calls with real keys: they need secrets a fork
+# PR cannot have, they spend a daily quota, and they can fail for reasons that have nothing
+# to do with the commit under test. A red X on someone's PR because MDBList had a bad
+# minute teaches people to ignore red Xs.
+on:
+  schedule:
+    - cron: '17 6 * * *'      # 06:17 UTC, off the hour so it does not queue behind everyone
+  workflow_dispatch:           # and runnable by hand when a provider looks suspect
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  provider-contracts:
+    name: Provider contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # Do the providers still return what this code reads? Every other test fakes them,
+      # which is correct for a unit test and means nothing notices when TMDB renames a
+      # field or MDBList drops a rating source. That failure would surface as scores
+      # quietly going missing, weeks later, with no error anywhere.
+      # Without keys the tests skip, and a job that skips everything reports green. A
+      # nightly that quietly tests nothing is worse than no nightly, so fail loudly instead.
+      - name: Check the keys are configured
+        env:
+          REAL_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          REAL_OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+          REAL_MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
+        run: |
+          missing=""
+          for name in REAL_TMDB_API_KEY REAL_OMDB_API_KEY REAL_MDBLIST_API_KEY; do
+            [ -z "${!name}" ] && missing="$missing ${name#REAL_}"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "all three provider keys are present"
+
+      - name: Provider contracts
+        env:
+          REAL_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          REAL_OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
+          REAL_MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
+        run: pytest -m provider_contract -q --strict-markers
+
+  raise-an-issue:
+    name: Report a break
+    needs: provider-contracts
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      # A nightly nobody looks at is a nightly that does not exist.
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Provider contract broke'
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'provider-contract',
+            })
+            const body = [
+              'The nightly provider contract check failed.',
+              '',
+              'One of TMDB, OMDb or MDBList is no longer returning what the code reads.',
+              'Enrichment will not error -- it will quietly stop filling a field.',
+              '',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n')
+
+            if (open.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open[0].number, body,
+              })
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['provider-contract'],
+              })
+            }
