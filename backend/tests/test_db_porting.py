@@ -9,11 +9,9 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import STATUS_COMPLETE, Base, Entry, Player, Watch
+from app.db.models import STATUS_COMPLETE, Entry, Player, Watch
 from app.db.porting import export_league, export_to_file, import_league
-from app.db.session import create_db_engine
 
 REAL_DATA = Path(__file__).resolve().parent.parent / "data" / "league_data.json"
 

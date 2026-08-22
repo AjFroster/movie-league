@@ -7,9 +7,9 @@ purely to hold that line.
 import pytest
 from fastapi.testclient import TestClient
 
-from app import auth
 from app.db.models import VISIBILITY_PRIVATE, VISIBILITY_PUBLIC
 from app.main import app
+
 from .helpers import act_as
 
 CREATOR = "user_creator"
