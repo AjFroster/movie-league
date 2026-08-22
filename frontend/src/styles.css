@@ -1,16 +1,53 @@
-:root {
+/* Colour lives in two palettes keyed off data-theme, which an inline script in index.html
+   sets before first paint. Resolving "system" in JS rather than in a media query means the
+   CSS needs exactly two blocks instead of three, and there is no state where the attribute
+   is absent -- so no rule has to guess.
+
+   Every value below is checked against WCAG contrast on its own background; the ratios are
+   noted where they are close, so a future tweak can see what it is spending. */
+:root[data-theme="dark"] {
   --bg: #0a0a0f;
   --surface: #121218;
   --surface-raised: #17171f;
   --accent: #e0a339;
+  --accent-hover: #edb254;
+  /* Ink on the accent button. Dark, because the dark theme's amber is bright. 8.35:1 */
+  --accent-ink: #17130a;
   --destructive: #f2545b;
   --status-info: #5b9bd5;
   --text: #e4e7f5;
   --text-dim: #8890ab;
-  --text-faint: #4d5372;
+  /* Was #4d5372 at 2.63:1 -- below the 3:1 floor, and used in 39 places including the
+     draft board's round labels. Nudged to 3.72:1; still clearly the quietest tier. */
+  --text-faint: #626a8c;
   --border: #1c1c26;
   --border-bright: #2a2a38;
+  color-scheme: dark;
+}
 
+:root[data-theme="light"] {
+  /* Warm off-white rather than pure white: the accent is amber, and a blue-white ground
+     fights it. */
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  /* NOT the dark theme's #e0a339 -- that is 2.0:1 on this ground and unreadable as text.
+     This is the same hue carried down to 4.71:1. */
+  --accent: #9a6206;
+  --accent-hover: #7d4f04;
+  /* Inverted from the dark theme: this amber is dark, so its ink is white. 5.09:1 */
+  --accent-ink: #ffffff;
+  --destructive: #c0272d;
+  --status-info: #1a5f9e;
+  --text: #15151c;
+  --text-dim: #565c70;
+  --text-faint: #787e93;
+  --border: #dcd9d3;
+  --border-bright: #b9b4aa;
+  color-scheme: light;
+}
+
+:root {
   --font-display: 'Playfair Display', Georgia, serif;
   --font-label: 'JetBrains Mono', 'IBM Plex Mono', monospace;
   --font-body: 'Inter', system-ui, sans-serif;
@@ -396,9 +433,9 @@ body {
 .btn:hover { background: var(--surface-raised); border-color: var(--text-faint); }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #17130a;
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
   font-weight: 700; }
-.btn-primary:hover:not(:disabled) { background: #edb254; border-color: #edb254; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn-small { padding: 6px var(--space-sm); }
 .btn-block { width: 100%; margin-top: var(--space-md); padding: 14px; }
 
@@ -463,6 +500,20 @@ body {
   display: flex; flex-direction: column; gap: var(--space-sm); }
 .auth-panel-actions { display: flex; flex-direction: column; gap: var(--space-xs); }
 .auth-panel-actions .btn { width: 100%; text-align: center; justify-content: center; }
+
+/* Fixed rather than in a header: the app has four views with four different headers, and
+   the theme control belongs to the window, not to whichever screen is open. */
+.theme-toggle { position: fixed; top: var(--space-sm); right: var(--space-sm); z-index: 40;
+  width: 30px; height: 30px; padding: 0; display: flex; align-items: center;
+  justify-content: center; background: var(--surface); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 2px; cursor: pointer; }
+.theme-toggle:hover { color: var(--text); border-color: var(--border-bright); }
+.theme-toggle svg { width: 15px; height: 15px; display: block; }
+/* Reserve the corner so header content can never run underneath the fixed button: .app
+   has no top padding at all, and .league-page's action buttons reach the right edge of
+   the content box on a narrow viewport. */
+.app, .league-page, .create-page, .draft-page { padding-top: var(--space-2xl); }
+.header, .league-header { padding-right: 38px; }
 .auth-panel-title { font-family: var(--font-label); font-size: var(--fs-label);
   letter-spacing: 0.14em; color: var(--text-dim); }
 .auth-panel-note { font-family: var(--font-body); font-size: var(--fs-label);
@@ -775,7 +826,7 @@ body {
    separate setting screen, and it changes rarely enough not to need one. */
 .settle-date { background: transparent; border: 0; border-bottom: 1px dotted var(--text-faint);
   color: var(--text-dim); font-family: var(--font-label); font-size: var(--fs-label);
-  padding: 0 2px; cursor: pointer; color-scheme: dark; }
+  padding: 0 2px; cursor: pointer; }
 .settle-date:hover, .settle-date:focus { color: var(--accent);
   border-bottom-color: var(--accent); outline: none; }
 

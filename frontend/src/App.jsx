@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ThemeToggle from './components/ThemeToggle.jsx'
 import Leaderboard from './components/Leaderboard.jsx'
 import ThisWeekSidebar from './components/ThisWeekSidebar.jsx'
 import LeagueList from './components/LeagueList.jsx'
@@ -43,6 +44,7 @@ export default function App() {
           onOpenStandings={(league) =>
             setView({ name: 'standings', leagueId: league.id, leagueName: league.name })}
         />
+        <ThemeToggle />
       </div>
     )
   }
@@ -54,6 +56,7 @@ export default function App() {
           onCancel={() => setView({ name: 'leagues' })}
           onCreated={(state) => setView({ name: 'draft', leagueId: state.league_id })}
         />
+        <ThemeToggle />
       </div>
     )
   }
@@ -68,6 +71,7 @@ export default function App() {
           onStandings={(leagueId, leagueName) =>
             setView({ name: 'standings', leagueId, leagueName })}
         />
+        <ThemeToggle />
       </div>
     )
   }
@@ -111,6 +115,7 @@ export default function App() {
           <ThisWeekSidebar />
         </div>
       )}
+      <ThemeToggle />
     </div>
   )
 }

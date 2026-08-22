@@ -2,6 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Sets data-theme before the first paint. Inline and synchronous on purpose: a
+         deferred or bundled script paints the default palette first, and on a dark-first
+         app that flash is a full white screen. Mirrors src/theme.js. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('movie-league-theme');
+          var dark = saved === 'dark' || (saved !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fantasy Movie League</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

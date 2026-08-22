@@ -9,7 +9,7 @@
  *  whole app behind a login made public leagues unreachable, which defeated the point of
  *  having them.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
   ClerkProvider, SignInButton, SignUpButton, UserButton, useAuth, useUser,
 } from '@clerk/react'
@@ -44,26 +44,51 @@ function TokenBridge({ children }) {
   return children
 }
 
-// Clerk's own chrome defaults to a light card, which reads as a flash of white on this
-// palette. These are the app's design tokens restated, because Clerk renders the modal in
-// its own subtree where the CSS variables are not in scope.
-const CLERK_APPEARANCE = {
-  variables: {
-    colorBackground: '#121218',
-    colorInputBackground: '#0a0a0f',
-    colorText: '#e4e7f5',
-    colorTextSecondary: '#8890ab',
-    colorInputText: '#e4e7f5',
-    colorPrimary: '#e0a339',
-    colorNeutral: '#e4e7f5',
-    borderRadius: '2px',
+// Clerk renders its modal in a portal at the document root, inside its own styling
+// system -- this app's CSS variables are not in scope there, so the palette has to be
+// handed over explicitly and re-handed whenever the theme changes. Mirrors styles.css.
+const CLERK_PALETTE = {
+  dark: {
+    colorBackground: '#121218', colorInputBackground: '#0a0a0f',
+    colorText: '#e4e7f5', colorTextSecondary: '#8890ab', colorInputText: '#e4e7f5',
+    colorPrimary: '#e0a339', colorNeutral: '#e4e7f5',
   },
+  light: {
+    colorBackground: '#ffffff', colorInputBackground: '#f7f6f3',
+    colorText: '#15151c', colorTextSecondary: '#565c70', colorInputText: '#15151c',
+    colorPrimary: '#9a6206', colorNeutral: '#15151c',
+  },
+}
+
+/** The resolved theme, read from the DOM attribute the app already owns.
+ *
+ *  Subscribing to the attribute rather than lifting theme into React state: it is set by
+ *  an inline script before React exists, so the DOM is the source of truth and a copy in
+ *  state would be a second one to keep in sync.
+ */
+function useResolvedTheme() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const observer = new MutationObserver(onChange)
+      observer.observe(document.documentElement,
+                      { attributes: true, attributeFilter: ['data-theme'] })
+      return () => observer.disconnect()
+    },
+    () => document.documentElement.getAttribute('data-theme') || 'dark',
+    () => 'dark',
+  )
 }
 
 export function AuthProvider({ children }) {
   if (!accountsEnabled) return children
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- accountsEnabled is a
+  // build-time constant, so this branch never changes across renders.
+  const theme = useResolvedTheme()
+  const appearance = {
+    variables: { ...(CLERK_PALETTE[theme] || CLERK_PALETTE.dark), borderRadius: '2px' },
+  }
   return (
-    <ClerkProvider publishableKey={KEY} afterSignOutUrl="/" appearance={CLERK_APPEARANCE}>
+    <ClerkProvider publishableKey={KEY} afterSignOutUrl="/" appearance={appearance}>
       <TokenBridge>{children}</TokenBridge>
     </ClerkProvider>
   )
