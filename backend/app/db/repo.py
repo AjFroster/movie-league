@@ -7,7 +7,7 @@ watch toggles under the JSON store.
 """
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import draft as draft_rules
@@ -21,11 +21,23 @@ from .models import (Entry, League, Player, STATUS_COMPLETE, STATUS_DRAFTING,
 # reading
 # ---------------------------------------------------------------------------
 
-def list_leagues(session: Session) -> list[dict]:
-    leagues = session.scalars(
-        select(League).options(selectinload(League.players),
-                               selectinload(League.entries))
-        .order_by(League.year.desc(), League.id.desc())).all()
+def list_leagues(session: Session, *, user_id: str | None = None) -> list[dict]:
+    """Leagues visible to `user_id`: ones they created, plus ones they hold a slot in.
+
+    Scoping this is correctness before it is privacy. Unscoped, every account's home
+    screen would list every league in the database, including strangers'.
+
+    `user_id=None` means no filter, which is what the tests and scripts want.
+    """
+    query = (select(League).options(selectinload(League.players),
+                                    selectinload(League.entries))
+             .order_by(League.year.desc(), League.id.desc()))
+    if user_id is not None:
+        query = query.where(or_(
+            League.owner_user_id == user_id,
+            League.id.in_(select(Player.league_id).where(Player.user_id == user_id)),
+        ))
+    leagues = session.scalars(query).all()
     return [{"id": l.id, "name": l.name, "year": l.year, "rounds": l.rounds,
              "status": l.status, "players": [p.name for p in l.players],
              "picks_made": sum(1 for e in l.entries if e.tmdb_id is not None or e.title),
@@ -38,7 +50,12 @@ def list_leagues(session: Session) -> list[dict]:
              "settles_on": (l.settles_on or default_settles_on(l.year)).isoformat(),
              "pick_seconds": l.pick_seconds,
              # Ready to settle once the date this league chose has passed.
-             "season_ended": date.today() > (l.settles_on or default_settles_on(l.year))}
+             "season_ended": date.today() > (l.settles_on or default_settles_on(l.year)),
+             "owner_user_id": l.owner_user_id,
+             # Which slots are still up for grabs, so the UI can offer them to claim.
+             "unclaimed": [p.name for p in l.players if p.user_id is None],
+             "your_player": next((p.name for p in l.players
+                                  if user_id is not None and p.user_id == user_id), None)}
             for l in leagues]
 
 
@@ -149,11 +166,11 @@ def default_settles_on(year: int) -> date:
 
 def create_league(session: Session, *, name: str, year: int, players: list[str],
                   rounds: int = 6, settles_on: date | None = None,
-                  pick_seconds: int = 60) -> League:
+                  pick_seconds: int = 60, owner_user_id: str | None = None) -> League:
     names = [p.strip() for p in players]
     draft_rules.validate_setup(names, rounds)
     league = League(name=name.strip() or f"League {year}", year=year, rounds=rounds,
-                    status=STATUS_SETUP,
+                    status=STATUS_SETUP, owner_user_id=owner_user_id,
                     settles_on=settles_on or default_settles_on(year),
                     pick_seconds=max(0, min(int(pick_seconds), 3600)))
     session.add(league)
@@ -517,3 +534,47 @@ def update_entry(session: Session, league_id: int, *, owner: str, round_number: 
     row = _entry_dict(entry, names)
     row["who_watched"] = [n for n in order if n in row["who_watched"]]
     return row
+
+
+def claim_slot(session: Session, league_id: int, *, player_name: str,
+               user_id: str) -> Player:
+    """Attach an account to a player slot.
+
+    Refuses a slot someone else already holds, and refuses a second slot in a league the
+    account is already in -- `uq_claim_per_league` would reject it anyway, but a clear
+    message beats an integrity error.
+    """
+    league = get_league(session, league_id)
+    player = next((p for p in league.players if p.name == player_name), None)
+    if player is None:
+        raise LookupError(f"no player named {player_name!r} in this league")
+    if player.user_id == user_id:
+        return player
+    if player.user_id is not None:
+        raise ValueError(f"{player_name} has already been claimed")
+
+    held = next((p for p in league.players if p.user_id == user_id), None)
+    if held is not None:
+        raise ValueError(f"you are already playing this league as {held.name}")
+
+    player.user_id = user_id
+    session.flush()
+    return player
+
+
+def release_slot(session: Session, league_id: int, *, player_name: str) -> Player:
+    """Detach an account from a slot, returning it to unclaimed."""
+    league = get_league(session, league_id)
+    player = next((p for p in league.players if p.name == player_name), None)
+    if player is None:
+        raise LookupError(f"no player named {player_name!r} in this league")
+    player.user_id = None
+    session.flush()
+    return player
+
+
+def is_member(session: Session, league_id: int, user_id: str) -> bool:
+    """Created the league, or holds a slot in it."""
+    league = get_league(session, league_id)
+    return (league.owner_user_id == user_id
+            or any(p.user_id == user_id for p in league.players))

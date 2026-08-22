@@ -14,16 +14,64 @@ cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev            # http://localhost:5173
 ```
 
-**There is no `pip` in this project** -- no system pip, no venv pip, no `ensurepip`. The venv
-was created by `uv`:
+**The venv has no `pip` and `uv` is not on PATH.** What works is the pip inside uv's managed
+Python, pointed at the project venv -- it resolves wheels for 3.12, not for its own 3.10:
 
 ```bash
-uv pip install --python backend/.venv/bin/python <package>
-backend/.venv/bin/python -m pytest backend/tests -q     # 435 tests
+~/.local/share/uv/python/cpython-3.10.19-linux-x86_64-gnu/bin/pip \
+    --python backend/.venv/bin/python install <package>
+backend/.venv/bin/python -m pytest backend/tests -q     # 472 tests
+```
+
+Node is not on PATH either; it lives at `~/.nvm/versions/node/v24.15.0/bin`. `npx` resolves
+to the *Windows* npm through /mnt/c and cannot see this filesystem, so run vite directly:
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"
+cd frontend && node node_modules/.bin/vite build
 ```
 
 API keys live in `backend/.env` (gitignored): `TMDB_API_KEY` (v4 read token, Bearer),
-`OMDB_API_KEY`, `MDBLIST_API_KEY`. `backend/.env.example` documents all three.
+`OMDB_API_KEY`, `MDBLIST_API_KEY`, and optionally `CLERK_ISSUER`. `backend/.env.example`
+documents them; `frontend/.env.example` documents `VITE_CLERK_PUBLISHABLE_KEY`.
+
+## Accounts
+
+**There is no flag that turns authorization off.** A boolean guarding a "skip the checks"
+branch is exactly what ends up enabled in production by accident, so `app/auth.py` has none.
+The permission code always runs. Only *where identity comes from* changes:
+
+| | Clerk unset | Clerk set |
+|---|---|---|
+| Identity | `LOCAL_USER_ID` (`"local"`), always | subject of a verified RS256 JWT |
+| Sign-in UI | none | Clerk's, before the app renders |
+| Ownership checks | run, and always match | run, and can fail |
+
+Running without accounts is therefore not a special case in the permission code — it is a
+database with one account in it.
+
+`verify_startup_configuration()` runs at boot and **refuses to start** in local mode unless
+the database is SQLite *and* `CORS_ORIGIN` is localhost. A deployment breaks both without
+thinking about it, so unauthenticated access cannot quietly reach one.
+
+Three tiers, in `app/auth.py`:
+
+- **`require_creator`** — rename, settle date, pick timer, delete, freeze, start draft,
+  enrich, hand-edit scores.
+- **`require_actor(player)`** — make a pick, tick a watch. Allowed if you claimed that slot,
+  **or the slot is unclaimed and you created the league**. That second clause is what keeps
+  the single-laptop draft working: one person picks for everyone in the room. Once someone
+  claims a slot the creator loses it — the pick clock covers a player who goes quiet.
+- **`require_member`** — auto-pick. Any member's browser may ask, which is what lets a draft
+  advance when the player on the clock has shut their laptop; the server re-checks its own
+  deadline, so asking early achieves nothing.
+
+`GET /api/leagues` is scoped to your leagues. Individual league reads are deliberately open
+so a standings link works for anyone you send it to.
+
+Slots are claimed with `POST /api/leagues/{id}/claim`. `players.user_id` is nullable and that
+is the whole design: a commissioner names six players and drafts tonight, and the other five
+claim their slots whenever they sign up.
 
 ## Where the data is
 
@@ -146,7 +194,7 @@ believe it refreshed a season that did not move.
 
 ## Current state
 
-`master`, 435 tests passing.
+Branch `feature/accounts`, 472 tests passing.
 
 Four leagues: **Movie League 2026** (30 entries, imported so no pick numbers), **Movie League
 2027** (42 picks), **Sequels Only 2027** (9), **trish v andrew 2027** (6). All settle 31

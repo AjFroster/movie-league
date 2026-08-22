@@ -9,6 +9,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .auth import CurrentUser, require_actor, require_creator, require_member
 from .db import repo
 from .db.session import session_scope
 from .redaction import ProviderError, redact_secrets
@@ -57,19 +58,26 @@ def _mark(film: dict, taken: dict) -> dict:
 
 
 @router.get("")
-def get_leagues():
+def get_leagues(user: str = CurrentUser):
+    """Your leagues: ones you created, plus ones you hold a slot in.
+
+    Individual league reads below are deliberately NOT restricted -- a standings link
+    should work for anyone you send it to. Only the list is scoped, because an unscoped
+    home screen showing strangers' leagues is a broken product, not a leak.
+    """
     with session_scope() as session:
-        return repo.list_leagues(session)
+        return repo.list_leagues(session, user_id=user)
 
 
 @router.post("", status_code=201)
-def post_league(body: CreateLeague):
+def post_league(body: CreateLeague, user: str = CurrentUser):
     with session_scope() as session:
         try:
             league = repo.create_league(session, name=body.name, year=body.year,
                                         players=body.players, rounds=body.rounds,
                                         settles_on=body.settles_on,
-                                        pick_seconds=body.pick_seconds)
+                                        pick_seconds=body.pick_seconds,
+                                        owner_user_id=user)
         except ValueError as e:
             # A rejected setup is the caller's input problem, not a server fault.
             raise HTTPException(status_code=422, detail=redact_secrets(str(e)))
@@ -94,10 +102,10 @@ async def get_pool_size(year: int = Query(ge=1900, le=2100),
 
 
 @router.patch("/{league_id}")
-def patch_league(league_id: int, body: EditLeague):
+def patch_league(league_id: int, body: EditLeague, user: str = CurrentUser):
     with session_scope() as session:
         try:
-            league = repo.get_league(session, league_id)
+            league = require_creator(session, league_id, user)
             if body.name is not None:
                 league = repo.rename_league(session, league_id, name=body.name)
             if body.settles_on is not None:
@@ -116,7 +124,8 @@ def patch_league(league_id: int, body: EditLeague):
 
 
 @router.post("/{league_id}/freeze")
-def post_freeze(league_id: int, frozen: bool = Query(default=True)):
+def post_freeze(league_id: int, frozen: bool = Query(default=True),
+                user: str = CurrentUser):
     """Settle a season so its scores stop moving, or reopen it.
 
     The league's rule is that a season ends on 31 December; this is the action that makes
@@ -124,6 +133,7 @@ def post_freeze(league_id: int, frozen: bool = Query(default=True)):
     """
     with session_scope() as session:
         try:
+            require_creator(session, league_id, user)
             league = repo.freeze_league(session, league_id, frozen=frozen)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
@@ -132,11 +142,61 @@ def post_freeze(league_id: int, frozen: bool = Query(default=True)):
 
 
 @router.delete("/{league_id}", status_code=204)
-def delete_league(league_id: int):
+def delete_league(league_id: int, user: str = CurrentUser):
     """Remove a league and everything drafted in it. Cascades to players and entries."""
     with session_scope() as session:
         try:
+            require_creator(session, league_id, user)
             repo.delete_league(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+    return None
+
+
+class ClaimSlot(BaseModel):
+    player: str = Field(min_length=1, max_length=80)
+
+
+@router.post("/{league_id}/claim")
+def post_claim(league_id: int, body: ClaimSlot, user: str = CurrentUser):
+    """Take a player slot in this league as yourself.
+
+    Deliberately open to any signed-in account rather than invite-gated. The league's own
+    membership is the gate that matters -- claiming a slot only ever grants the ability to
+    pick and tick watches as that one player -- and a shared link is how a group of friends
+    actually joins something. Slots are first-come: once claimed, only the creator can
+    release one.
+    """
+    with session_scope() as session:
+        try:
+            player = repo.claim_slot(session, league_id, player_name=body.player,
+                                     user_id=user)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
+        return {"league_id": league_id, "player": player.name, "claimed": True}
+
+
+@router.delete("/{league_id}/claim/{player_name}", status_code=204)
+def delete_claim(league_id: int, player_name: str, user: str = CurrentUser):
+    """Release a slot: your own, or -- as the league's creator -- anyone's.
+
+    The creator override is what makes a wrong claim fixable. Without it a friend who
+    grabbed the wrong name has locked that slot for the season.
+    """
+    with session_scope() as session:
+        try:
+            league = repo.get_league(session, league_id)
+            player = next((p for p in league.players if p.name == player_name), None)
+            if player is None:
+                raise HTTPException(status_code=404,
+                                    detail=f"No player named {player_name!r}.")
+            if player.user_id != user and league.owner_user_id != user:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only the league's creator can release someone else's slot.")
+            repo.release_slot(session, league_id, player_name=player_name)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
     return None
@@ -152,10 +212,11 @@ def get_draft(league_id: int):
 
 
 @router.post("/{league_id}/draft/start")
-def post_start_draft(league_id: int):
+def post_start_draft(league_id: int, user: str = CurrentUser):
     """Randomize the order and open the draft. Legal only from setup."""
     with session_scope() as session:
         try:
+            require_creator(session, league_id, user)
             repo.start_draft(session, league_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
@@ -165,9 +226,10 @@ def post_start_draft(league_id: int):
 
 
 @router.post("/{league_id}/draft/pick")
-def post_pick(league_id: int, body: MakePick):
+def post_pick(league_id: int, body: MakePick, user: str = CurrentUser):
     with session_scope() as session:
         try:
+            require_actor(session, league_id, user, body.player)
             return repo.make_pick(session, league_id, player=body.player,
                                   tmdb_id=body.tmdb_id, title=body.title,
                                   poster_path=body.poster_path)
@@ -208,7 +270,8 @@ def get_league_owner(league_id: int, owner: str):
 
 @router.post("/{league_id}/enrich-all")
 async def post_league_enrich(league_id: int, force: bool = False,
-                             max_calls: int = enrichment.DEFAULT_MAX_CALLS):
+                             max_calls: int = enrichment.DEFAULT_MAX_CALLS,
+                             user: str = CurrentUser):
     """Enrich and rescore one league. A freshly drafted season starts unscored."""
     if not 1 <= max_calls <= enrichment.HARD_MAX_CALLS:
         raise HTTPException(
@@ -216,6 +279,7 @@ async def post_league_enrich(league_id: int, force: bool = False,
             detail=f"max_calls must be between 1 and {enrichment.HARD_MAX_CALLS}")
     with session_scope() as session:
         try:
+            require_creator(session, league_id, user)
             documents, index = repo.entries_as_documents(session, league_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
@@ -237,7 +301,8 @@ class WatchUpdate(BaseModel):
 
 
 @router.post("/{league_id}/movies/{owner}/{round_number}/watch")
-def post_league_watch(league_id: int, owner: str, round_number: int, body: WatchUpdate):
+def post_league_watch(league_id: int, owner: str, round_number: int, body: WatchUpdate,
+                      user: str = CurrentUser):
     """Record a watch against a named league.
 
     The legacy route acts on whichever league is current, which is wrong the moment you are
@@ -246,6 +311,9 @@ def post_league_watch(league_id: int, owner: str, round_number: int, body: Watch
     """
     with session_scope() as session:
         try:
+            # The VIEWER, not the owner: a watch is "I saw this", so the caller must be
+            # the person being ticked (or the creator, for a slot nobody has claimed).
+            require_actor(session, league_id, user, body.viewer)
             row = repo.set_watched(session, league_id, owner=owner,
                                    round_number=round_number,
                                    viewer=body.viewer, watched=body.watched)
@@ -258,7 +326,7 @@ def post_league_watch(league_id: int, owner: str, round_number: int, body: Watch
 
 
 @router.post("/{league_id}/draft/autopick")
-async def post_autopick(league_id: int):
+async def post_autopick(league_id: int, user: str = CurrentUser):
     """Take the pick for whoever is on the clock, once their time is genuinely up.
 
     The browser asks; the server decides. It re-checks the deadline against its own clock,
@@ -268,7 +336,7 @@ async def post_autopick(league_id: int):
     """
     with session_scope() as session:
         try:
-            league = repo.get_league(session, league_id)
+            league = require_member(session, league_id, user)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         if not repo.clock_expired(league):

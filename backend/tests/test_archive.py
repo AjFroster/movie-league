@@ -181,6 +181,38 @@ def test_database_ids_are_not_carried(session):
     walk(doc)
 
 
+def test_ownership_and_claims_survive(session, fresh):
+    """Accounts are league data. Dropping them hands every claimed slot back to the creator."""
+    league = build_league(session)
+    league.owner_user_id = "user_creator"
+    next(p for p in league.players if p.name == "Ann").user_id = "user_ann"
+    session.commit()
+
+    load_archive(fresh, dump_archive(session))
+    fresh.commit()
+
+    restored = dump_archive(fresh)["leagues"][0]
+    assert restored["owner_user_id"] == "user_creator"
+    assert restored["players"] == [{"name": "Ann", "user_id": "user_ann"},
+                                   {"name": "Bob", "user_id": None}]
+
+
+def test_an_archive_with_bare_player_names_still_loads(fresh):
+    """The players list held bare strings before slots could be claimed.
+
+    Accepted so a backup taken then is still restorable -- a backup format that stops
+    reading its own older files is not a backup format.
+    """
+    load_archive(fresh, {"format": ARCHIVE_FORMAT, "leagues": [{
+        "name": "Old", "year": 2027, "rounds": 1, "status": "setup",
+        "draft_order": ["Ann"], "pick_seconds": 60, "players": ["Ann", "Bob"],
+        "entries": [],
+    }]})
+    fresh.commit()
+    assert sorted(p.name for p in fresh.query(Player).all()) == ["Ann", "Bob"]
+    assert all(p.user_id is None for p in fresh.query(Player).all())
+
+
 def test_clock_state_is_not_carried(session, fresh):
     """A restored draft starts a fresh clock rather than inheriting a stale deadline."""
     build_league(session)

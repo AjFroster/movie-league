@@ -66,6 +66,10 @@ class League(Base):
     # the deadline survives a refresh and cannot be restarted by reloading the page.
     clock_started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None)
+    # Who created this league, as an opaque identity-provider subject. Nullable because
+    # leagues predate accounts; the migration backfills existing ones rather than leaving
+    # NULL to mean "anyone may edit", which is the hole accounts exist to close.
+    owner_user_id: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
 
     players: Mapped[list["Player"]] = relationship(
         back_populates="league", cascade="all, delete-orphan", order_by="Player.id")
@@ -85,6 +89,13 @@ class Player(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(80))
+    # The account that has claimed this slot, or NULL for a slot nobody has claimed yet.
+    #
+    # Nullable is the whole design. A commissioner types six names and drafts that evening;
+    # the other five have not signed up and must not have to before the draft can start.
+    # An unclaimed slot is acted on by the league creator, so today's single-laptop draft
+    # keeps working unchanged, and each player takes over their own slot when they claim it.
+    user_id: Mapped[str | None] = mapped_column(String(255), default=None)
 
     league: Mapped[League] = relationship(back_populates="players")
     entries: Mapped[list["Entry"]] = relationship(
@@ -94,7 +105,12 @@ class Player(Base):
 
     # Case-insensitive uniqueness is enforced in application code at setup time; the
     # constraint here catches the exact-duplicate case at the storage layer.
-    __table_args__ = (UniqueConstraint("league_id", "name", name="uq_player_per_league"),)
+    __table_args__ = (
+        UniqueConstraint("league_id", "name", name="uq_player_per_league"),
+        # One slot per account per league. NULLs compare as distinct in both SQLite and
+        # Postgres, so any number of slots may stay unclaimed.
+        UniqueConstraint("league_id", "user_id", name="uq_claim_per_league"),
+    )
 
 
 class Entry(Base):
