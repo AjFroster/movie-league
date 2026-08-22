@@ -38,11 +38,14 @@ def fresh(tmp_path) -> Session:
         yield s
 
 
+OWNER = "user_owner"
+
+
 def build_league(session, name="Movie League 2027") -> League:
     """A league exercising every field the legacy format drops."""
     league = League(name=name, year=2027, rounds=2, status=STATUS_COMPLETE,
                     draft_order=["Bob", "Ann"], settles_on=date(2028, 3, 31),
-                    pick_seconds=90,
+                    pick_seconds=90, owner_user_id=OWNER,
                     frozen_at=datetime(2028, 4, 1, 12, 0, tzinfo=timezone.utc),
                     # Live clock state, deliberately not carried into an archive.
                     clock_started_at=datetime(2027, 6, 1, 9, 0, tzinfo=timezone.utc))
@@ -264,8 +267,13 @@ def test_load_skips_an_entry_whose_owner_is_not_a_player(fresh):
 
 @pytest.fixture
 def client(never_touch_the_real_database):
+    # Export is scoped to the caller now, so the tests must ask as the league's owner.
+    from app import auth
+    app.dependency_overrides[auth.current_user] = lambda: OWNER
+    app.dependency_overrides[auth.current_user_optional] = lambda: OWNER
     with TestClient(app) as c:
         yield c
+    app.dependency_overrides.clear()
 
 
 def test_export_endpoint_returns_a_downloadable_archive(client, never_touch_the_real_database):

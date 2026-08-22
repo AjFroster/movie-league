@@ -136,7 +136,7 @@ ARCHIVE_FORMAT = "movie-league/1"
 
 # Scalars copied straight across in both directions.
 LEAGUE_FIELDS = ("name", "year", "rounds", "status", "draft_order", "pick_seconds",
-                 "owner_user_id")
+                 "owner_user_id", "visibility")
 ENTRY_FIELDS = ("round", "pick_number", "tmdb_id", "title", "poster_path", *SCORE_FIELDS)
 
 

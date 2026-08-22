@@ -68,6 +68,7 @@ export const api = {
   renameLeague: (id, name) => send('PATCH', `/leagues/${id}`, { name }),
   setSettlesOn: (id, settlesOn) => send('PATCH', `/leagues/${id}`, { settles_on: settlesOn }),
   setPickSeconds: (id, seconds) => send('PATCH', `/leagues/${id}`, { pick_seconds: seconds }),
+  setVisibility: (id, visibility) => send('PATCH', `/leagues/${id}`, { visibility }),
   autopick: (id) => post(`/leagues/${id}/draft/autopick`, {}),
   freezeLeague: (id, frozen = true) =>
     send('POST', `/leagues/${id}/freeze?frozen=${frozen}`),

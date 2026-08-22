@@ -32,6 +32,12 @@ class Base(DeclarativeBase):
     pass
 
 
+# Who may read a league. Writing is always governed by ownership, never by this.
+VISIBILITY_PRIVATE = "private"   # members only -- the creator plus anyone holding a slot
+VISIBILITY_PUBLIC = "public"     # anyone with the link, signed in or not
+VISIBILITIES = (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC)
+
+
 # League lifecycle. A league is in exactly one of these at any time.
 STATUS_SETUP = "setup"          # players named, draft not started
 STATUS_DRAFTING = "drafting"    # order randomized, picks under way
@@ -70,6 +76,11 @@ class League(Base):
     # leagues predate accounts; the migration backfills existing ones rather than leaving
     # NULL to mean "anyone may edit", which is the hole accounts exist to close.
     owner_user_id: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
+    # Read access. Defaults to private: a league that becomes visible by accident cannot be
+    # made invisible again -- whoever saw it, saw it -- so the safe direction is the default
+    # and publishing is the deliberate act.
+    visibility: Mapped[str] = mapped_column(
+        String(16), default=VISIBILITY_PRIVATE, server_default=VISIBILITY_PRIVATE)
 
     players: Mapped[list["Player"]] = relationship(
         back_populates="league", cascade="all, delete-orphan", order_by="Player.id")
@@ -79,6 +90,7 @@ class League(Base):
 
     __table_args__ = (
         CheckConstraint(f"status IN {STATUSES}", name="ck_league_status"),
+        CheckConstraint(f"visibility IN {VISIBILITIES}", name="ck_league_visibility"),
         CheckConstraint("rounds >= 1 AND rounds <= 30", name="ck_league_rounds"),
     )
 

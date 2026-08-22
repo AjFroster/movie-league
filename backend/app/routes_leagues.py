@@ -4,12 +4,14 @@ Kept out of main.py so the legacy single-league endpoints and the multi-league o
 grow into each other. Everything here is league-scoped by path.
 """
 from datetime import date
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from .auth import CurrentUser, require_actor, require_creator, require_member
+from .auth import (CurrentUser, MaybeUser, require_actor, require_creator,
+                   require_member, require_viewer)
 from .db import repo
 from .db.session import session_scope
 from .redaction import ProviderError, redact_secrets
@@ -40,6 +42,7 @@ class EditLeague(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     settles_on: date | None = None
     pick_seconds: int | None = Field(default=None, ge=0, le=3600)
+    visibility: Literal["private", "public"] | None = None
 
 
 class MakePick(BaseModel):
@@ -113,6 +116,9 @@ def patch_league(league_id: int, body: EditLeague, user: str = CurrentUser):
             if body.pick_seconds is not None:
                 league = repo.set_pick_seconds(session, league_id,
                                                seconds=body.pick_seconds)
+            if body.visibility is not None:
+                league = repo.set_visibility(session, league_id,
+                                             visibility=body.visibility)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
         except ValueError as e:
@@ -120,7 +126,7 @@ def patch_league(league_id: int, body: EditLeague, user: str = CurrentUser):
         return {"id": league.id, "name": league.name, "year": league.year,
                 "status": league.status,
                 "settles_on": league.settles_on.isoformat() if league.settles_on else None,
-                "pick_seconds": league.pick_seconds}
+                "pick_seconds": league.pick_seconds, "visibility": league.visibility}
 
 
 @router.post("/{league_id}/freeze")
@@ -203,9 +209,10 @@ def delete_claim(league_id: int, player_name: str, user: str = CurrentUser):
 
 
 @router.get("/{league_id}/draft")
-def get_draft(league_id: int):
+def get_draft(league_id: int, user: str | None = MaybeUser):
     with session_scope() as session:
         try:
+            require_viewer(session, league_id, user)
             return repo.draft_state(session, league_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
@@ -242,7 +249,7 @@ def post_pick(league_id: int, body: MakePick, user: str = CurrentUser):
 
 
 @router.get("/{league_id}/leaderboard")
-def get_league_leaderboard(league_id: int):
+def get_league_leaderboard(league_id: int, user: str | None = MaybeUser):
     """Standings for one league.
 
     The legacy /api/leaderboard serves whichever league is current; once more than one
@@ -250,15 +257,17 @@ def get_league_leaderboard(league_id: int):
     """
     with session_scope() as session:
         try:
+            require_viewer(session, league_id, user)
             return repo.leaderboard(session, league_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
 
 
 @router.get("/{league_id}/owners/{owner}")
-def get_league_owner(league_id: int, owner: str):
+def get_league_owner(league_id: int, owner: str, user: str | None = MaybeUser):
     with session_scope() as session:
         try:
+            require_viewer(session, league_id, user)
             movies = repo.owner_movies(session, league_id, owner)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
@@ -375,7 +384,8 @@ async def post_autopick(league_id: int, user: str = CurrentUser):
 
 @router.get("/{league_id}/pool")
 async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_SIZE,
-                                                     ge=1, le=pool.MAX_POOL_SIZE)):
+                                                     ge=1, le=pool.MAX_POOL_SIZE),
+                   user: str = CurrentUser):
     """The draftable films for this league's year, with drafted ones marked."""
     with session_scope() as session:
         try:
@@ -397,7 +407,8 @@ async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_S
 
 
 @router.get("/{league_id}/pool/search")
-async def get_pool_search(league_id: int, q: str = Query(min_length=1, max_length=120)):
+async def get_pool_search(league_id: int, q: str = Query(min_length=1, max_length=120),
+                          user: str = CurrentUser):
     """Title search, so a film outside the top N is still draftable."""
     with session_scope() as session:
         try:

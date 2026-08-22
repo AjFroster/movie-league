@@ -14,7 +14,7 @@ from .. import draft as draft_rules
 from .. import scoring
 from ..services.pool import IMAGE_BASE as POSTER_BASE
 from .models import (Entry, League, Player, STATUS_COMPLETE, STATUS_DRAFTING,
-                     STATUS_SETUP, Watch)
+                     STATUS_SETUP, VISIBILITIES, Watch)
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +52,7 @@ def list_leagues(session: Session, *, user_id: str | None = None) -> list[dict]:
              # Ready to settle once the date this league chose has passed.
              "season_ended": date.today() > (l.settles_on or default_settles_on(l.year)),
              "owner_user_id": l.owner_user_id,
+             "visibility": l.visibility,
              # Which slots are still up for grabs, so the UI can offer them to claim.
              "unclaimed": [p.name for p in l.players if p.user_id is None],
              "your_player": next((p.name for p in l.players
@@ -225,6 +226,16 @@ def freeze_league(session: Session, league_id: int, *, frozen: bool = True) -> L
     from datetime import datetime, timezone
     league = get_league(session, league_id)
     league.frozen_at = datetime.now(tz=timezone.utc) if frozen else None
+    session.flush()
+    return league
+
+
+def set_visibility(session: Session, league_id: int, *, visibility: str) -> League:
+    """Public or private. Read access only -- writing is always ownership-based."""
+    if visibility not in VISIBILITIES:
+        raise ValueError(f"visibility must be one of {VISIBILITIES}, not {visibility!r}")
+    league = get_league(session, league_id)
+    league.visibility = visibility
     session.flush()
     return league
 

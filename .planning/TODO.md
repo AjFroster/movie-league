@@ -203,6 +203,15 @@ The draft board is desktop-first by design (a group around one laptop) and that 
 **Stage 3 changes the premise** — once people draft from phones, the board needs a phone
 layout too, so consider these one job rather than two.
 
+### 14b. Audit GET routes the way mutating ones were audited
+
+`GET /api/export` returned **every league in the database** — owner ids, player names, all
+of it — to any anonymous caller, from the day it shipped until visibility landed. The Stage 2
+audit script only inspected non-GET routes, on the assumption that reads are harmless. A read
+that returns the whole database is not.
+
+Worth a pass over every remaining GET with that lens rather than trusting the method.
+
 ### 15. Small ones
 
 - League names are not unique; two leagues can share a name. Now that leagues are scoped to

@@ -20,7 +20,7 @@ Python, pointed at the project venv -- it resolves wheels for 3.12, not for its 
 ```bash
 ~/.local/share/uv/python/cpython-3.10.19-linux-x86_64-gnu/bin/pip \
     --python backend/.venv/bin/python install <package>
-backend/.venv/bin/python -m pytest backend/tests -q     # 472 tests
+backend/.venv/bin/python -m pytest backend/tests -q     # 493 tests
 ```
 
 Node is not on PATH either; it lives at `~/.nvm/versions/node/v24.15.0/bin`. `npx` resolves
@@ -66,8 +66,27 @@ Three tiers, in `app/auth.py`:
   advance when the player on the clock has shut their laptop; the server re-checks its own
   deadline, so asking early achieves nothing.
 
-`GET /api/leagues` is scoped to your leagues. Individual league reads are deliberately open
-so a standings link works for anyone you send it to.
+### Visibility
+
+`leagues.visibility` is `private` (default) or `public`, and governs **reading only** —
+writing is always ownership-based, so publishing a league grants no ability to change it.
+
+- **private** — members only: the creator plus anyone holding a slot
+- **public** — anyone with the link, *including signed-out visitors*
+
+A private league answers **404, not 403**. 403 would confirm it exists, which leaks the very
+thing privacy is for; an outsider cannot tell a private league from one that never existed.
+
+Public means *the link works*, not that the league appears on strangers' home screens.
+`GET /api/leagues` stays scoped to leagues you own or hold a slot in.
+
+Reads use `current_user_optional`, which returns `None` for a missing token so a public link
+works signed-out — but a token that is *present and invalid* still 401s, so a forged token
+can never be quietly downgraded to "anonymous".
+
+**Archives stay members-only even for a public league.** Public grants the standings; an
+archive additionally carries every account id that claimed a slot, which is not the same
+thing and should not ride along with a shared link.
 
 Slots are claimed with `POST /api/leagues/{id}/claim`. `players.user_id` is nullable and that
 is the whole design: a commissioner names six players and drafts tonight, and the other five
@@ -194,7 +213,7 @@ believe it refreshed a season that did not move.
 
 ## Current state
 
-Branch `feature/accounts`, 472 tests passing.
+`master`, 493 tests passing.
 
 Four leagues: **Movie League 2026** (30 entries, imported so no pick numbers), **Movie League
 2027** (42 picks), **Sequels Only 2027** (9), **trish v andrew 2027** (6). All settle 31

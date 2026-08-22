@@ -28,8 +28,13 @@ def client(never_touch_the_real_database):
 
 
 def act_as(user_id):
-    """Sign every subsequent request as `user_id`."""
+    """Sign every subsequent request as `user_id`.
+
+    Both dependencies: read routes take the optional one, so overriding only `current_user`
+    leaves reads resolving to the real local identity and answering 404 on a private league.
+    """
     app.dependency_overrides[auth.current_user] = lambda: user_id
+    app.dependency_overrides[auth.current_user_optional] = lambda: user_id
 
 
 @pytest.fixture
