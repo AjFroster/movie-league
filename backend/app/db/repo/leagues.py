@@ -26,15 +26,9 @@ def list_leagues(session: Session, *, user_id: str | None = None,
                  scope: str = "all") -> list[dict]:
     """Leagues a caller may see, each tagged `mine` so the UI can group them.
 
-    `scope`:
-      * "all"    -- yours plus every public league. What the home screen shows, and what a
-                    signed-out visitor gets (for them, "yours" is empty).
-      * "mine"   -- only leagues you created or hold a slot in. Used where "everything I
-                    own" is the question, such as building a backup.
-
-    `user_id=None` is a signed-out visitor: they see public leagues under "all", and
-    nothing at all under "mine". Note this differs from the old meaning of None, which was
-    "no filter" -- an unscoped listing is no longer reachable from a request.
+    scope="all" is yours plus every public league; scope="mine" is only yours, which is
+    what a backup wants. `user_id=None` is a signed-out visitor -- public leagues under
+    "all", nothing under "mine". There is no unscoped listing.
     """
     mine_filter = or_(
         League.owner_user_id == user_id,

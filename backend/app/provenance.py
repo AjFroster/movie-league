@@ -1,19 +1,9 @@
 """Per-field provenance for movie rows, and the no-clobber rule.
 
-RESEARCH section 4: `main.py::enrich_movie` overwrites imdb/budget/gross unconditionally,
-16 of 30 rows carry hand-entered ratings, and nothing distinguishes a human's number from a
-machine's. This module is that distinction.
-
-Three origins, and the difference between the last two is the entire point:
-
-  manual   A human entered it. Automated enrichment never touches it without force=True.
-  fetched  A provider wrote it. Freely refreshable.
-  unknown  Pre-provenance legacy value of ambiguous origin. Refreshable, because it may be
-           wrong -- the `imdb` field in particular may hold a TMDB vote_average rather than
-           a real IMDb rating (RESEARCH section 1). The pre-migration number is kept under
-           `legacy_value` so correcting it never destroys anything.
-
-Shape stored on each movie row:
+Three origins. `manual` is never overwritten by enrichment without force=True; `fetched`
+and `unknown` are freely refreshable. `unknown` is a pre-provenance value of ambiguous
+origin -- the `imdb` field in particular may hold a TMDB vote_average rather than a real
+IMDb rating -- so the pre-migration number is kept under `legacy_value`.
 
     "sources": {
       "<field>": {"origin": "manual"|"fetched"|"unknown",

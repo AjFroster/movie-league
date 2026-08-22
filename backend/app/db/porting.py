@@ -116,21 +116,9 @@ def export_to_file(session: Session, league_id: int, path: str | Path) -> Path:
 # ---------------------------------------------------------------------------
 # Full-fidelity archive format
 #
-# The legacy `{owners, movies}` shape above exists to read `league_data.json`, and it
-# carries only what that file could express. It is NOT a backup: exporting the four real
-# leagues through it drops 57 pick numbers, 80 poster paths, every league's name, year,
-# settle date and timer, and all 22 watch timestamps. Restoring from one would lose the
-# drafts it was supposed to preserve.
-#
-# This format carries everything that cannot be recomputed. Two deliberate omissions:
-#
-#   * Database ids. Primary keys are local to one database. Restoring into a fresh
-#     Postgres assigns new ones, and carrying the old ones only invites a restore that
-#     tries to honour them and collides. Players and watches key on name instead, which
-#     `uq_player_per_league` makes unambiguous.
-#   * `clock_started_at`. That is live pick-clock state, not league data. A league
-#     restored mid-draft should start its next clock fresh rather than inherit a deadline
-#     that expired whenever the backup was taken.
+# The legacy shape above cannot express pick numbers, posters, or league settings, so it
+# is not a backup. This one carries everything that cannot be recomputed, minus database
+# ids (a restore assigns its own) and clock_started_at (live state, not league data).
 # ---------------------------------------------------------------------------
 
 ARCHIVE_FORMAT = "movie-league/1"

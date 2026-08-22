@@ -1,13 +1,10 @@
 """The league scoring formula.
 
-Transcribed from the commissioner's spreadsheet and validated against the 16 hand-scored
-rows in league_data.json: rating_score reproduces 16/16 exactly, financial_score 14/16.
-The two financial misses (Mark R3, Mark R4) were confirmed by the user as stale entries --
-scored before budget/gross were corrected -- not gaps in the rules.
+Transcribed from the commissioner's spreadsheet and validated against every hand-scored
+row before adoption.
 
-Every score here is a pure function of the fields enrichment fills (imdb, letterboxd,
-rt_crit, rt_aud, budget, gross, roi) plus who_watched. Nothing here calls a provider or
-touches the network; scoring runs on data that is already in the entry.
+Pure functions of the fields enrichment fills plus who_watched. Nothing here touches the
+network.
 """
 
 # Each source contributes independently; a film clearing several thresholds banks all of

@@ -1,8 +1,7 @@
 /** Hand a fetched blob to the browser as a file save.
  *
- *  Downloads go through fetch rather than a plain `<a href="/api/export">` so the request
- *  carries whatever headers the API needs -- a bearer token, once there is one -- and so a
- *  failure surfaces as an error in the UI instead of navigating the tab to a JSON error page.
+ *  Via fetch rather than a plain `<a href>` so the request carries the bearer token, and
+ *  so a failure shows in the UI instead of navigating the tab to a JSON error page.
  */
 export function saveBlob({ blob, filename }) {
   const url = URL.createObjectURL(blob)

@@ -1,24 +1,17 @@
-"""OMDb lookups for the two rating fields that DO have a free API: the real IMDb rating
-and the Rotten Tomatoes critic score.
+"""OMDb lookups for the IMDb rating and the Rotten Tomatoes critic score.
 
-Free key (1,000 requests/day) at https://www.omdbapi.com/apikey.aspx; set it as
-OMDB_API_KEY in backend/.env. As with tmdb.py, these functions return None when no key is
-configured so the rest of the app keeps working on manually-entered data.
+Free key (1,000/day) at https://www.omdbapi.com/apikey.aspx as OMDB_API_KEY. Returns None
+with no key configured, so the app keeps working on hand-entered data.
 
-Two things here are security-load-bearing, not stylistic:
+Two things here are security-load-bearing:
 
-1. Lookup is by IMDb ID (`?i=tt#######`), never by title (`?t=`). TMDB hands us an exact
-   imdb_id, so a fuzzy title match -- which could silently attach another film's ratings to
-   a row -- is designed out rather than mitigated.
+1. Lookup is by IMDb ID, never by title. A fuzzy title match could silently attach another
+   film's ratings to a row, so it is designed out rather than mitigated.
+2. OMDb has no header auth, so the key rides in the query string and httpx embeds the full
+   URL in its exceptions. Every failure path raises ProviderError (redacted in __init__)
+   with `from None`, so the unredacted original is never chained into the traceback.
 
-2. OMDb has NO header-auth option, so the key must ride in the query string, and httpx
-   embeds the full request URL in its exception messages. Every failure path therefore
-   raises ProviderError (which redacts in __init__) with `from None` so the original,
-   unredacted exception is not chained into the printed traceback.
-
-What is deliberately NOT read from OMDb: `BoxOffice` is domestic-US only, so `gross` comes
-from TMDB's worldwide `revenue` instead (RESEARCH section 1). There is no free source for
-`rt_aud` or `letterboxd`; those stay manual.
+`gross` deliberately comes from TMDB instead: OMDb's BoxOffice is domestic-US only.
 """
 import math
 import os

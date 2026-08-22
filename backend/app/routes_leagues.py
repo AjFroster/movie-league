@@ -48,9 +48,8 @@ class CreateLeague(BaseModel):
 class EditLeague(BaseModel):
     """Only what is safe to change after creation.
 
-    Year and player list are deliberately absent: the roster is already drafted against a
-    year's film pool, so changing either would invalidate picks rather than edit them. The
-    settle date is editable precisely because the roster is what decides it.
+    Year and players are absent: the roster is drafted against a year's pool, so changing
+    either would invalidate picks rather than edit them.
     """
     name: str | None = Field(default=None, min_length=1, max_length=120)
     settles_on: date | None = None
@@ -77,12 +76,8 @@ def _mark(film: dict, taken: dict) -> dict:
 def get_leagues(user: str | None = MaybeUser):
     """Leagues this caller may see: their own, plus every public one.
 
-    Open to signed-out visitors, who get the public leagues only. That is the point --
-    someone with no account should be able to arrive and read a public season rather than
-    meet a login wall.
-
-    Each row carries `mine` so the home screen can group them without re-deriving
-    membership in the browser. Private leagues you are not in never appear.
+    Open to signed-out visitors, who get the public ones only. Each row carries `mine` so
+    the home screen can group them. Private leagues you are not in never appear.
     """
     with session_scope() as session:
         return repo.list_leagues(session, user_id=user, scope="all")
@@ -106,11 +101,8 @@ def post_league(body: CreateLeague, user: str = CurrentUser):
 async def get_pool_size(year: int = Query(ge=1900, le=2100),
                         size: int = Query(default=pool.DEFAULT_POOL_SIZE, ge=1,
                                           le=pool.MAX_POOL_SIZE)):
-    """How many films a year offers, before any league exists to scope it to.
-
-    The create screen quotes this while you are still choosing a year, so it cannot be
-    league-scoped like the other pool routes.
-    """
+    """How many films a year offers. Unscoped because the create screen asks before a
+    league exists."""
     try:
         films = await pool.fetch_pool(year, size=size)
     except (ProviderError, httpx.HTTPError) as e:
@@ -144,8 +136,7 @@ def post_freeze(league_id: int, frozen: bool = Query(default=True),
                 user: str = CurrentUser):
     """Settle a season so its scores stop moving, or reopen it.
 
-    The league's rule is that a season ends on 31 December; this is the action that makes
-    that stick, since films keep earning and ratings keep drifting long afterwards.
+    Films keep earning and ratings keep drifting long after a season ends.
     """
     with session_scope() as session:
         with http_errors(LookupError=404):
@@ -173,11 +164,8 @@ class ClaimSlot(BaseModel):
 def post_claim(league_id: int, body: ClaimSlot, user: str = CurrentUser):
     """Take a player slot in this league as yourself.
 
-    Deliberately open to any signed-in account rather than invite-gated. The league's own
-    membership is the gate that matters -- claiming a slot only ever grants the ability to
-    pick and tick watches as that one player -- and a shared link is how a group of friends
-    actually joins something. Slots are first-come: once claimed, only the creator can
-    release one.
+    Open to any signed-in account rather than invite-gated: claiming grants only the
+    ability to act as that one player. First-come; only the creator can release a slot.
     """
     with session_scope() as session:
         with http_errors(LookupError=404, ValueError=409):
@@ -190,8 +178,7 @@ def post_claim(league_id: int, body: ClaimSlot, user: str = CurrentUser):
 def delete_claim(league_id: int, player_name: str, user: str = CurrentUser):
     """Release a slot: your own, or -- as the league's creator -- anyone's.
 
-    The creator override is what makes a wrong claim fixable. Without it a friend who
-    grabbed the wrong name has locked that slot for the season.
+    The override is what makes a wrong claim fixable rather than locked in for the season.
     """
     with session_scope() as session:
         with http_errors(LookupError=404):
@@ -238,11 +225,7 @@ def post_pick(league_id: int, body: MakePick, user: str = CurrentUser):
 
 @router.get("/{league_id}/leaderboard")
 def get_league_leaderboard(league_id: int, user: str | None = MaybeUser):
-    """Standings for one league.
-
-    The legacy /api/leaderboard serves whichever league is current; once more than one
-    exists, reviewing a specific season needs to name it.
-    """
+    """Standings for one league."""
     with session_scope() as session:
         with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
@@ -292,12 +275,7 @@ class WatchUpdate(BaseModel):
 @router.post("/{league_id}/movies/{owner}/{round_number}/watch")
 def post_league_watch(league_id: int, owner: str, round_number: int, body: WatchUpdate,
                       user: str = CurrentUser):
-    """Record a watch against a named league.
-
-    The legacy route acts on whichever league is current, which is wrong the moment you are
-    looking at an older season: toggling a 2026 watch would write to the newest league and
-    fail with "no player named ...".
-    """
+    """Record a watch. The viewer must be the caller, or an unclaimed slot they own."""
     with session_scope() as session:
         try:
             # The VIEWER, not the owner: a watch is "I saw this", so the caller must be
@@ -358,12 +336,11 @@ async def post_league_movie_enrich(league_id: int, owner: str, round_number: int
 
 @router.post("/{league_id}/draft/autopick")
 async def post_autopick(league_id: int, user: str = CurrentUser):
-    """Take the pick for whoever is on the clock, once their time is genuinely up.
+    """Take the pick for whoever is on the clock, once their time is up.
 
-    The browser asks; the server decides. It re-checks the deadline against its own clock,
-    so a wrong client clock -- or a tampered one -- cannot take someone's pick early. It
-    also chooses the film itself, from the top of the pool, rather than accepting a title
-    from the caller.
+    The browser asks; the server decides. It re-checks the deadline against its own clock
+    and chooses the film itself, so a wrong or tampered client clock cannot take a pick
+    early or name the film.
     """
     with session_scope() as session:
         with http_errors(LookupError=404):

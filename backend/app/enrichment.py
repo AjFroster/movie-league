@@ -269,14 +269,9 @@ async def enrich_all(data: dict, *, force: bool = False, max_calls: int = DEFAUL
                      omdb_client: httpx.AsyncClient | None = None) -> dict:
     """Enrich every row in `data["movies"]` in place and return a run summary.
 
-    Rows are processed strictly sequentially with a delay between them -- concurrency (a
-    fan-out that gathers every row's coroutine at once) is never used here. That, plus the
-    CallBudget, is the rate discipline from RESEARCH section 5: a bulk run is bounded both
-    in requests-per-second and in total requests, so it cannot exhaust OMDb's 1,000/day
-    free quota by accident.
-
-    `sleep` is injectable purely so tests can assert the pacing happened without actually
-    waiting; production callers use the default.
+    Strictly sequential with a delay between rows, never a fan-out. That plus CallBudget
+    bounds a bulk run in both requests-per-second and total requests, so it cannot burn
+    OMDb's 1,000/day quota by accident. `sleep` is injectable so tests need not wait.
     """
     budget = CallBudget(max_calls)
     reports = []

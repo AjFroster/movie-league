@@ -1,12 +1,11 @@
 """Snake draft order and pick validation. Pure logic -- no I/O, no persistence.
 
-A snake draft reverses direction every round, so the player who picks last in round 1 picks
-first in round 2. That is what keeps an early pick from compounding: over an even number of
+The order reverses every round, so an early pick does not compound: over an even number of
 rounds every player's pick positions sum to the same number.
 
-Everything here is a function of (order, rounds, picks_made), so the draft state can always
-be recomputed from the stored pick list rather than trusted from a stored cursor -- a cursor
-and a list can disagree, and then the draft is wrong in a way nobody notices until later.
+Everything is a function of (order, rounds, picks_made), so state is recomputed from the
+stored pick list rather than a cursor. A cursor and a list can disagree, and then the draft
+is wrong in a way nobody notices until later.
 """
 import random
 

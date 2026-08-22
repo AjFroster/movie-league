@@ -1,13 +1,9 @@
 /** Light/dark theming.
  *
- *  Three preferences, two palettes. "system" is resolved to light or dark in JS rather
- *  than left to a CSS media query, so `data-theme` is always one of two concrete values
- *  and no stylesheet rule has to handle the case where it is absent.
- *
- *  The initial resolution runs from an inline script in index.html, before first paint --
- *  see THEME_BOOT_SCRIPT below. Doing it here in React would paint the default palette
- *  first and flash to the chosen one, which is worse on a dark-first app than on a
- *  light-first one because the flash is a full white screen.
+ *  "system" resolves to light or dark in JS, so `data-theme` is always one of two
+ *  concrete values and no CSS rule has to handle its absence. The first resolution runs
+ *  from an inline script in index.html, before paint -- doing it in React would flash a
+ *  full white screen on this dark-first palette.
  */
 export const STORAGE_KEY = 'movie-league-theme'
 export const PREFERENCES = ['system', 'light', 'dark']
