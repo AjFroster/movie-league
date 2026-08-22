@@ -79,11 +79,6 @@ def list_leagues(session: Session, *, user_id: str | None = None,
             for l in leagues]
 
 
-def default_league_id(session: Session) -> int | None:
-    """The league the legacy single-league endpoints operate on: the most recent."""
-    return session.scalar(select(League.id).order_by(League.year.desc(), League.id.desc()))
-
-
 def get_league(session: Session, league_id: int) -> League:
     league = session.get(League, league_id)
     if league is None:
