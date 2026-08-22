@@ -14,25 +14,15 @@ def http_errors(**mapping: int):
         with http_errors(LookupError=404, ValueError=409):
             repo.make_pick(...)
 
-    The codes stay at the call site because they are part of what a route promises, and
-    they are not uniform: a ValueError is 409 when the draft's state rejects a request and
-    422 when the input was never valid. A single global handler would have to flatten that.
+    Codes stay at the call site because they are not uniform: a ValueError is 409 when the
+    draft's state rejects a request and 422 when the input was never valid.
 
-    Redaction is not optional. httpx puts the full request URL in its messages and OMDb
-    authenticates by query parameter, so an unredacted detail leaks the key. `from None`
-    suppresses the chain for the same reason: the original exception is not redacted.
+    Matching is by EXACT type. `except LookupError` also catches KeyError, so an internal
+    bug would reach the caller as a 404 -- a wrong answer that looks correct.
 
-    HTTPException passes through untouched, so a permission check inside the block keeps
-    its own status.
-
-    Scope is domain exceptions -- the builtins the repo layer raises. Provider failures
-    (ProviderError, httpx.HTTPError -> 502) stay as explicit handlers: they are an upstream
-    outage rather than a rejected request, and folding them in here would hide that.
-
-    Matching is by EXACT type, not by subclass. `except LookupError` also catches KeyError
-    and IndexError, so an internal bug would have been reported to the caller as a 404 --
-    a wrong answer that looks like a correct one. The app raises only the base types, so
-    nothing legitimate is missed and real bugs surface as 500s.
+    HTTPException passes through, so a permission check inside the block keeps its status.
+    Provider failures stay as explicit handlers: an upstream outage is not a rejected
+    request.
     """
     types = tuple(getattr(builtins, name) for name in mapping)
     try:

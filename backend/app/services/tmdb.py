@@ -18,13 +18,9 @@ TMDB_BASE = "https://api.themoviedb.org/3"
 _IMDB_ID_RE = re.compile(r"^tt\d{7,10}$")
 _RELEASE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
-# TMDB's search ranks by popularity, not recency, so a league title that reuses an older
-# film's name matches the famous one: "The Mummy" returns the 1999 film, "Narnia" the 2005
-# one, "Werewolf" a 1981 film. Silently writing those financials is data corruption -- the
-# 1999 Mummy's $415.89M gross landed on a 2026 pick during live testing.
-# A result released before the season floor is therefore treated as NO match, not as a
-# fallback: an unmatched row keeps its existing values and is reported, which is
-# recoverable, whereas a wrong match is silent and is not.
+# TMDB search ranks by popularity, not recency: "The Mummy" returns the 1999 film, whose
+# $415.89M gross landed on a 2026 pick during live testing. A hit older than this floor is
+# treated as NO match -- an unmatched row is reported and recoverable, a wrong one is not.
 SEASON_FLOOR_YEAR = int(os.environ.get("LEAGUE_SEASON_FLOOR_YEAR", "2025"))
 
 

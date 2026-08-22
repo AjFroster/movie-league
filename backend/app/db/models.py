@@ -1,21 +1,14 @@
 """Relational schema for leagues, drafts, rosters, and watches.
 
-Written against SQLAlchemy rather than raw sqlite3 so the engine is a deployment choice
-rather than an architectural one: `sqlite:///league.db` locally, `postgresql://...` on a
-host, with the same models and queries. Plain SQLite cannot back multiple app instances --
-each would get its own file -- so the ORM is what keeps that door open.
+Two constraints do work application code previously got wrong:
 
-Two constraints here do work that application code previously had to get right by hand, and
-previously got wrong:
+  UNIQUE(league_id, tmdb_id)        one film cannot be drafted twice, even if two picks
+                                    arrive simultaneously
+  PRIMARY KEY(entry_id, player_id)  a watch is a row, so concurrent toggles by different
+                                    players cannot overwrite each other
 
-  UNIQUE(league_id, tmdb_id)          one film cannot be drafted twice, enforced by the
-                                      database even if two picks arrive simultaneously
-  PRIMARY KEY(entry_id, player_id)    a watch is a row, so concurrent toggles by different
-                                      players cannot overwrite each other
-
-The old JSON store lost 3 of 4 simultaneous watch toggles because every write rewrote the
-whole file from a stale read. Both problems are transactional, not schema-shaped, but the
-constraints make the invariants explicit rather than implicit.
+The old JSON store lost 3 of 4 simultaneous watch toggles, because every write rewrote the
+whole file from a stale read.
 """
 from datetime import date as dateonly
 from datetime import datetime, timezone
@@ -112,12 +105,9 @@ class Player(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(80))
-    # The account that has claimed this slot, or NULL for a slot nobody has claimed yet.
-    #
-    # Nullable is the whole design. A commissioner types six names and drafts that evening;
-    # the other five have not signed up and must not have to before the draft can start.
-    # An unclaimed slot is acted on by the league creator, so today's single-laptop draft
-    # keeps working unchanged, and each player takes over their own slot when they claim it.
+    # NULL means nobody has claimed this slot. Nullable is the design: a commissioner
+    # names six players and drafts tonight, and the rest claim theirs whenever they sign
+    # up. Until then the league's creator acts for them.
     user_id: Mapped[str | None] = mapped_column(String(255), default=None)
 
     league: Mapped[League] = relationship(back_populates="players")

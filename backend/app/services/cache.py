@@ -1,16 +1,11 @@
-"""Persistent JSON cache for outbound provider calls (TMDB, OMDb).
+"""Persistent JSON cache for outbound provider calls (TMDB, OMDb, MDBList).
 
-Why a file and not an in-process dict: the dict is lost on every `uvicorn --reload`,
-which would re-burn OMDb's 1,000/day free quota on each restart. Why not SQLite: this is
-a ~60-entry key/value store, and the project's entire storage model is already
-"flat JSON file + threading.Lock + atomic os.replace" (app/storage.py). This module
-reuses that exact pattern rather than introducing a second persistence style.
+A file rather than an in-process dict because the dict dies on every `uvicorn --reload`,
+which would re-burn OMDb's 1,000/day quota on each restart.
 
-One deliberate divergence from app/storage.py: a missing or corrupt cache file is NOT an
-error here. league_data.json is the source of truth, so storage.load_data() raises 503
-when it cannot be read. This cache is disposable derived data, so load_cache() returns {}
-and the caller simply re-fetches. Failing closed on a cache would take the API down for
-no reason.
+Unlike the rest of the app's storage, a missing or corrupt cache file is NOT an error: this
+is disposable derived data, so load_cache() returns {} and the caller re-fetches. Failing
+closed on a cache would take the API down for no reason.
 """
 import json
 import os

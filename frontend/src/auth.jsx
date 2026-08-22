@@ -1,13 +1,8 @@
 /** Sign-in, or the absence of it.
  *
- *  Mirrors the backend deliberately: with no VITE_CLERK_PUBLISHABLE_KEY the app runs in
- *  local mode -- no provider, no sign-in, no token -- and the server treats every request
- *  as the single local user. Set the key and identity becomes real.
- *
- *  Signing in is NOT a wall. A visitor with no account still gets the app and every public
- *  league; signing in adds their own leagues and the ability to change anything. Gating the
- *  whole app behind a login made public leagues unreachable, which defeated the point of
- *  having them.
+ *  Mirrors the backend: with no VITE_CLERK_PUBLISHABLE_KEY there is one local user and no
+ *  sign-in at all. Signing in is never a wall -- a visitor with no account still gets the
+ *  app and every public league.
  */
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
@@ -21,9 +16,8 @@ export const accountsEnabled = Boolean(KEY)
 
 /** Hands api.js a function that mints a fresh Clerk token per request.
  *
- *  Per request rather than once: Clerk session tokens are short-lived by design, so
- *  caching one here would start returning 401s a minute later. `getToken` serves from
- *  Clerk's own cache and only refreshes when it needs to.
+ *  Per request, not once: session tokens are short-lived, so a cached one starts
+ *  returning 401s a minute later.
  */
 function TokenBridge({ children }) {
   const { getToken, isLoaded } = useAuth()

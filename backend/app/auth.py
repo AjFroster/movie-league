@@ -1,26 +1,12 @@
-"""Who is making this request, and are they allowed to.
+"""Who is making this request, and whether they may do it.
 
-The design decision worth understanding before changing anything here:
+There is no flag that turns authorization off. The permission checks always run; only the
+source of identity changes -- a verified JWT subject when Clerk is configured, and
+LOCAL_USER_ID when it is not. Unauthenticated is a database with one account in it, not a
+branch that skips checks.
 
-**There is no flag that turns authorization off.** A boolean like AUTH_ENABLED guards a
-branch that skips permission checks, and that branch is exactly what ends up enabled in
-production by accident. Instead the authorization path always runs -- `require_creator`
-and `require_actor` always execute, always compare, and can always fail. Only the *source
-of identity* changes:
-
-  * Clerk configured  -> the subject of a verified RS256 JWT.
-  * Clerk not configured -> LOCAL_USER_ID, always. There is exactly one user, and it is
-    whoever is sitting at the machine. Ownership is still checked; it just always matches.
-
-Running unauthenticated is therefore not a special case in the permission code, it is a
-database with one account in it.
-
-The guard that stops that reaching production is `_assert_local_mode_is_safe`: local
-identity is allowed only when the database is SQLite *and* CORS_ORIGIN is a localhost
-origin. Hosting breaks both naturally -- you point at Postgres, or you serve a real domain
--- and if either says "hosted" while Clerk is unconfigured, the app refuses to start.
-Failing at boot is the point: a misconfiguration that only shows up as silent open access
-is the failure mode this whole module exists to prevent.
+`verify_startup_configuration` refuses to boot in local-identity mode unless the database
+is SQLite and CORS_ORIGIN is localhost, so a deployment cannot quietly serve open access.
 """
 import os
 from urllib.parse import urlparse
@@ -66,8 +52,7 @@ def _looks_local(origin: str) -> bool:
 def _assert_local_mode_is_safe() -> None:
     """Refuse to run without an identity provider anywhere that looks hosted.
 
-    Two independent signals, both of which a real deployment flips without thinking about
-    it. Either one being non-local is enough to stop the process.
+    Either signal being non-local stops the process; a deployment flips both.
     """
     from .db.session import database_url
 
@@ -143,10 +128,9 @@ def current_user(request: Request) -> str:
 def current_user_optional(request: Request) -> str | None:
     """The identity behind this request, or None if there is not one.
 
-    Read routes need this: a public league is readable by someone who is not signed in at
-    all, so a missing token is an answer ("anonymous") rather than an error. A token that
-    is *present but invalid* still 401s -- a forged token must never be quietly downgraded
-    to anonymous, or the check becomes "send a bad token to look like a stranger".
+    A missing token means anonymous, which read routes need for public leagues. A token
+    that is present but invalid still 401s: downgrading a forgery to "anonymous" would
+    turn the check into "send a bad token to look like a stranger".
     """
     if not clerk_configured():
         return LOCAL_USER_ID
@@ -178,10 +162,9 @@ def require_creator(session, league_id: int, user_id: str) -> League:
 def require_member(session, league_id: int, user_id: str) -> League:
     """Created the league, or holds a slot in it.
 
-    Used where an action belongs to the league rather than to one player -- auto-picking
-    is the case: any member's browser may ask for it, which is what lets a draft advance
-    when the player on the clock has closed their laptop. The server still re-checks its
-    own deadline, so a member cannot take someone's pick early by asking early.
+    Used for auto-picking, where any member may ask so a draft advances even when the
+    player on the clock has closed their laptop. The server re-checks its own deadline,
+    so asking early achieves nothing.
     """
     league = repo.get_league(session, league_id)
     if not repo.is_member(session, league_id, user_id):
@@ -190,12 +173,9 @@ def require_member(session, league_id: int, user_id: str) -> League:
 
 
 def require_viewer(session, league_id: int, user_id: str | None) -> League:
-    """May this caller READ this league?
+    """May this caller READ this league? Public: anyone. Private: members only.
 
-    Public: anyone, including signed-out. Private: members only.
-
-    Deliberately separate from write permission, which is always ownership-based -- making
-    a league public grants reading and nothing else.
+    Separate from write permission, which is always ownership-based.
     """
     league = repo.get_league(session, league_id)
     if league.visibility == VISIBILITY_PUBLIC:
@@ -209,11 +189,10 @@ def require_viewer(session, league_id: int, user_id: str | None) -> League:
 
 
 def require_actor(session, league_id: int, user_id: str, player_name: str) -> Player:
-    """May `user_id` act as `player_name` -- pick for them, or tick their watches?
+    """May `user_id` pick or tick watches as `player_name`?
 
-    Yes if they have claimed that slot. Yes if the slot is unclaimed and they created the
-    league: that is the single-laptop draft, where one person picks for everyone in the
-    room. No otherwise, which is what stops a stranger drafting on someone's behalf.
+    Yes if they claimed the slot, or if it is unclaimed and they created the league --
+    that second case is the single-laptop draft.
     """
     league = repo.get_league(session, league_id)
     player = next((p for p in league.players if p.name == player_name), None)
