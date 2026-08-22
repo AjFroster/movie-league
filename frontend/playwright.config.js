@@ -58,10 +58,12 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
-      command: `npx vite --mode test --port ${WEB_PORT} --strictPort`,
+      // --host 127.0.0.1 explicitly: vite binds to "localhost", which resolves to ::1 on
+      // a CI runner while the health check below probes 127.0.0.1, and the two never meet.
+      command: `npx vite --mode test --host 127.0.0.1 --port ${WEB_PORT} --strictPort`,
       url: `http://127.0.0.1:${WEB_PORT}`,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 120_000,
       env: { ...process.env, VITE_API_PORT: String(API_PORT) },
       stdout: 'pipe',
       stderr: 'pipe',
