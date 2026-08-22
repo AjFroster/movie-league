@@ -94,6 +94,9 @@ jobs:
   browser:
     name: Browser tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # pushes screenshots to the ci-screenshots branch
+      pull-requests: write   # posts them on the PR
     # Not required to merge yet. Browser tests are the flakiest thing in any pipeline, and
     # a new one deserves a few weeks of proving itself before it can block a PR. It found a
     # crash on master the first time it ran, so it is earning that trust quickly.
@@ -159,11 +162,47 @@ jobs:
       # file size, so the loop stops adding images before it would be truncated -- a
       # summary that silently cuts off mid-page is worse than one that says what it
       # dropped.
+      # GitHub strips data: URIs from <img> in job summaries and PR comments, so an
+      # inline base64 image renders as a dead link. The images need a real URL, and the
+      # cheapest one for a public repo is a branch: push them to `ci-screenshots` and
+      # reference them through raw.githubusercontent, which needs no auth and renders
+      # inline everywhere.
+      - name: Publish the screenshots
+        if: always() && github.event_name == 'pull_request'
+        id: publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          test -d frontend/e2e-screenshots || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # A worktree keeps the checkout under test untouched.
+          git fetch origin ci-screenshots --depth=1 2>/dev/null \
+            && git worktree add ../shots ci-screenshots \
+            || git worktree add --orphan -b ci-screenshots ../shots
+
+          rm -rf "../shots/pr-$PR"
+          mkdir -p "../shots/pr-$PR"
+          cp frontend/e2e-screenshots/*.png "../shots/pr-$PR/"
+
+          cd ../shots
+          git add -A
+          if git diff --cached --quiet; then
+            echo "screenshots unchanged"
+          else
+            git commit -q -m "ci: screenshots for PR #$PR (run ${{ github.run_id }})"
+            git push -q origin ci-screenshots
+          fi
+          echo "base=https://raw.githubusercontent.com/${{ github.repository }}/ci-screenshots/pr-$PR" >> "$GITHUB_OUTPUT"
+
       - name: Put the screenshots in the run summary
         if: always()
         working-directory: frontend
         env:
           SHOTS_URL: ${{ steps.shots.outputs.artifact-url }}
+          BASE: ${{ steps.publish.outputs.base }}
         run: |
           {
             echo "## UI screenshots"
@@ -172,27 +211,58 @@ jobs:
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
-          budget=$((900 * 1024))
-          used=0
-          skipped=""
           for f in $(ls e2e-screenshots/*.png 2>/dev/null | sort); do
-            encoded=$((($(stat -c%s "$f") * 4 / 3) + 200))
-            if [ $((used + encoded)) -gt $budget ]; then
-              skipped="$skipped $(basename "$f")"
-              continue
-            fi
-            used=$((used + encoded))
             name=$(basename "$f" .png | sed 's/^[0-9]*-//; s/-/ /g')
             {
               echo "### ${name}"
               echo
-              echo "<img alt=\"${name}\" width=\"900\" src=\"data:image/png;base64,$(base64 -w0 "$f")\">"
+              if [ -n "$BASE" ]; then
+                echo "![${name}](${BASE}/$(basename "$f"))"
+              else
+                echo "_Published only for pull requests._"
+              fi
               echo
             } >> "$GITHUB_STEP_SUMMARY"
           done
 
-          {
-            [ -n "$skipped" ] && echo "> Too large for the summary:$skipped — in the download below."
-            echo
-            echo "[Download all at full resolution]($SHOTS_URL)"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download at full resolution]($SHOTS_URL)" >> "$GITHUB_STEP_SUMMARY"
+
+      # And on the PR itself, so it is visible without opening the run at all.
+      - name: Show them on the pull request
+        if: always() && github.event_name == 'pull_request' && steps.publish.outputs.base != ''
+        uses: actions/github-script@v7
+        env:
+          BASE: ${{ steps.publish.outputs.base }}
+        with:
+          script: |
+            const shots = ['1-league-list', '2-draft-complete', '3-standings', '4-snake-complete']
+            const body = [
+              '<!-- ui-screenshots -->',
+              '### UI screenshots',
+              '',
+              'From the browser tests on this commit.',
+              '',
+              ...shots.map((s) => {
+                const label = s.replace(/^[0-9]+-/, '').replace(/-/g, ' ')
+                return `<details open><summary>${label}</summary>\n\n` +
+                       `![${label}](${process.env.BASE}/${s}.png)\n\n</details>`
+              }),
+            ].join('\n')
+
+            // Update one comment rather than adding one per run.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const mine = comments.find((c) => c.body.includes('<!-- ui-screenshots -->'))
+            if (mine) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: mine.id, body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              })
+            }
