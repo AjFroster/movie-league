@@ -17,12 +17,9 @@ export default function PlayerCard({ summary, ownerCount, owners, onWatchChange,
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Scoped to a league when one is named, so reviewing an older season shows that
-    // season rather than whichever league happens to be current.
-    const request = leagueId
-      ? api.leagueOwner(leagueId, summary.owner)
-      : api.owner(summary.owner)
-    request.then(d => setMovies(d.movies)).catch(e => setError(e.message))
+    api.leagueOwner(leagueId, summary.owner)
+      .then(d => setMovies(d.movies))
+      .catch(e => setError(e.message))
   }, [summary.owner, leagueId])
 
   return (

@@ -14,6 +14,7 @@ from .auth import (CurrentUser, MaybeUser, require_actor, require_creator,
                    require_member, require_viewer)
 from .db import repo
 from .db.session import session_scope
+from .models import Movie
 from .redaction import ProviderError, redact_secrets
 from . import enrichment, scoring
 from .services import pool
@@ -341,6 +342,54 @@ def post_league_watch(league_id: int, owner: str, round_number: int, body: Watch
                                 detail=detail)
         return {"movie": {**row, "breakdown": scoring.score_breakdown(row)},
                 "leaderboard": repo.leaderboard(session, league_id)}
+
+
+@router.put("/{league_id}/movies/{owner}/{round_number}")
+def put_league_movie(league_id: int, owner: str, round_number: int, movie: Movie,
+                     user: str = CurrentUser):
+    """Hand-edit an entry. Changed fields are stamped manual so enrichment leaves them."""
+    with session_scope() as session:
+        require_creator(session, league_id, user)
+        try:
+            return repo.update_entry(session, league_id, owner=owner,
+                                     round_number=round_number,
+                                     payload=movie.model_dump())
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+
+
+@router.post("/{league_id}/movies/{owner}/{round_number}/enrich")
+async def post_league_movie_enrich(league_id: int, owner: str, round_number: int,
+                                   force: bool = False, user: str = CurrentUser):
+    """Fetch financials and ratings for one entry, then rescore it.
+
+    Hand-entered values are protected unless force=true. Served from cache when fresh.
+    """
+    with session_scope() as session:
+        require_creator(session, league_id, user)
+        try:
+            documents, index = repo.entries_as_documents(session, league_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=redact_secrets(str(e)))
+        target = next((d for d in documents
+                       if d["owner"] == owner and d["round"] == round_number), None)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Movie entry not found")
+
+        budget = enrichment.CallBudget(enrichment.MAX_CALLS_PER_ENTRY)
+        try:
+            report = await enrichment.enrich_entry(target, budget=budget, force=force)
+        except (ProviderError, httpx.HTTPError) as e:
+            # redact_secrets is mandatory: OMDb and MDBList authenticate by query
+            # parameter, and httpx puts the full URL into its error messages.
+            raise HTTPException(status_code=502, detail=redact_secrets(str(e)))
+        try:
+            repo.apply_documents(session, league_id, [target], index)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=redact_secrets(str(e)))
+        row = repo.owner_movies(session, league_id, owner)
+        movie = next(m for m in row if m["round"] == round_number)
+        return {"movie": movie, "report": report, "api_calls_used": budget.used}
 
 
 @router.post("/{league_id}/draft/autopick")

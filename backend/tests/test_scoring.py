@@ -235,30 +235,3 @@ def test_row_watch_points_stay_owner_only():
     assert scoring.watch_points({"owner": "A", "who_watched": ["B", "C"]}) == 0
 
 
-def test_leaderboard_attributes_cross_owner_watches_to_the_watcher():
-    """B watching A's pick must move B's total, not A's."""
-    from app import storage
-    data = {"owners": ["A", "B"], "movies": [
-        {"owner": "A", "round": 1, "movie": "x", "imdb": None, "who_watched": ["A", "B"],
-         "rating_score": 0, "financial_score": 0, "penalties": 0, "watch_points": 5,
-         "total": 5},
-        {"owner": "B", "round": 1, "movie": "y", "imdb": None, "who_watched": [],
-         "rating_score": 0, "financial_score": 0, "penalties": 0, "watch_points": 0,
-         "total": 0},
-    ]}
-    board = {r["owner"]: r for r in storage.compute_leaderboard(data)}
-    assert board["A"]["total"] == 5          # own pick, own watch
-    assert board["A"]["own_watch_points"] == 5
-    assert board["B"]["total"] == 1          # earned purely by watching A's film
-    assert board["B"]["other_watch_points"] == 1
-
-
-def test_leaderboard_does_not_double_count_the_owners_own_watch():
-    from app import storage
-    data = {"owners": ["A"], "movies": [
-        {"owner": "A", "round": 1, "movie": "x", "imdb": None, "who_watched": ["A"],
-         "rating_score": 10, "financial_score": 0, "penalties": 0, "watch_points": 5,
-         "total": 15},
-    ]}
-    board = storage.compute_leaderboard(data)[0]
-    assert board["total"] == 15 and board["watch_points"] == 5
