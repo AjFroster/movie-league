@@ -20,7 +20,7 @@ Python, pointed at the project venv -- it resolves wheels for 3.12, not for its 
 ```bash
 ~/.local/share/uv/python/cpython-3.10.19-linux-x86_64-gnu/bin/pip \
     --python backend/.venv/bin/python install <package>
-backend/.venv/bin/python -m pytest backend/tests -q     # 493 tests
+backend/.venv/bin/python -m pytest backend/tests -q     # 501 tests
 ```
 
 Node is not on PATH either; it lives at `~/.nvm/versions/node/v24.15.0/bin`. `npx` resolves
@@ -162,6 +162,33 @@ SQLite cannot `ALTER` a column in place.
 cd backend && .venv/bin/python -m alembic upgrade head
 ```
 
+## Theming
+
+Two palettes keyed off `data-theme` on `<html>`; everything that is not colour stays on
+`:root`. An inline script in `index.html` sets the attribute **before first paint** — a
+bundled script paints the default palette first, and on a dark-first app that flash is a
+full white screen.
+
+`system` is resolved to a concrete `light`/`dark` in JS, so the attribute is always one of
+two values and no CSS rule has to handle its absence. The toggle cycles auto → light →
+dark; "auto" is stored as the *absence* of the localStorage key, so choosing it does not
+pin you to whatever it meant that day.
+
+**The light theme cannot reuse the dark accent.** `#e0a339` is 2.0:1 on an off-white ground
+and the accent is used as text. Light carries the same hue down to `#9a6206` (4.71:1) and
+inverts its button ink to white. Check contrast when touching these:
+
+```bash
+cd frontend && npm run check:css      # every className has a rule
+```
+
+That check exists because a rebase's auto-merge silently deleted a whole block of rules —
+no conflict, no build error, CI green, component unstyled. A bundler does not care whether
+your CSS is complete.
+
+Clerk's modal renders in a portal in its own styling system, so its palette is handed over
+explicitly via `appearance.variables` and re-handed when the theme changes.
+
 ## Scoring
 
 The commissioner's tier tables, transcribed in `app/scoring.py` and validated against every
@@ -219,17 +246,21 @@ believe it refreshed a season that did not move.
 
 ## Current state
 
-`master`, 493 tests passing.
+`master`, 501 tests passing.
 
 Four leagues: **Movie League 2026** (30 entries, imported so no pick numbers), **Movie League
 2027** (42 picks), **Sequels Only 2027** (9), **trish v andrew 2027** (6). All settle 31
 December of their year — see the TODO's note on why 2026's date is worth revisiting. All on a
 60-second pick clock.
 
-Screens: league list (rename inline, delete with confirmation, editable settle date and pick
-timer, export), create league, draft board (setup / drafting / complete / rejected pick, with
-a server-authoritative clock that auto-picks on expiry), and standings with score breakdowns,
-watch toggles, and posters.
+Screens: league list (grouped into yours and public, rename inline, delete with confirmation,
+editable settle date, pick timer and visibility, export), create league, draft board (setup /
+drafting / complete / rejected pick, with a server-authoritative clock that auto-picks on
+expiry), and standings with score breakdowns, watch toggles, and posters. A signed-out
+visitor gets the app and every public league, with sign-in as a side panel rather than a wall.
+
+CI runs on every PR: backend tests, CSS coverage, frontend build, and a Conventional Commits
+check on the PR title. `master` is protected — PRs only, and all three checks must pass.
 
 `.planning/TODO.md` holds the staged roadmap: accounts (Clerk) → live draft (polling) →
 hosting → Stripe in test mode, with the sequencing reasoning kept alongside.
