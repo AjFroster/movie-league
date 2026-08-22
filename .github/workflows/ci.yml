@@ -183,19 +183,25 @@ jobs:
             && git worktree add ../shots ci-screenshots \
             || git worktree add --orphan -b ci-screenshots ../shots
 
-          rm -rf "../shots/pr-$PR"
-          mkdir -p "../shots/pr-$PR"
-          cp frontend/e2e-screenshots/*.png "../shots/pr-$PR/"
+          # The path carries the commit sha. GitHub proxies images through camo, which
+          # caches by source URL -- a stable path means the first version ever published
+          # is the one everyone keeps seeing, however many times it is overwritten.
+          SHA=$(git rev-parse --short HEAD)
+          DIR="pr-$PR/$SHA"
+
+          rm -rf "../shots/pr-$PR"        # only the current commit's shots are kept
+          mkdir -p "../shots/$DIR"
+          cp frontend/e2e-screenshots/*.png "../shots/$DIR/"
 
           cd ../shots
           git add -A
           if git diff --cached --quiet; then
             echo "screenshots unchanged"
           else
-            git commit -q -m "ci: screenshots for PR #$PR (run ${{ github.run_id }})"
+            git commit -q -m "ci: screenshots for PR #$PR at $SHA"
             git push -q origin ci-screenshots
           fi
-          echo "base=https://raw.githubusercontent.com/${{ github.repository }}/ci-screenshots/pr-$PR" >> "$GITHUB_OUTPUT"
+          echo "base=https://raw.githubusercontent.com/${{ github.repository }}/ci-screenshots/$DIR" >> "$GITHUB_OUTPUT"
 
       - name: Put the screenshots in the run summary
         if: always()
@@ -235,7 +241,7 @@ jobs:
           BASE: ${{ steps.publish.outputs.base }}
         with:
           script: |
-            const shots = ['1-league-list', '2-draft-complete', '3-standings', '4-snake-complete']
+            const shots = ['1-league-list', '2-draft-complete', '3-standings']
             const body = [
               '<!-- ui-screenshots -->',
               '### UI screenshots',
