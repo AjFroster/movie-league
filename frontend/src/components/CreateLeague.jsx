@@ -11,6 +11,7 @@ export default function CreateLeague({ onCreated, onCancel }) {
   const [year, setYear] = useState(2027)
   const [rounds, setRounds] = useState(6)
   const [pickSeconds, setPickSeconds] = useState(60)
+  const [visibility, setVisibility] = useState('public')
   const [players, setPlayers] = useState([])
   const [draftName, setDraftName] = useState('')
   const [nameError, setNameError] = useState(null)
@@ -51,7 +52,7 @@ export default function CreateLeague({ onCreated, onCancel }) {
     setError(null)
     try {
       const state = await api.createLeague({ name, year, players, rounds,
-                                             pick_seconds: pickSeconds })
+                                             pick_seconds: pickSeconds, visibility })
       onCreated(state)
     } catch (e) {
       setError(e.message)
@@ -120,6 +121,28 @@ export default function CreateLeague({ onCreated, onCancel }) {
                   onClick={() => setPickSeconds(s)}
                 >
                   {s === 0 ? 'OFF' : s < 60 ? `${s}s` : `${s / 60}m`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <span className="field-label">
+              Visibility
+              <span className="field-hint">
+                {visibility === 'public'
+                  ? 'anyone can read the standings'
+                  : 'only players in this league can see it'}
+              </span>
+            </span>
+            <div className="segmented">
+              {[['public', 'PUBLIC'], ['private', 'PRIVATE']].map(([value, label]) => (
+                <button
+                  key={value}
+                  className={`segment${value === visibility ? ' selected' : ''}`}
+                  onClick={() => setVisibility(value)}
+                >
+                  {label}
                 </button>
               ))}
             </div>
