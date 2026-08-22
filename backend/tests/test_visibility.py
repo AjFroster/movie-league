@@ -148,11 +148,58 @@ def test_public_does_not_let_a_stranger_pick(client, league):
     assert response.status_code == 403
 
 
-def test_public_does_not_put_the_league_on_a_strangers_list(client, league):
-    """Public means the link works, not that it appears in everyone's home screen."""
+def test_a_public_league_appears_on_everyones_list(client, league):
+    """Reverses the original rule, deliberately.
+
+    This shipped as "public means the link works, not that it appears on everyone's home
+    screen". That made public leagues undiscoverable: with no directory, the only way to
+    reach one was a link somebody sent you, and a signed-out visitor met a login wall
+    instead of the app. Browsable is the product decision; `mine` keeps them grouped.
+    """
     make_public(client, league)
     act_as(STRANGER)
+    listed = client.get("/api/leagues").json()
+    assert [l["name"] for l in listed] == ["Test"]
+    assert listed[0]["mine"] is False
+    assert listed[0]["is_creator"] is False
+
+
+def test_a_private_league_never_appears_on_a_strangers_list(client, league):
+    act_as(STRANGER)
     assert client.get("/api/leagues").json() == []
+
+
+def test_a_signed_out_visitor_sees_public_leagues(client, league):
+    """The whole point of this change: arrive with no account and still see something."""
+    make_public(client, league)
+    act_as(None)
+    listed = client.get("/api/leagues").json()
+    assert [l["name"] for l in listed] == ["Test"]
+    assert listed[0]["mine"] is False
+
+
+def test_a_signed_out_visitor_sees_nothing_when_nothing_is_public(client, league):
+    act_as(None)
+    assert client.get("/api/leagues").json() == []
+
+
+def test_your_own_leagues_are_tagged_mine(client, league):
+    act_as(CREATOR)
+    listed = client.get("/api/leagues").json()
+    assert listed[0]["mine"] is True
+    assert listed[0]["is_creator"] is True
+
+    act_as(MEMBER)          # holds a slot, did not create it
+    listed = client.get("/api/leagues").json()
+    assert listed[0]["mine"] is True
+    assert listed[0]["is_creator"] is False
+
+
+def test_a_backup_still_holds_only_your_own_leagues(client, league):
+    """A public league you can *read* is not a league you should be backing up."""
+    make_public(client, league)
+    act_as(STRANGER)
+    assert client.get("/api/export").json()["leagues"] == []
 
 
 def test_only_the_creator_can_change_visibility(client, league):
