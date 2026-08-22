@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 
 function formatDate(iso) {
@@ -128,6 +128,55 @@ function CompleteState({ state, onStandings, onExit, onScore, scoring, scored })
 /** Seconds left on the current pick, recomputed from the server's deadline every tick.
  *  Not a local countdown: a refresh, a slow load, or a sleeping laptop would all drift a
  *  browser-owned stopwatch, and the deadline has to be the same for everyone in the room. */
+const POLL_MS = 2000
+
+/** Keeps the board in step with everyone else's picks.
+ *
+ *  Polling rather than a socket: a draft is six people and a pick every minute or two, so
+ *  a 2-second poll is indistinguishable from live and runs on any host. The request is
+ *  conditional, so a poll that finds nothing sends no body and triggers no re-render --
+ *  without that, the board would rebuild every two seconds and lose text selection,
+ *  hover, and any open dropdown mid-draft.
+ *
+ *  Stops while the tab is hidden, and refetches the moment it comes back. A backgrounded
+ *  phone should not queue up requests it will throw away, and should be current the
+ *  instant you look at it.
+ */
+function useLiveDraft(leagueId, state, setState) {
+  const etag = useRef(null)
+  const active = state?.status === 'drafting'
+
+  useEffect(() => {
+    if (!active) return
+
+    let stopped = false
+    const poll = async () => {
+      if (stopped || document.hidden) return
+      try {
+        const result = await api.draftIfChanged(leagueId, etag.current)
+        if (stopped) return
+        etag.current = result.etag
+        if (result.changed) setState(result.data)
+      } catch {
+        // A failed poll is not worth reporting: the next one is two seconds away, and an
+        // error banner that appears and vanishes on a flaky connection is worse than
+        // silence. A pick that fails still reports, because that one the user asked for.
+      }
+    }
+
+    const timer = setInterval(poll, POLL_MS)
+    // A tab returning to the foreground should be current immediately, not in two seconds.
+    const onVisible = () => { if (!document.hidden) poll() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [leagueId, active, setState])
+}
+
+
 /** The draftable pool, plus the search over it.
  *
  *  Three pieces of state that only ever move together: the full pool, the query, and the
@@ -226,6 +275,7 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
   const [scoringNow, setScoringNow] = useState(false)
   const [scored, setScored] = useState(null)
   const [autopicked, setAutopicked] = useState(null)
+  useLiveDraft(leagueId, state, setState)
   const pool = useFilmPool(leagueId, Boolean(state) && state?.status !== 'setup',
                            (message) => setError(message))
   const { films, query, setQuery, shown } = pool

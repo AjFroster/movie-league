@@ -30,6 +30,20 @@ async function get(path) {
   return res.json()
 }
 
+/** A GET that can answer "nothing changed".
+ *
+ *  Returns { changed: false } on a 304, so a caller polling on a timer can skip the
+ *  re-render entirely rather than replacing state with an identical copy.
+ */
+async function getIfChanged(path, etag) {
+  const headers = await authHeaders()
+  if (etag) headers['If-None-Match'] = etag
+  const res = await fetch(`${BASE}${path}`, { headers })
+  if (res.status === 304) return { changed: false, etag: res.headers.get('ETag') || etag }
+  if (!res.ok) throw await describe(res, path)
+  return { changed: true, etag: res.headers.get('ETag'), data: await res.json() }
+}
+
 async function send(method, path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method,
@@ -79,6 +93,7 @@ export const api = {
   createLeague: (body) => post('/leagues', body),
   poolSize: (year) => get(`/leagues/pool-size?year=${year}`),
   draft: (id) => get(`/leagues/${id}/draft`),
+  draftIfChanged: (id, etag) => getIfChanged(`/leagues/${id}/draft`, etag),
   startDraft: (id) => post(`/leagues/${id}/draft/start`, {}),
   makePick: (id, player, tmdbId, title, posterPath) =>
     post(`/leagues/${id}/draft/pick`,

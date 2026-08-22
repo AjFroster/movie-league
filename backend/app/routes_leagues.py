@@ -3,11 +3,13 @@
 Kept out of main.py so the legacy single-league endpoints and the multi-league ones do not
 grow into each other. Everything here is league-scoped by path.
 """
+import hashlib
+import json
 from datetime import date
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from . import enrichment, scoring
@@ -62,6 +64,14 @@ class MakePick(BaseModel):
     tmdb_id: int
     title: str = Field(min_length=1, max_length=300)
     poster_path: str | None = Field(default=None, max_length=200)
+
+
+def _etag(state: dict) -> str:
+    """A stable hash of the draft state, ignoring the ticking clock."""
+    stable = {k: v for k, v in state.items() if k != "seconds_remaining"}
+    digest = hashlib.sha256(
+        json.dumps(stable, sort_keys=True, default=str).encode()).hexdigest()
+    return f'W/"{digest[:32]}"'
 
 
 def _mark(film: dict, taken: dict) -> dict:
@@ -196,11 +206,30 @@ def delete_claim(league_id: int, player_name: str, user: str = CurrentUser):
 
 
 @router.get("/{league_id}/draft")
-def get_draft(league_id: int, user: str | None = MaybeUser):
+def get_draft(league_id: int, request: Request, response: Response,
+              user: str | None = MaybeUser):
+    """The draft board. Carries an ETag so a poll that finds nothing costs nothing.
+
+    Boards are polled every couple of seconds during a live draft. The tag is a hash of
+    the payload rather than a stored version counter: it cannot drift, because there is no
+    second place to remember to update when a new write path appears.
+
+    `seconds_remaining` is deliberately excluded from the hash. It changes on every request
+    by definition, so including it would make every poll a miss and the ETag pointless --
+    the browser counts the clock down locally from `clock_started_at` anyway.
+    """
     with session_scope() as session:
         with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
-            return repo.draft_state(session, league_id)
+            state = repo.draft_state(session, league_id)
+
+    tag = _etag(state)
+    response.headers["ETag"] = tag
+    # No-store would defeat the point; the ETag is the freshness check.
+    response.headers["Cache-Control"] = "no-cache"
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=dict(response.headers))
+    return state
 
 
 @router.post("/{league_id}/draft/start")
@@ -380,10 +409,16 @@ async def post_autopick(league_id: int, user: str = CurrentUser):
 @router.get("/{league_id}/pool")
 async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_SIZE,
                                                      ge=1, le=pool.MAX_POOL_SIZE),
-                   user: str = CurrentUser):
-    """The draftable films for this league's year, with drafted ones marked."""
+                   user: str | None = MaybeUser):
+    """The draftable films for this league's year, with drafted ones marked.
+
+    Same visibility rule as the board: if you can read the draft, you can read the films on
+    it. Gating these differently left a signed-out spectator on a public league seeing the
+    board and a 401 where the pool should be.
+    """
     with session_scope() as session:
         with http_errors(LookupError=404):
+            require_viewer(session, league_id, user)
             state = repo.draft_state(session, league_id)
         year, taken = state["year"], state["taken"]
 
@@ -401,10 +436,11 @@ async def get_pool(league_id: int, size: int = Query(default=pool.DEFAULT_POOL_S
 
 @router.get("/{league_id}/pool/search")
 async def get_pool_search(league_id: int, q: str = Query(min_length=1, max_length=120),
-                          user: str = CurrentUser):
+                          user: str | None = MaybeUser):
     """Title search, so a film outside the top N is still draftable."""
     with session_scope() as session:
         with http_errors(LookupError=404):
+            require_viewer(session, league_id, user)
             state = repo.draft_state(session, league_id)
         year, taken = state["year"], state["taken"]
 
