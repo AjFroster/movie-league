@@ -127,33 +127,49 @@ round trip to branch from an updated `master` costs almost nothing.
 
 ---
 
-## Stage 3 — Live draft (1-2 days, still local)
+## Stage 3 — Live draft ✅ done
 
-### 7. Poll `GET /leagues/{id}/draft`, do not reach for WebSockets
+The board keeps itself in step with everyone else's picks, and shows each viewer only what
+they can act on.
 
-Two seconds, only while `status == drafting`, stopped on complete. Six players polling every
-2s is nothing, and it runs on every host — which is exactly what keeps stage 4 open.
+**Polling, not a socket.** A conditional GET every two seconds while a draft runs, stopped
+on complete, paused while the tab is hidden. `GET /leagues/{id}/draft` carries an ETag:
+8,912 bytes becomes 0 on an unchanged poll, and a minute of a quiet six-player draft costs
+27 KB rather than 1,567 KB. Bandwidth was never the point -- without change detection the
+board rebuilds every two seconds and loses text selection, hover, and any open dropdown
+mid-draft.
 
-Add an `updated_at` or ETag so an unchanged poll is cheap. Without it this is a full board
-serialization every 2 seconds per client for no reason.
+The tag is a hash of the payload rather than a stored counter, so there is no second place
+to forget to update. `seconds_remaining` is excluded from it, or every poll would miss.
 
-### 8. Read-only board for everyone not on the clock
+**The board says what each viewer may do.** The payload carries a `viewer` block --
+`player`, `can_pick`, `is_member` -- computed server-side from the same rule
+`require_actor` enforces. A browser that re-derived it would drift, and the drift would
+show as buttons that 403.
 
-Today's board assumes the person looking at it is the person picking. Split that: the on-clock
-player gets the pool and search, everyone else gets the board and the countdown.
+Everyone sees the pool; only the person who can actually pick gets a DRAFT button. That
+is the opposite of what this item originally said, which was "the on-clock player gets the
+pool and search, everyone else gets the board and the countdown" -- the decision changed
+during planning and the plan was not updated, so anyone implementing it as written would
+have built the wrong thing.
 
-### 9. Swallow the autopick 409
+**Auto-pick is member-only and its 409 is silent.** Every member's browser firing at once
+is deliberate: the server re-checks its own deadline and exactly one write wins, which is
+what advances a draft whose on-clock player has gone. The other N-1 get a 409, which is
+the expected outcome rather than an error worth showing. Spectators do not ask at all --
+public leagues are browsable now, so that is a real caller who would otherwise collect a
+403 every time a clock ran out.
 
-With N clients, all N fire `autopick` at expiry. The server re-checks its own clock and the
-unique constraint protects the write, so exactly one wins — this is already correct, and it is
-a **feature**: the draft advances even if the on-clock player's laptop is shut. Just stop the
-other N-1 from rendering the resulting 409 as an error.
+### Still owed from this stage
 
-### 10. Test the actual failure modes
+The failure modes that need a real network: mobile Safari backgrounding a tab mid-draft, a
+phone moving WiFi to LTE, two people tapping the same film inside the same second. Tab
+backgrounding is handled in code and untested; the rest cannot be tested honestly on a
+laptop. They belong to stage 4 verification.
 
-Not two tabs on one LAN. The real ones: mobile Safari backgrounding a tab mid-draft, a phone
-moving WiFi → LTE, and two people tapping the same film inside the same second. The first two
-need a hosted URL, so they land in stage 4 — write them down now so they are not forgotten.
+Browser tests cannot cover the read-only board either: local mode has exactly one user,
+who is always the creator, so there is no second identity to be a spectator with. The
+backend tests carry that coverage.
 
 ---
 

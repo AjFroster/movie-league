@@ -279,9 +279,14 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
   const pool = useFilmPool(leagueId, Boolean(state) && state?.status !== 'setup',
                            (message) => setError(message))
   const { films, query, setQuery, shown } = pool
+  const viewer = state?.viewer
+  const canPick = Boolean(viewer?.can_pick)
 
   async function expire() {
-    if (busy) return
+    // Only members ask. Every member's browser firing at once is deliberate -- the server
+    // re-checks its own deadline and exactly one write wins, which is what advances a
+    // draft whose on-clock player has gone. A spectator asking would only collect a 403.
+    if (busy || !viewer?.is_member) return
     setBusy(true)
     try {
       const result = await api.autopick(leagueId)
@@ -289,9 +294,11 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
       setState(result)
       await pool.refresh()
       if (result.status === 'complete') onFinished?.(result)
-    } catch (e) {
-      // 409 means the player picked in the moment the clock ran out -- their pick wins,
-      // so re-read rather than treating it as a failure.
+    } catch {
+      // Silent on purpose. With several browsers watching, all of them ask and all but one
+      // get a 409 -- that is the expected outcome, not an error worth showing. A 409 also
+      // means the player got their pick in as the clock ran out, and their pick wins.
+      // Either way the right response is to re-read the board.
       const next = await api.draft(leagueId).catch(() => null)
       if (next) setState(next)
     } finally {
@@ -497,7 +504,7 @@ export default function DraftBoard({ leagueId, onExit, onFinished, onStandings }
                   <span className="num">
                     {film.drafted ? (
                       <span className="taken-badge">DRAFTED</span>
-                    ) : clock ? (
+                    ) : canPick ? (
                       <button className="btn btn-primary btn-small"
                               disabled={busy} onClick={() => pick(film)}>
                         DRAFT

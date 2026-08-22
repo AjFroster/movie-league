@@ -217,12 +217,29 @@ def get_draft(league_id: int, request: Request, response: Response,
     `seconds_remaining` is deliberately excluded from the hash. It changes on every request
     by definition, so including it would make every poll a miss and the ETag pointless --
     the browser counts the clock down locally from `clock_started_at` anyway.
+
+    `viewer` says what this caller may do, so the board can offer only what will work.
     """
     with session_scope() as session:
         with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
             state = repo.draft_state(session, league_id)
+            clock = state["on_the_clock"]
+            # What this particular viewer may do. Sent rather than derived in the browser:
+            # a client copy of the rule would drift from require_actor, and the drift would
+            # show up as buttons that 403.
+            state["viewer"] = {
+                "player": repo.slot_held_by(session, league_id, user),
+                "can_pick": repo.can_act_as(session, league_id, user,
+                                            clock["player"] if clock else None),
+                # Any member may ask for an auto-pick, which is what lets a draft advance
+                # when the player on the clock has shut their laptop. A spectator on a
+                # public league may not, and should not be asking every time a clock runs
+                # out only to be refused.
+                "is_member": user is not None and repo.is_member(session, league_id, user),
+            }
 
+    # The tag covers `viewer`, so two people looking at the same board do not share a tag.
     tag = _etag(state)
     response.headers["ETag"] = tag
     # No-store would defeat the point; the ETag is the freshness check.
