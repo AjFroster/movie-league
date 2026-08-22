@@ -63,6 +63,17 @@ jobs:
           path: frontend/e2e-screenshots/
           retention-days: 14
 
+      # Without this a CI-only failure cannot be looked at -- the screenshots above are
+      # the happy path, and the ones that show what actually broke live in test-results.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: multiplayer-failure
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
+
       - name: Publish the screenshots
         if: always() && github.event_name == 'pull_request'
         id: publish

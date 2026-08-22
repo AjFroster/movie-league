@@ -6,6 +6,9 @@ import { expect, test } from '@playwright/test'
  *  That makes them two genuinely different users without Clerk, without secrets, and
  *  without depending on anyone else's service being up.
  */
+// Unique per run: a retry reuses the database, and two leagues with one name would
+// make "the row containing the league" ambiguous.
+const LEAGUE = `Shared Draft ${Date.now()}`
 const ALICE = 'http://127.0.0.1:5281'
 const BOB = 'http://127.0.0.1:5282'
 
@@ -52,7 +55,7 @@ test('two people share one draft, and only one of them can pick', async ({ brows
   // Alice makes a public league so Bob can find it at all.
   await alice.goto(`${ALICE}/`)
   await alice.getByRole('button', { name: 'NEW LEAGUE' }).click()
-  await alice.getByRole('textbox').first().fill('Shared Draft')
+  await alice.getByRole('textbox').first().fill(LEAGUE)
   for (const player of ['Alice', 'Bob']) {
     await alice.getByPlaceholder('Add a player').fill(player)
     await alice.getByRole('button', { name: 'ADD' }).click()
@@ -62,14 +65,15 @@ test('two people share one draft, and only one of them can pick', async ({ brows
   await alice.getByRole('button', { name: 'CREATE LEAGUE' }).click()
   await expect(alice.getByRole('button', { name: /START DRAFT/ })).toBeVisible()
 
-  // Bob sees it from his own process, against the same database.
-  await bob.goto(`${BOB}/`)
-  await expect(bob.getByText('Shared Draft')).toBeVisible({ timeout: 15_000 })
-
   await alice.getByRole('button', { name: /START DRAFT/ }).click()
+  await expect(alice.locator('.pool-row').first()).toBeVisible({ timeout: 20_000 })
 
-  // Bob opens the same board.
-  await bob.getByRole('button', { name: /RESUME DRAFT|OPEN|STANDINGS/ }).first().click()
+  // Bob sees it from his own process, against the same database. Opened after the draft
+  // starts so his board never has to transition from setup on its own.
+  await bob.goto(`${BOB}/`)
+  const row = bob.locator('.league-row', { hasText: LEAGUE })
+  await expect(row).toBeVisible({ timeout: 20_000 })
+  await row.getByRole('button', { name: /RESUME DRAFT|OPEN|STANDINGS/ }).click()
 
   // Wait for the pool to render before counting anything -- an empty board and a
   // read-only board look identical to a bare count.
