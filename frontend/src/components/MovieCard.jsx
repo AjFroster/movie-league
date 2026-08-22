@@ -32,7 +32,7 @@ function MovieDetail({ m, ownerCount, owners, onWatched, leagueId }) {
     try {
       // The server returns the recomputed row, so the panel never has to guess what the
       // new score is -- it renders whatever the scoring rules actually produced.
-      const result = await api.setWatched(m.owner, m.round, person, watched, leagueId)
+      const result = await api.setWatched(leagueId, m.owner, m.round, person, watched)
       onWatched?.(result.movie)
     } catch (e) {
       setWatchError("Couldn't save that — check the backend is running, then try again.")

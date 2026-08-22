@@ -37,14 +37,27 @@ def test_no_print_calls_in_backend_app():
     assert offenders == [], f"use no output at all rather than print(): {offenders}"
 
 
-def test_main_never_returns_a_raw_exception_string():
-    text = (APP_DIR / "main.py").read_text()
-    assert "detail=str(e)" not in text, (
-        "httpx embeds the full request URL in its error messages, and OMDb's key is a "
-        "query parameter -- passing the raw exception through unredacted would leak "
-        "OMDB_API_KEY into the response body"
-    )
-    assert text.count("detail=redact_secrets(str(e))") >= 2
+def test_no_route_module_returns_a_raw_exception_string():
+    """Checks every module that raises HTTPException, not one named file.
+
+    This used to read main.py alone. When the legacy routes moved out, main.py stopped
+    containing any error handling and the assertion started passing because there was
+    nothing left to check -- a guard that protects an empty file protects nothing.
+    """
+    modules = [p for p in APP_DIR.rglob("*.py") if "HTTPException" in p.read_text()]
+    assert modules, "no module raises HTTPException -- this guard has lost its target"
+
+    checked = 0
+    for module in modules:
+        text = module.read_text()
+        assert "detail=str(e)" not in text, (
+            f"{module.name}: httpx embeds the full request URL in its error messages, and "
+            "OMDb's key is a query parameter -- passing the raw exception through "
+            "unredacted would leak OMDB_API_KEY into the response body"
+        )
+        checked += text.count("detail=redact_secrets(str(e))")
+
+    assert checked >= 2, f"only {checked} redacted handler(s) across {len(modules)} modules"
 
 
 def test_env_example_documents_both_keys_as_placeholders_only():

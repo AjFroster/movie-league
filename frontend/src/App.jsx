@@ -18,14 +18,10 @@ export default function App() {
   // model readable in one place.
   const [view, setView] = useState({ name: 'leagues' })
 
-  // A standings view scoped to a league; without an id it falls back to the current one,
-  // which is what the legacy single-league endpoints serve.
-  const refresh = (leagueId) => {
-    const request = leagueId ? api.leagueLeaderboard(leagueId) : api.leaderboard()
-    return request
+  const refresh = (leagueId) =>
+    api.leagueLeaderboard(leagueId)
       .then((rows) => setBoard({ leagueId, rows }))
       .catch((e) => setError(e.message))
-  }
 
   useEffect(() => {
     setError(null)

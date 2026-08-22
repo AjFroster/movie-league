@@ -18,7 +18,6 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app import storage  # noqa: E402
 from app.services import cache  # noqa: E402
 
 
@@ -52,28 +51,17 @@ def sample_movie():
 
 
 @pytest.fixture
-def tmp_league(tmp_path, monkeypatch, sample_movie, never_touch_the_real_database):
-    """Throwaway league data in BOTH backends.
-
-    The endpoints read the database now, but this fixture predates that and only
-    redirected the JSON file -- which is how a test run once rewrote the real season. It
-    seeds both so the fixture's promise holds whichever layer a test exercises.
-    """
-    document = {"owners": ["Liam"], "movies": [dict(sample_movie)]}
-    path = tmp_path / "league_data.json"
-    path.write_text(json.dumps(document, indent=2))
-    monkeypatch.setattr(storage, "DATA_PATH", path)
-
+def tmp_league(sample_movie, never_touch_the_real_database):
+    """A throwaway league owned by the local identity. Returns its id."""
     from app.auth import LOCAL_USER_ID
     from app.db.porting import import_league
     with never_touch_the_real_database() as session:
-        league = import_league(session, document, name="Test League", year=2026)
-        # Owned by the local identity, which is who an unauthenticated test request is.
-        # Without this every mutating endpoint correctly answers 403 and the fixture is
-        # useless -- which is exactly what happened when accounts landed.
+        league = import_league(session, {"owners": ["Liam"], "movies": [dict(sample_movie)]},
+                               name="Test League", year=2026)
+        # Without an owner every mutating endpoint correctly answers 403.
         league.owner_user_id = LOCAL_USER_ID
         session.commit()
-    return path
+        return league.id
 
 
 @pytest.fixture

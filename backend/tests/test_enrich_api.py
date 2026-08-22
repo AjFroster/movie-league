@@ -46,7 +46,7 @@ def api(tmp_league, tmp_cache, monkeypatch):
     monkeypatch.setattr(tmdb, "fetch_movie_financials", fake_tmdb)
     monkeypatch.setattr(omdb, "fetch_ratings", fake_omdb)
     with TestClient(app) as client:
-        yield client, calls
+        yield client, calls, tmp_league
 
 
 # ---------------------------------------------------------------------------
@@ -54,8 +54,8 @@ def api(tmp_league, tmp_cache, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_enrich_fills_an_empty_row(api):
-    client, calls = api
-    response = client.post("/api/movies/Liam/2/enrich")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
     assert response.status_code == 200
     body = response.json()
     assert {"movie", "report", "api_calls_used"}.issubset(body.keys())
@@ -71,23 +71,23 @@ def test_enrich_fills_an_empty_row(api):
 
 
 def test_enrich_second_call_is_served_from_cache(api):
-    client, calls = api
-    first = client.post("/api/movies/Liam/2/enrich")
+    client, calls, league = api
+    first = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
     assert first.status_code == 200
-    second = client.post("/api/movies/Liam/2/enrich")
+    second = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
     assert second.status_code == 200
     assert second.json()["api_calls_used"] == 0
 
 
 def test_enrich_protects_a_manual_field(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["rt_crit"] = 71.0
-    put_response = client.put("/api/movies/Liam/2", json=movie)
+    put_response = client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
     assert put_response.status_code == 200
     assert put_response.json()["sources"]["rt_crit"]["origin"] == "manual"
 
-    response = client.post("/api/movies/Liam/2/enrich")
+    response = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
     assert response.status_code == 200
     body = response.json()
     assert body["movie"]["rt_crit"] == 71.0
@@ -95,12 +95,12 @@ def test_enrich_protects_a_manual_field(api):
 
 
 def test_enrich_force_overwrites_manual_field(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["rt_crit"] = 71.0
-    client.put("/api/movies/Liam/2", json=movie)
+    client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
 
-    response = client.post("/api/movies/Liam/2/enrich?force=true")
+    response = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich?force=true")
     assert response.status_code == 200
     body = response.json()
     assert body["movie"]["rt_crit"] == OMDB_PAYLOAD["rt_crit"]
@@ -108,20 +108,21 @@ def test_enrich_force_overwrites_manual_field(api):
 
 
 def test_enrich_missing_entry_returns_404(api):
-    client, calls = api
-    response = client.post("/api/movies/Nobody/9/enrich")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/movies/Nobody/9/enrich")
     assert response.status_code == 404
 
 
 def test_enrich_imdb_is_sourced_from_omdb_never_tmdb_vote_average(api):
-    client, calls = api
-    response = client.post("/api/movies/Liam/2/enrich")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
     movie = response.json()["movie"]
     assert movie["imdb"] == OMDB_PAYLOAD["imdb"]
     assert movie["imdb"] != TMDB_PAYLOAD["vote_average"]
 
 
 def test_no_response_body_ever_contains_the_api_key(tmp_league, tmp_cache, monkeypatch):
+    league = tmp_league
     monkeypatch.setenv("TMDB_API_KEY", "TMDBSENTINEL")
     monkeypatch.setenv("OMDB_API_KEY", "SUPERSECRET123")
 
@@ -149,7 +150,7 @@ def test_no_response_body_ever_contains_the_api_key(tmp_league, tmp_cache, monke
 
     with TestClient(app) as client:
         # Path A: the error is carried inside a 200 run report.
-        ok = client.post("/api/movies/Liam/2/enrich")
+        ok = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
         assert ok.status_code == 200
         assert "SUPERSECRET123" not in ok.text
 
@@ -160,7 +161,7 @@ def test_no_response_body_ever_contains_the_api_key(tmp_league, tmp_cache, monke
                 "failed for url 'https://www.omdbapi.com/?i=tt1&apikey=SUPERSECRET123'")
 
         monkeypatch.setattr(enrichment, "enrich_entry", exploding_entry)
-        bad = client.post("/api/movies/Liam/2/enrich")
+        bad = client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")
         assert bad.status_code == 502
         assert "SUPERSECRET123" not in bad.text
 
@@ -170,45 +171,45 @@ def test_no_response_body_ever_contains_the_api_key(tmp_league, tmp_cache, monke
 # ---------------------------------------------------------------------------
 
 def test_put_stamps_changed_field_as_manual(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["imdb"] = 8.8
-    response = client.put("/api/movies/Liam/2", json=movie)
+    response = client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
     assert response.status_code == 200
     assert response.json()["sources"]["imdb"]["origin"] == "manual"
 
 
 def test_put_leaves_unrelated_field_provenance_untouched(api):
-    client, calls = api
-    client.post("/api/movies/Liam/2/enrich")  # populate budget/gross/imdb/rt_crit as "fetched"
-    fetched = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    client.post(f"/api/leagues/{league}/movies/Liam/2/enrich")  # populate budget/gross/imdb/rt_crit as "fetched"
+    fetched = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     budget_source_before = dict(fetched["sources"]["budget"])
 
     # Change an unrelated, non-enrichable field only.
     fetched["rt_aud"] = 55.0
-    response = client.put("/api/movies/Liam/2", json=fetched)
+    response = client.put(f"/api/leagues/{league}/movies/Liam/2", json=fetched)
     assert response.status_code == 200
     assert response.json()["sources"]["budget"] == budget_source_before
 
 
 def test_put_forged_sources_body_has_no_effect(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["imdb"] = 3.3
     # Forge a claim that this hand-edited value is actually machine-fetched.
     movie["sources"] = {
         "imdb": {"origin": "fetched", "provider": "omdb", "at": "2020-01-01T00:00:00Z"}}
-    response = client.put("/api/movies/Liam/2", json=movie)
+    response = client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
     assert response.status_code == 200
     assert response.json()["sources"]["imdb"]["origin"] == "manual"
 
 
 def test_put_derives_roi_from_budget_and_gross(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["budget"] = 100.0
     movie["gross"] = 250.0
-    response = client.put("/api/movies/Liam/2", json=movie)
+    response = client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
     assert response.status_code == 200
     body = response.json()
     assert body["roi"] == 2.5
@@ -216,12 +217,12 @@ def test_put_derives_roi_from_budget_and_gross(api):
 
 
 def test_put_explicit_roi_is_kept_and_stamped_manual(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["budget"] = 100.0
     movie["gross"] = 250.0
     movie["roi"] = 9.99  # explicit, deliberately different from the derived 2.5
-    response = client.put("/api/movies/Liam/2", json=movie)
+    response = client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
     assert response.status_code == 200
     body = response.json()
     assert body["roi"] == 9.99
@@ -233,8 +234,8 @@ def test_put_explicit_roi_is_kept_and_stamped_manual(api):
 # ---------------------------------------------------------------------------
 
 def test_enrich_all_returns_run_summary(api):
-    client, calls = api
-    response = client.post("/api/enrich-all")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/enrich-all")
     assert response.status_code == 200
     body = response.json()
     expected_keys = {"movies_processed", "api_calls_used", "max_calls", "cap_reached",
@@ -243,31 +244,31 @@ def test_enrich_all_returns_run_summary(api):
 
 
 def test_enrich_all_persists_results(api):
-    client, calls = api
-    client.post("/api/enrich-all")
-    movies = client.get("/api/movies").json()
+    client, calls, league = api
+    client.post(f"/api/leagues/{league}/enrich-all")
+    movies = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"]
     assert movies[0]["budget"] == TMDB_PAYLOAD["budget_millions"]
     assert movies[0]["imdb"] == OMDB_PAYLOAD["imdb"]
 
 
 def test_enrich_all_second_run_costs_zero_calls(api):
-    client, calls = api
-    client.post("/api/enrich-all")
-    second = client.post("/api/enrich-all")
+    client, calls, league = api
+    client.post(f"/api/leagues/{league}/enrich-all")
+    second = client.post(f"/api/leagues/{league}/enrich-all")
     assert second.json()["api_calls_used"] == 0
 
 
 def test_enrich_all_force_true_reports_forced(api):
-    client, calls = api
-    client.post("/api/enrich-all")
-    response = client.post("/api/enrich-all?force=true")
+    client, calls, league = api
+    client.post(f"/api/leagues/{league}/enrich-all")
+    response = client.post(f"/api/leagues/{league}/enrich-all?force=true")
     assert response.status_code == 200
     assert response.json()["forced"] is True
 
 
 def test_enrich_all_max_calls_two_caps_the_run(api):
-    client, calls = api
-    response = client.post("/api/enrich-all?max_calls=2")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/enrich-all?max_calls=2")
     assert response.status_code == 200
     body = response.json()
     assert body["api_calls_used"] == 2
@@ -277,20 +278,20 @@ def test_enrich_all_max_calls_two_caps_the_run(api):
 
 @pytest.mark.parametrize("bad", [0, -1, 99999])
 def test_max_calls_is_clamped_before_any_outbound_call(api, bad):
-    client, calls = api
-    response = client.post(f"/api/enrich-all?max_calls={bad}")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/enrich-all?max_calls={bad}")
     assert response.status_code == 422
     assert calls == {"tmdb": 0, "omdb": 0}
 
 
 def test_enrich_all_max_calls_non_numeric_returns_422(api):
-    client, calls = api
-    response = client.post("/api/enrich-all?max_calls=abc")
+    client, calls, league = api
+    response = client.post(f"/api/leagues/{league}/enrich-all?max_calls=abc")
     assert response.status_code == 422
 
 
 def test_enrichment_never_moves_the_standings(api):
-    client, _calls = api
+    client, _calls, league = api
 
     # Prime the row once so `imdb` is already non-null going into the measured run.
     # storage.compute_leaderboard's *pre-existing* `rounds_played` counter (unrelated to
@@ -302,11 +303,11 @@ def test_enrichment_never_moves_the_standings(api):
     # and this plan's locked "data layer only" decision actually protect. Priming first
     # holds rounds_played steady across the measured before/after pair, so this test
     # isolates exactly the guarantee it names: enrichment does not move the standings.
-    client.post("/api/enrich-all")
+    client.post(f"/api/leagues/{league}/enrich-all")
 
-    before = client.get("/api/leaderboard").json()
-    summary = client.post("/api/enrich-all?force=true").json()
-    after = client.get("/api/leaderboard").json()
+    before = client.get(f"/api/leagues/{league}/leaderboard").json()
+    summary = client.post(f"/api/leagues/{league}/enrich-all?force=true").json()
+    after = client.get(f"/api/leagues/{league}/leaderboard").json()
 
     assert summary["movies_processed"] >= 1
     assert summary["fields_updated"] >= 1        # data really did change
@@ -314,15 +315,15 @@ def test_enrichment_never_moves_the_standings(api):
 
 
 def test_enrich_all_counts_protected_manual_fields(api):
-    client, calls = api
-    movie = client.get("/api/movies").json()[0]
+    client, calls, league = api
+    movie = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     movie["rt_crit"] = 71.0
-    client.put("/api/movies/Liam/2", json=movie)
+    client.put(f"/api/leagues/{league}/movies/Liam/2", json=movie)
 
-    response = client.post("/api/enrich-all")
+    response = client.post(f"/api/leagues/{league}/enrich-all")
     assert response.status_code == 200
     body = response.json()
     assert body["fields_protected"] >= 1
 
-    after = client.get("/api/movies").json()[0]
+    after = client.get(f"/api/leagues/{league}/owners/Liam").json()["movies"][0]
     assert after["rt_crit"] == 71.0
