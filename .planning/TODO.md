@@ -98,6 +98,35 @@ Nothing in code. One manual step, which needs your account:
    so reassign them — `UPDATE leagues SET owner_user_id = '<your clerk user id>'` — or
    create fresh ones.
 
+## Shipped since the roadmap was written
+
+Not on the original plan, but done:
+
+- **Public/private leagues**, browsable without an account. Closed a hole found on the way:
+  `GET /api/export` had no authorization and returned every league in the database to
+  anonymous callers.
+- **Light/dark themes** with a single cycling toggle. Fixed a pre-existing contrast failure
+  (dark `--text-faint` at 2.63:1, below the 3:1 floor, in 39 places).
+- **CI and branch protection.** Backend tests, CSS coverage, frontend build, and a
+  Conventional Commits check on PR titles. `master` takes PRs only.
+
+### Process lesson worth keeping
+
+Four separate silent failures happened in one session, each reporting success:
+
+| What | Why it was silent |
+|---|---|
+| `str.replace` on absent text | a no-op returns the original string |
+| PR merged into a stale base | GitHub reports MERGED regardless |
+| `git add` on an unresolved conflict | `rebase --continue` accepts it |
+| rebase auto-merge dropping a CSS block | no conflict, build still passes |
+
+Two of the four are now caught mechanically (`check:css`, and asserting before/after in any
+scripted edit). **Do not stack PRs** — the third failure came from that, and waiting one
+round trip to branch from an updated `master` costs almost nothing.
+
+---
+
 ## Stage 3 — Live draft (1-2 days, still local)
 
 ### 7. Poll `GET /leagues/{id}/draft`, do not reach for WebSockets
