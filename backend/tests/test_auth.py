@@ -41,8 +41,10 @@ def act_as(user_id):
 def league(client, never_touch_the_real_database):
     """A league created by CREATOR, drafting, with nobody's slot claimed."""
     act_as(CREATOR)
+    # Private on purpose: this file tests membership, and a public league is visible to
+    # strangers by design, which would mask exactly what these tests are checking.
     body = {"name": "Test", "year": 2027, "players": ["Ann", "Bob"], "rounds": 1,
-            "pick_seconds": 0}
+            "pick_seconds": 0, "visibility": "private"}
     created = client.post("/api/leagues", json=body)
     assert created.status_code == 201, created.text
     league_id = created.json()["league_id"]

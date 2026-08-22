@@ -7,37 +7,52 @@ watch toggles under the JSON store.
 """
 from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import false, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import draft as draft_rules
 from .. import scoring
 from ..services.pool import IMAGE_BASE as POSTER_BASE
 from .models import (Entry, League, Player, STATUS_COMPLETE, STATUS_DRAFTING,
-                     STATUS_SETUP, VISIBILITIES, Watch)
+                     STATUS_SETUP, VISIBILITIES, VISIBILITY_PRIVATE, VISIBILITY_PUBLIC,
+                     Watch)
 
 
 # ---------------------------------------------------------------------------
 # reading
 # ---------------------------------------------------------------------------
 
-def list_leagues(session: Session, *, user_id: str | None = None) -> list[dict]:
-    """Leagues visible to `user_id`: ones they created, plus ones they hold a slot in.
+def list_leagues(session: Session, *, user_id: str | None = None,
+                 scope: str = "all") -> list[dict]:
+    """Leagues a caller may see, each tagged `mine` so the UI can group them.
 
-    Scoping this is correctness before it is privacy. Unscoped, every account's home
-    screen would list every league in the database, including strangers'.
+    `scope`:
+      * "all"    -- yours plus every public league. What the home screen shows, and what a
+                    signed-out visitor gets (for them, "yours" is empty).
+      * "mine"   -- only leagues you created or hold a slot in. Used where "everything I
+                    own" is the question, such as building a backup.
 
-    `user_id=None` means no filter, which is what the tests and scripts want.
+    `user_id=None` is a signed-out visitor: they see public leagues under "all", and
+    nothing at all under "mine". Note this differs from the old meaning of None, which was
+    "no filter" -- an unscoped listing is no longer reachable from a request.
     """
+    mine_filter = or_(
+        League.owner_user_id == user_id,
+        League.id.in_(select(Player.league_id).where(Player.user_id == user_id)),
+    ) if user_id is not None else false()
+
     query = (select(League).options(selectinload(League.players),
                                     selectinload(League.entries))
              .order_by(League.year.desc(), League.id.desc()))
-    if user_id is not None:
-        query = query.where(or_(
-            League.owner_user_id == user_id,
-            League.id.in_(select(Player.league_id).where(Player.user_id == user_id)),
-        ))
+    if scope == "mine":
+        query = query.where(mine_filter)
+    else:
+        query = query.where(or_(mine_filter, League.visibility == VISIBILITY_PUBLIC))
     leagues = session.scalars(query).all()
+
+    def _is_mine(l: League) -> bool:
+        return user_id is not None and (
+            l.owner_user_id == user_id or any(p.user_id == user_id for p in l.players))
     return [{"id": l.id, "name": l.name, "year": l.year, "rounds": l.rounds,
              "status": l.status, "players": [p.name for p in l.players],
              "picks_made": sum(1 for e in l.entries if e.tmdb_id is not None or e.title),
@@ -53,6 +68,10 @@ def list_leagues(session: Session, *, user_id: str | None = None) -> list[dict]:
              "season_ended": date.today() > (l.settles_on or default_settles_on(l.year)),
              "owner_user_id": l.owner_user_id,
              "visibility": l.visibility,
+             # Lets the home screen split "your leagues" from "public leagues" without
+             # re-deriving membership in the browser from data it should not need.
+             "mine": _is_mine(l),
+             "is_creator": user_id is not None and l.owner_user_id == user_id,
              # Which slots are still up for grabs, so the UI can offer them to claim.
              "unclaimed": [p.name for p in l.players if p.user_id is None],
              "your_player": next((p.name for p in l.players
@@ -167,11 +186,15 @@ def default_settles_on(year: int) -> date:
 
 def create_league(session: Session, *, name: str, year: int, players: list[str],
                   rounds: int = 6, settles_on: date | None = None,
-                  pick_seconds: int = 60, owner_user_id: str | None = None) -> League:
+                  pick_seconds: int = 60, owner_user_id: str | None = None,
+                  visibility: str = VISIBILITY_PRIVATE) -> League:
     names = [p.strip() for p in players]
     draft_rules.validate_setup(names, rounds)
+    if visibility not in VISIBILITIES:
+        raise ValueError(f"visibility must be one of {VISIBILITIES}, not {visibility!r}")
     league = League(name=name.strip() or f"League {year}", year=year, rounds=rounds,
                     status=STATUS_SETUP, owner_user_id=owner_user_id,
+                    visibility=visibility,
                     settles_on=settles_on or default_settles_on(year),
                     pick_seconds=max(0, min(int(pick_seconds), 3600)))
     session.add(league)

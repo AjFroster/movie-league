@@ -30,6 +30,11 @@ class CreateLeague(BaseModel):
     settles_on: date | None = None
     # Seconds on the clock per pick; 0 turns the timer off.
     pick_seconds: int = Field(default=60, ge=0, le=3600)
+    # Public by default: a league nobody can find is not much of a league, and the people
+    # you want reading it mostly do not have accounts. Note this differs from the column
+    # default in models.py, which stays `private` -- that one is a safety net for a row
+    # created by code that forgot to say, not a product decision.
+    visibility: Literal["private", "public"] = "public"
 
 
 class EditLeague(BaseModel):
@@ -61,15 +66,18 @@ def _mark(film: dict, taken: dict) -> dict:
 
 
 @router.get("")
-def get_leagues(user: str = CurrentUser):
-    """Your leagues: ones you created, plus ones you hold a slot in.
+def get_leagues(user: str | None = MaybeUser):
+    """Leagues this caller may see: their own, plus every public one.
 
-    Individual league reads below are deliberately NOT restricted -- a standings link
-    should work for anyone you send it to. Only the list is scoped, because an unscoped
-    home screen showing strangers' leagues is a broken product, not a leak.
+    Open to signed-out visitors, who get the public leagues only. That is the point --
+    someone with no account should be able to arrive and read a public season rather than
+    meet a login wall.
+
+    Each row carries `mine` so the home screen can group them without re-deriving
+    membership in the browser. Private leagues you are not in never appear.
     """
     with session_scope() as session:
-        return repo.list_leagues(session, user_id=user)
+        return repo.list_leagues(session, user_id=user, scope="all")
 
 
 @router.post("", status_code=201)
@@ -80,6 +88,7 @@ def post_league(body: CreateLeague, user: str = CurrentUser):
                                         players=body.players, rounds=body.rounds,
                                         settles_on=body.settles_on,
                                         pick_seconds=body.pick_seconds,
+                                        visibility=body.visibility,
                                         owner_user_id=user)
         except ValueError as e:
             # A rejected setup is the caller's input problem, not a server fault.
