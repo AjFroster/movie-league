@@ -21,7 +21,11 @@ from .db.models import VISIBILITY_PUBLIC, League, Player
 # The single identity used when no identity provider is configured. Deliberately unlike a
 # Clerk subject (`user_2ab...`) so the two can never be confused in a database or a log.
 # NOTE: migration 1dc80faa982d hardcodes this string when backfilling existing leagues.
-LOCAL_USER_ID = "local"
+# Overridable so two processes can run as different people against one database, which is
+# what the multi-user browser tests need. It changes nothing about safety: this identity is
+# only ever used when no provider is configured, and that already requires SQLite and a
+# localhost origin. One process is still exactly one user; it just has a nameable one.
+LOCAL_USER_ID = os.environ.get("LEAGUE_LOCAL_USER") or "local"
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]", "::1"}
 _jwks_client: PyJWKClient | None = None
