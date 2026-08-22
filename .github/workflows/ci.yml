@@ -151,6 +151,14 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 7
 
+      # Inline, not collapsed, and not only as a download. The summary is where someone
+      # actually looks; a zip they have to fetch and unpack gets checked once and then
+      # never again. GitHub's summary accepts a data: URI, so the images ride along.
+      #
+      # The whole summary is capped at 1MB, and base64 costs about a third on top of the
+      # file size, so the loop stops adding images before it would be truncated -- a
+      # summary that silently cuts off mid-page is worse than one that says what it
+      # dropped.
       - name: Put the screenshots in the run summary
         if: always()
         working-directory: frontend
@@ -160,18 +168,31 @@ jobs:
           {
             echo "## UI screenshots"
             echo
-            echo "Captured while the browser tests ran, so a green tick can be confirmed by eye."
+            echo "Captured while the browser tests ran, so a green tick can be checked by eye."
             echo
-            for f in e2e-screenshots/*.png; do
-              [ -e "$f" ] || continue
-              echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1)"
-            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          budget=$((900 * 1024))
+          used=0
+          skipped=""
+          for f in $(ls e2e-screenshots/*.png 2>/dev/null | sort); do
+            encoded=$((($(stat -c%s "$f") * 4 / 3) + 200))
+            if [ $((used + encoded)) -gt $budget ]; then
+              skipped="$skipped $(basename "$f")"
+              continue
+            fi
+            used=$((used + encoded))
+            name=$(basename "$f" .png | sed 's/^[0-9]*-//; s/-/ /g')
+            {
+              echo "### ${name}"
+              echo
+              echo "<img alt=\"${name}\" width=\"900\" src=\"data:image/png;base64,$(base64 -w0 "$f")\">"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          {
+            [ -n "$skipped" ] && echo "> Too large for the summary:$skipped — in the download below."
             echo
-            echo "[Download all]($SHOTS_URL)"
-            echo
-            echo "<details><summary>Inline attempt (does GitHub allow a data: URI here?)</summary>"
-            echo
-            echo "<img alt=\"draft complete\" src=\"data:image/png;base64,$(base64 -w0 e2e-screenshots/2-draft-complete.png)\" width=\"640\">"
-            echo
-            echo "</details>"
+            echo "[Download all at full resolution]($SHOTS_URL)"
           } >> "$GITHUB_STEP_SUMMARY"
