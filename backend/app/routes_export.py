@@ -44,7 +44,8 @@ def get_archive(user: str = CurrentUser):
     one. A backup is *your* data; the whole database is not yours to download.
     """
     with session_scope() as session:
-        mine = [lg["id"] for lg in repo.list_leagues(session, user_id=user)]
+        # scope="mine": a backup is the data you own, not every public league you can read.
+        mine = [lg["id"] for lg in repo.list_leagues(session, user_id=user, scope="mine")]
         payload = porting.archive([porting.dump_league(session, i) for i in mine])
     return _download(payload, f"movie-league-backup-{date.today().isoformat()}.json")
 

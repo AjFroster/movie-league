@@ -438,6 +438,38 @@ body {
   cursor: pointer; }
 .visibility-pill:hover { border-color: var(--border-bright); color: var(--text); }
 .visibility-pill.public { color: var(--accent, var(--text)); border-color: currentColor; }
+/* Not yours to change: same badge, no affordance. */
+.visibility-pill.static { cursor: default; border-style: dashed; }
+
+/* Leagues beside the sign-in panel. Single column below the breakpoint, with the panel
+   FIRST there -- on a phone, "sign in" above the list beats scrolling past every league
+   to find it. */
+.league-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--space-xl); align-items: start; }
+.league-main { min-width: 0; }
+@media (max-width: 900px) {
+  .league-layout { grid-template-columns: 1fr; }
+  .auth-panel { order: -1; }
+}
+
+.league-group-title { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.14em; color: var(--text-dim); margin: var(--space-xl) 0 var(--space-sm);
+  display: flex; align-items: baseline; gap: var(--space-md); }
+.league-main > .league-group-title:first-child { margin-top: var(--space-lg); }
+.league-group-note { font-family: var(--font-body); font-size: var(--fs-label);
+  letter-spacing: 0; text-transform: none; color: var(--text-faint); }
+
+.auth-panel { border: 1px solid var(--border); padding: var(--space-lg);
+  display: flex; flex-direction: column; gap: var(--space-md); }
+.auth-panel-title { font-family: var(--font-label); font-size: var(--fs-label);
+  letter-spacing: 0.14em; color: var(--text-dim); }
+.auth-panel-note { font-family: var(--font-body); font-size: var(--fs-label);
+  line-height: var(--lh-body); color: var(--text-faint); margin: 0; }
+.auth-panel-who { display: flex; align-items: center; gap: var(--space-sm); }
+.auth-panel-name { font-family: var(--font-body); font-size: var(--fs-body);
+  color: var(--text); }
+/* Clerk renders a fixed-width card by default, which overflows a 300px column. */
+.auth-panel .cl-rootBox, .auth-panel .cl-card { width: 100% !important; max-width: 100%; }
 .signin-page { display: flex; flex-direction: column; align-items: center; gap: var(--space-lg);
   padding: var(--space-xl) var(--space-lg); }
 .league-wordmark { font-family: var(--font-label); font-size: var(--fs-heading);

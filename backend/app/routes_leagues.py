@@ -61,15 +61,18 @@ def _mark(film: dict, taken: dict) -> dict:
 
 
 @router.get("")
-def get_leagues(user: str = CurrentUser):
-    """Your leagues: ones you created, plus ones you hold a slot in.
+def get_leagues(user: str | None = MaybeUser):
+    """Leagues this caller may see: their own, plus every public one.
 
-    Individual league reads below are deliberately NOT restricted -- a standings link
-    should work for anyone you send it to. Only the list is scoped, because an unscoped
-    home screen showing strangers' leagues is a broken product, not a leak.
+    Open to signed-out visitors, who get the public leagues only. That is the point --
+    someone with no account should be able to arrive and read a public season rather than
+    meet a login wall.
+
+    Each row carries `mine` so the home screen can group them without re-deriving
+    membership in the browser. Private leagues you are not in never appear.
     """
     with session_scope() as session:
-        return repo.list_leagues(session, user_id=user)
+        return repo.list_leagues(session, user_id=user, scope="all")
 
 
 @router.post("", status_code=201)

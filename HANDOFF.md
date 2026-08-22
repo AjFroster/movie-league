@@ -77,8 +77,14 @@ writing is always ownership-based, so publishing a league grants no ability to c
 A private league answers **404, not 403**. 403 would confirm it exists, which leaks the very
 thing privacy is for; an outsider cannot tell a private league from one that never existed.
 
-Public means *the link works*, not that the league appears on strangers' home screens.
-`GET /api/leagues` stays scoped to leagues you own or hold a slot in.
+**Public leagues are browsable.** `GET /api/leagues` takes an optional identity and returns
+your leagues plus every public one, each tagged `mine` and `is_creator` so the home screen
+can group them and hide controls the viewer cannot use. A signed-out visitor gets the public
+ones — the app renders for them, with sign-in as a side panel rather than a wall. Gating the
+whole app behind a login made public leagues unreachable, which defeated having them.
+
+`scope="mine"` is separate and used for backups: a public league you can *read* is not a
+league you should be backing up.
 
 Reads use `current_user_optional`, which returns `None` for a missing token so a public link
 works signed-out — but a token that is *present and invalid* still 401s, so a forged token
