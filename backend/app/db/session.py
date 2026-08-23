@@ -24,12 +24,15 @@ def _is_sqlite(url: str) -> bool:
     return url.startswith("sqlite")
 
 
-def create_db_engine(url: str | None = None):
+def create_db_engine(url: str | None = None, **overrides):
     url = url or database_url()
     # check_same_thread is a SQLite-only guard against sharing a connection between
     # threads; FastAPI's threadpool does exactly that, and SQLAlchemy's pool already
     # serialises access.
     kwargs = {"connect_args": {"check_same_thread": False}} if _is_sqlite(url) else {}
+    # Callers may tune the pool. The tests need StaticPool for an in-memory database, and
+    # building it through here rather than around it is what gives them the pragmas below.
+    kwargs.update(overrides)
     engine = create_engine(url, future=True, **kwargs)
 
     if _is_sqlite(url):

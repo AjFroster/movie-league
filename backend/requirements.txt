@@ -7,3 +7,8 @@ SQLAlchemy==2.0.52
 alembic==1.19.1
 # RS256 verification of Clerk session tokens; [crypto] pulls in `cryptography`.
 PyJWT[crypto]==2.13.0
+
+# Postgres. Unused by the SQLite default, but the driver has to exist before a hosted
+# database can be pointed at, and before CI can run the suite on the engine production
+# will actually use. psycopg 3 -- the `postgresql+psycopg://` dialect, not psycopg2.
+psycopg[binary]==3.2.3
