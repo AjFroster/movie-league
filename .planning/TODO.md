@@ -273,20 +273,23 @@ that returns the whole database is not.
 
 Worth a pass over every remaining GET with that lens rather than trusting the method.
 
+**One already found.** `GET /api/pool-size` takes no authentication and, unlike enrichment,
+does not go through the cache, so anonymous callers burn the TMDB and MDBList quota
+directly. Harmless on a laptop, a real exposure the day this has a public URL. Fix it
+before stage 4 rather than after.
+
 ### 15. Small ones
 
 - League names are not unique; two leagues can share a name. Now that leagues are scoped to
   an owner this matters less — you only ever see your own — but two of *your* leagues can
   still share a name.
-- **Retire the legacy unscoped routes** (`PUT /api/movies/{owner}/{round}`,
-  `POST /api/enrich-all`, and the two sibling `/api/movies/...` routes). They act on
-  whichever league is newest, which is wrong with four leagues in the database. They are
-  authorized now, so this is correctness rather than security. Costs ~46 test references
-  plus the no-league path in `App.jsx`.
 - `bo_rank` and `awards` are in the schema and scored by nothing.
-- The favicon 404s on every page load; there is no `frontend/public/` at all.
-- Stray `*:Zone.Identifier` files in `frontend/src/components/` — WSL artifacts from the
-  original Windows copy. Delete them and gitignore the pattern.
+
+**Cleared 22 Aug 2026.** The favicon: `frontend/public/` now holds a theme-aware SVG with
+PNG fallbacks. The stray `*:Zone.Identifier` files: deleted, and the gitignore rule was
+already there. The legacy unscoped `/api/movies/*` routes: already gone, removed with the
+rest of the legacy surface in PR #9 — this entry outlived the work it described, which is
+the argument for checking a backlog against the code before trusting it.
 
 ---
 
