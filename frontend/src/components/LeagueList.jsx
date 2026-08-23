@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import { saveBlob } from '../download.js'
 import { AuthPanel, accountsEnabled, useSignedIn } from '../auth.jsx'
 import LeagueRow from './LeagueRow.jsx'
+import SupportLink from './SupportLink.jsx'
 import { ordinalSuffix } from './leagueDisplay.js'
 
 /** The rows plus their header. Module scope, not defined during render. */
@@ -203,6 +204,8 @@ export default function LeagueList({ onOpenLeague, onCreate, onOpenStandings }) 
 
         <AuthPanel />
       </div>
+
+      <SupportLink />
     </div>
   )
 }
