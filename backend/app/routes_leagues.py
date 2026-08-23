@@ -110,9 +110,11 @@ def post_league(body: CreateLeague, user: str = CurrentUser):
 @router.get("/pool-size")
 async def get_pool_size(year: int = Query(ge=1900, le=2100),
                         size: int = Query(default=pool.DEFAULT_POOL_SIZE, ge=1,
-                                          le=pool.MAX_POOL_SIZE)):
-    """How many films a year offers. Unscoped because the create screen asks before a
-    league exists."""
+                                          le=pool.MAX_POOL_SIZE),
+                        user: str = CurrentUser):
+    """How many films a year offers. Not league-scoped, because the create screen asks
+    before a league exists -- but signed in, because only a signed-in caller can reach that
+    screen, and each call costs up to 25 TMDB requests."""
     try:
         films = await pool.fetch_pool(year, size=size)
     except (ProviderError, httpx.HTTPError) as e:

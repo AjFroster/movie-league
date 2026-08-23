@@ -273,10 +273,20 @@ that returns the whole database is not.
 
 Worth a pass over every remaining GET with that lens rather than trusting the method.
 
-**One already found.** `GET /api/pool-size` takes no authentication and, unlike enrichment,
-does not go through the cache, so anonymous callers burn the TMDB and MDBList quota
-directly. Harmless on a laptop, a real exposure the day this has a public URL. Fix it
-before stage 4 rather than after.
+**One already found, and fixed.** `GET /api/pool-size` took no authentication and went
+through no cache, so a single HTTP call made the server issue up to 25 TMDB requests, one
+per page of a 500-film pool.
+
+Two corrections to how that was first written here. MDBList is not involved: `pool.py`
+calls TMDB and nothing else. And the exposure was never only `pool-size` — a public league
+makes `GET /{league_id}/pool` reachable signed out by design, and it carries the same
+amplification, so requiring an identity on one endpoint would have moved the problem
+rather than solved it.
+
+Hence both halves. `pool-size` now needs an identity, which costs nothing because the
+create screen is unreachable signed out. And `fetch_pool` caches for six hours on a
+*bucketed* size, so a caller walking `size=1..500` produces five cache entries for a year
+instead of 500 misses.
 
 ### 15. Small ones
 

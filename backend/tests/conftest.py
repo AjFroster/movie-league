@@ -63,6 +63,20 @@ def tmp_league(sample_movie, never_touch_the_real_database):
         return league.id
 
 
+@pytest.fixture(autouse=True)
+def no_pool_cache():
+    """Empty the film-pool cache around every test.
+
+    It is process-global and six hours long, so without this one test's fake TMDB
+    responses answer the next test's request, and the failure looks like a bug in the code
+    under test rather than leakage between tests.
+    """
+    from app.services import pool
+    pool.clear_cache()
+    yield
+    pool.clear_cache()
+
+
 @pytest.fixture
 def tmp_cache(tmp_path, monkeypatch):
     """Redirect the API cache at a throwaway file so tests never share cache state."""
