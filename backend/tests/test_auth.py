@@ -365,3 +365,30 @@ def test_claiming_a_slot_puts_the_league_on_your_list(client, league):
     assert [lg["id"] for lg in listed] == [league]
     assert listed[0]["your_player"] == "Ann"
     assert "Ann" not in listed[0]["unclaimed"]
+
+
+# ---------------------------------------------------------------------------
+# provider amplification
+# ---------------------------------------------------------------------------
+
+def test_the_pool_size_endpoint_refuses_a_signed_out_caller(client):
+    """One call costs the server up to 25 TMDB requests, one per page of a 500-film pool.
+
+    Nothing on the create screen is reachable signed out, so nothing legitimate is lost by
+    requiring an identity -- and an open endpoint with that amplification behind it is an
+    invitation the day this has a public URL.
+    """
+    act_as(None)
+    assert client.get("/api/leagues/pool-size?year=2026").status_code == 401
+
+
+def test_the_pool_size_endpoint_answers_a_signed_in_caller(client, monkeypatch):
+    """The guard must not have broken the create screen it exists to serve."""
+    async def no_films(year, *, size=300, client=None):
+        return []
+
+    monkeypatch.setattr("app.routes_leagues.pool.fetch_pool", no_films)
+    act_as(CREATOR)
+    response = client.get("/api/leagues/pool-size?year=2026")
+    assert response.status_code == 200
+    assert response.json() == {"year": 2026, "count": 0}
