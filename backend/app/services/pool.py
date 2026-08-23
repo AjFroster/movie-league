@@ -11,6 +11,8 @@ would empty the other. Vote count is worse still -- unreleased films have none, 
 on it returns nothing at all for a future year.
 """
 import os
+import time
+from threading import Lock
 
 import httpx
 
@@ -26,6 +28,47 @@ RELEASE_TYPES = "2|3"
 # w185 is the smallest TMDB size that still reads as a poster in a list row. The full URL
 # is built here rather than in the client so the CDN host lives in one place.
 IMAGE_BASE = "https://image.tmdb.org/t/p/w185"
+
+# A 500-film pool is 25 TMDB requests, so one HTTP call to this server can cost 25 upstream.
+# Public leagues make `/{id}/pool` reachable signed-out by design, which leaves that
+# amplification open to anyone. Caching bounds it: a repeat ask for a year costs nothing.
+#
+# In process rather than the JSON cache the enrichment path uses. That file is read and
+# rewritten whole on every get, and a 300-film pool living in it would slow down every
+# per-film lookup that shares it. The cost is that a reload empties this -- acceptable for
+# TMDB discover, which is rate-limited rather than capped like OMDb's daily budget.
+POOL_TTL = 6 * 3600            # the popularity ranking moves over weeks, not hours
+_POOL_BUCKET = 100
+_pool_cache: dict[tuple[int, int], tuple[float, list[dict]]] = {}
+_pool_lock = Lock()
+
+
+def _bucket(size: int) -> int:
+    """Round a requested size up to the next 100.
+
+    Keying on the exact size would let a caller walk size=1..500 and miss every time, which
+    is the amplification the cache exists to stop. Five buckets a year is a bound.
+    """
+    return min(MAX_POOL_SIZE, -(-max(1, size) // _POOL_BUCKET) * _POOL_BUCKET)
+
+
+def _cached(year: int, size: int) -> list[dict] | None:
+    with _pool_lock:
+        entry = _pool_cache.get((year, size))
+    if entry is None or time.time() - entry[0] >= POOL_TTL:
+        return None
+    return entry[1]
+
+
+def _remember(year: int, size: int, films: list[dict]) -> None:
+    with _pool_lock:
+        _pool_cache[(year, size)] = (time.time(), films)
+
+
+def clear_cache() -> None:
+    """Drop everything. For tests, and for anyone who needs a year re-fetched now."""
+    with _pool_lock:
+        _pool_cache.clear()
 
 
 def _api_key() -> str | None:
@@ -65,6 +108,11 @@ async def fetch_pool(year: int, *, size: int = DEFAULT_POOL_SIZE,
     if not isinstance(year, int) or not (1900 <= year <= 2100):
         raise ValueError(f"implausible year: {year!r}")
     size = max(1, min(int(size), MAX_POOL_SIZE))
+    # Fetch and cache a whole bucket, then hand back the slice that was asked for.
+    want = _bucket(size)
+    cached = _cached(year, want)
+    if cached is not None:
+        return cached[:size]
 
     headers = {"Authorization": f"Bearer {key}"}
     owns_client = client is None
@@ -72,7 +120,7 @@ async def fetch_pool(year: int, *, size: int = DEFAULT_POOL_SIZE,
     films: list[dict] = []
     seen: set[int] = set()
     try:
-        pages = -(-size // PAGE_SIZE)          # ceiling division
+        pages = -(-want // PAGE_SIZE)          # ceiling division
         for page in range(1, pages + 1):
             response = await client.get(
                 f"{TMDB_BASE}/discover/movie",
@@ -96,6 +144,10 @@ async def fetch_pool(year: int, *, size: int = DEFAULT_POOL_SIZE,
     finally:
         if owns_client:
             await client.aclose()
+
+    # Not under the lock: a threading lock must not be held across an await, and two
+    # requests racing on a cold year cost one duplicate fetch, not a correctness problem.
+    _remember(year, want, films[:want])
     return films[:size]
 
 

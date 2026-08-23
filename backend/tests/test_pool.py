@@ -162,3 +162,89 @@ async def test_search_failure_is_redacted(monkeypatch):
         with pytest.raises(ProviderError) as excinfo:
             await pool.search("dune", client=client)
     assert "SUPERSECRET777" not in str(excinfo.value)
+
+
+# ---------------------------------------------------------------------------
+# the cache, which is what bounds the amplification
+# ---------------------------------------------------------------------------
+
+async def test_a_second_ask_for_the_same_year_costs_nothing_upstream(monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "SENTINEL")
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json={"results": [_film(calls["n"])]})
+
+    async with _client(handler) as client:
+        first = await pool.fetch_pool(2026, size=20, client=client)
+        after_first = calls["n"]
+        second = await pool.fetch_pool(2026, size=20, client=client)
+
+    assert second == first
+    assert calls["n"] == after_first, "the second call went back to TMDB"
+
+
+async def test_sizes_in_one_bucket_share_a_cache_entry(monkeypatch):
+    """The property that makes the cache a defence rather than a convenience.
+
+    Keyed on the exact size, a caller walking size=1..500 would miss every time and each
+    miss would cost up to 25 TMDB requests. Rounding to a bucket caps a year at five
+    entries no matter what sizes are asked for.
+    """
+    monkeypatch.setenv("TMDB_API_KEY", "SENTINEL")
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json={"results": [_film(i) for i in range(20)]})
+
+    async with _client(handler) as client:
+        await pool.fetch_pool(2026, size=1, client=client)
+        cost = calls["n"]
+        for size in range(2, 101):
+            await pool.fetch_pool(2026, size=size, client=client)
+
+    assert calls["n"] == cost, f"{calls['n'] - cost} extra requests across one bucket"
+
+
+async def test_a_smaller_ask_is_sliced_from_the_cached_bucket(monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "SENTINEL")
+    async with _client(_pages([_film(i) for i in range(20)])) as client:
+        await pool.fetch_pool(2026, size=100, client=client)
+        few = await pool.fetch_pool(2026, size=3, client=client)
+    assert [f["tmdb_id"] for f in few] == [0, 1, 2]
+
+
+async def test_the_cache_expires(monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "SENTINEL")
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json={"results": [_film(calls["n"])]})
+
+    async with _client(handler) as client:
+        await pool.fetch_pool(2026, size=20, client=client)
+        cost = calls["n"]
+        monkeypatch.setattr(pool, "POOL_TTL", -1)   # everything is already stale
+        await pool.fetch_pool(2026, size=20, client=client)
+
+    assert calls["n"] == cost * 2, "an expired entry was served anyway"
+
+
+async def test_different_years_do_not_share_an_entry(monkeypatch):
+    monkeypatch.setenv("TMDB_API_KEY", "SENTINEL")
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json={"results": [_film(calls["n"])]})
+
+    async with _client(handler) as client:
+        a = await pool.fetch_pool(2026, size=20, client=client)
+        cost = calls["n"]
+        b = await pool.fetch_pool(2027, size=20, client=client)
+
+    assert a != b
+    assert calls["n"] == cost * 2, "one year was served from another year's entry"

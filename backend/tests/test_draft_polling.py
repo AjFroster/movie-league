@@ -101,3 +101,85 @@ def test_a_signed_out_visitor_can_read_a_public_league_pool(client, league):
     # No TMDB key in tests, so the pool answers 503 rather than 401 -- the point is that
     # it is no longer an authentication failure.
     assert client.get(f"/api/leagues/{league}/pool").status_code != 401
+
+
+# ---------------------------------------------------------------------------
+# What the board tells a viewer they may do
+# ---------------------------------------------------------------------------
+
+def test_the_creator_may_pick_for_an_unclaimed_slot(client, league):
+    viewer = client.get(f"/api/leagues/{league}/draft").json()["viewer"]
+    assert viewer["can_pick"] is True
+    assert viewer["is_member"] is True
+    assert viewer["player"] is None, "the creator holds no slot until they claim one"
+
+
+def test_a_member_waiting_their_turn_is_told_they_cannot_pick(client, league):
+    """The board must not offer a DRAFT button that would 403."""
+    state = client.get(f"/api/leagues/{league}/draft").json()
+    waiting = next(p for p in state["order"] if p != state["on_the_clock"]["player"])
+
+    act_as("user_waiting")
+    client.post(f"/api/leagues/{league}/claim", json={"player": waiting})
+    viewer = client.get(f"/api/leagues/{league}/draft").json()["viewer"]
+
+    assert viewer["player"] == waiting
+    assert viewer["is_member"] is True, "they are in the league"
+    assert viewer["can_pick"] is False, "but it is not their turn"
+
+
+def test_the_member_on_the_clock_is_told_they_can_pick(client, league):
+    on_clock = client.get(f"/api/leagues/{league}/draft").json()["on_the_clock"]["player"]
+
+    act_as("user_turn")
+    client.post(f"/api/leagues/{league}/claim", json={"player": on_clock})
+    viewer = client.get(f"/api/leagues/{league}/draft").json()["viewer"]
+
+    assert viewer["player"] == on_clock
+    assert viewer["can_pick"] is True
+
+
+def test_a_spectator_on_a_public_league_may_watch_but_not_act(client, league):
+    """Public leagues are browsable, so this is a real caller, not a hypothetical."""
+    act_as(OWNER)
+    client.patch(f"/api/leagues/{league}", json={"visibility": "public"})
+
+    for who in ("user_stranger", None):
+        act_as(who)
+        viewer = client.get(f"/api/leagues/{league}/draft").json()["viewer"]
+        assert viewer["can_pick"] is False, who
+        assert viewer["is_member"] is False, who
+        assert viewer["player"] is None, who
+
+
+def test_the_viewer_block_changes_the_etag(client, league):
+    """Two people looking at one board must not share a cache entry.
+
+    Without this the second person's poll could be answered 304 against the first
+    person's permissions, and the board would offer them a button that 403s.
+    """
+    act_as(OWNER)
+    client.patch(f"/api/leagues/{league}", json={"visibility": "public"})
+    creator_tag = client.get(f"/api/leagues/{league}/draft").headers["etag"]
+
+    act_as("user_other")
+    other = client.get(f"/api/leagues/{league}/draft",
+                       headers={"If-None-Match": creator_tag})
+    assert other.status_code == 200, "a different viewer got the creator's cached board"
+    assert other.headers["etag"] != creator_tag
+
+
+def test_can_pick_goes_false_once_the_turn_passes(client, league):
+    on_clock = client.get(f"/api/leagues/{league}/draft").json()["on_the_clock"]["player"]
+    assert client.get(f"/api/leagues/{league}/draft").json()["viewer"]["can_pick"] is True
+
+    client.post(f"/api/leagues/{league}/draft/pick",
+                json={"player": on_clock, "tmdb_id": 4242, "title": "Something"})
+
+    # Still the creator, so still able to act for the next unclaimed player.
+    assert client.get(f"/api/leagues/{league}/draft").json()["viewer"]["can_pick"] is True
+
+    # Someone outside the league, reading it because it is public.
+    client.patch(f"/api/leagues/{league}", json={"visibility": "public"})
+    act_as("user_nobody")
+    assert client.get(f"/api/leagues/{league}/draft").json()["viewer"]["can_pick"] is False

@@ -385,8 +385,6 @@ body {
   margin-top: var(--space-sm);
 }
 
-.tracker-headline { font-weight: 700; color: var(--text); font-size: var(--fs-body); }
-.tracker-detail { color: var(--text-dim); font-size: var(--fs-label); line-height: var(--lh-label); font-family: var(--font-label); }
 
 
 .card-error { padding: var(--space-md) var(--space-lg); color: var(--destructive); font-family: var(--font-label); font-size: var(--fs-label); }
@@ -402,7 +400,6 @@ body {
 
 /* Who-watched controls. Trust-based: any player can tick any other, matching how the
    league already runs -- there is no login to enforce anything stricter. */
-.watch-title { margin-top: var(--space-lg); }
 .watch-list { list-style: none; margin: 0; padding: 0; }
 .watch-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center;
   gap: var(--space-sm); padding: var(--space-sm) 0; cursor: pointer;
@@ -484,6 +481,15 @@ body {
 .league-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px;
   gap: var(--space-xl); align-items: start; }
 .league-main { min-width: 0; }
+/* Tip jar. Quiet by design: under the league list rather than in the header, and absent
+   from the DOM entirely unless VITE_STRIPE_TIP_URL is set. */
+.support { margin: var(--space-xl) 0 0; padding-top: var(--space-lg);
+  border-top: 1px solid var(--border); font-family: var(--font-body);
+  font-size: var(--fs-label); line-height: var(--lh-body); color: var(--text-faint);
+  text-align: center; }
+.support-link { color: var(--text-dim); text-decoration: underline;
+  text-underline-offset: 2px; }
+.support-link:hover { color: var(--text); }
 @media (max-width: 900px) {
   .league-layout { grid-template-columns: 1fr; }
   .auth-panel { order: -1; }
@@ -523,8 +529,6 @@ body {
   color: var(--text); }
 /* Clerk's modal renders in a portal at the document root, so nothing here needs to
    contain it -- the panel holds only two buttons. */
-.signin-page { display: flex; flex-direction: column; align-items: center; gap: var(--space-lg);
-  padding: var(--space-xl) var(--space-lg); }
 .league-wordmark { font-family: var(--font-label); font-size: var(--fs-heading);
   letter-spacing: 0.14em; text-transform: uppercase; margin: 0; color: var(--text); }
 .league-subtitle { font-family: var(--font-label); font-size: var(--fs-label);

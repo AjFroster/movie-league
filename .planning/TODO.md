@@ -19,7 +19,8 @@ the sequencing feel harder than it is.
 |---|---|---|
 | **Accounts** | **Required before** | 13 mutating endpoints, no auth. Hosted without it, anyone with the URL deletes a league or drains the 1,000/day MDBList quota. |
 | **Live draft** | **Decide before, build either side** | The transport choice constrains the host. Polling runs anywhere; WebSockets rule out plain Lambda. Choosing polling *removes* the constraint. |
-| **Stripe** | **Hard-blocked until both** | Cannot charge an identity that does not exist; webhooks need a stable public HTTPS URL. |
+| **Stripe buy-ins** | **Hard-blocked until both** | Cannot charge an identity that does not exist; webhooks need a stable public HTTPS URL. |
+| **Stripe tip jar** | **Blocked by neither** | A Payment Link is a URL Stripe hosts. No account, no webhook, no backend, no schema. Shipped. |
 
 Auth is also *easier* before hosting, not merely required: it touches every endpoint and
 every call in `api.js`. That belongs on a 30-second reload loop, not a 5-minute deploy loop.
@@ -127,33 +128,49 @@ round trip to branch from an updated `master` costs almost nothing.
 
 ---
 
-## Stage 3 — Live draft (1-2 days, still local)
+## Stage 3 — Live draft ✅ done
 
-### 7. Poll `GET /leagues/{id}/draft`, do not reach for WebSockets
+The board keeps itself in step with everyone else's picks, and shows each viewer only what
+they can act on.
 
-Two seconds, only while `status == drafting`, stopped on complete. Six players polling every
-2s is nothing, and it runs on every host — which is exactly what keeps stage 4 open.
+**Polling, not a socket.** A conditional GET every two seconds while a draft runs, stopped
+on complete, paused while the tab is hidden. `GET /leagues/{id}/draft` carries an ETag:
+8,912 bytes becomes 0 on an unchanged poll, and a minute of a quiet six-player draft costs
+27 KB rather than 1,567 KB. Bandwidth was never the point -- without change detection the
+board rebuilds every two seconds and loses text selection, hover, and any open dropdown
+mid-draft.
 
-Add an `updated_at` or ETag so an unchanged poll is cheap. Without it this is a full board
-serialization every 2 seconds per client for no reason.
+The tag is a hash of the payload rather than a stored counter, so there is no second place
+to forget to update. `seconds_remaining` is excluded from it, or every poll would miss.
 
-### 8. Read-only board for everyone not on the clock
+**The board says what each viewer may do.** The payload carries a `viewer` block --
+`player`, `can_pick`, `is_member` -- computed server-side from the same rule
+`require_actor` enforces. A browser that re-derived it would drift, and the drift would
+show as buttons that 403.
 
-Today's board assumes the person looking at it is the person picking. Split that: the on-clock
-player gets the pool and search, everyone else gets the board and the countdown.
+Everyone sees the pool; only the person who can actually pick gets a DRAFT button. That
+is the opposite of what this item originally said, which was "the on-clock player gets the
+pool and search, everyone else gets the board and the countdown" -- the decision changed
+during planning and the plan was not updated, so anyone implementing it as written would
+have built the wrong thing.
 
-### 9. Swallow the autopick 409
+**Auto-pick is member-only and its 409 is silent.** Every member's browser firing at once
+is deliberate: the server re-checks its own deadline and exactly one write wins, which is
+what advances a draft whose on-clock player has gone. The other N-1 get a 409, which is
+the expected outcome rather than an error worth showing. Spectators do not ask at all --
+public leagues are browsable now, so that is a real caller who would otherwise collect a
+403 every time a clock ran out.
 
-With N clients, all N fire `autopick` at expiry. The server re-checks its own clock and the
-unique constraint protects the write, so exactly one wins — this is already correct, and it is
-a **feature**: the draft advances even if the on-clock player's laptop is shut. Just stop the
-other N-1 from rendering the resulting 409 as an error.
+### Still owed from this stage
 
-### 10. Test the actual failure modes
+The failure modes that need a real network: mobile Safari backgrounding a tab mid-draft, a
+phone moving WiFi to LTE, two people tapping the same film inside the same second. Tab
+backgrounding is handled in code and untested; the rest cannot be tested honestly on a
+laptop. They belong to stage 4 verification.
 
-Not two tabs on one LAN. The real ones: mobile Safari backgrounding a tab mid-draft, a phone
-moving WiFi → LTE, and two people tapping the same film inside the same second. The first two
-need a hosted URL, so they land in stage 4 — write them down now so they are not forgotten.
+Browser tests cannot cover the read-only board either: local mode has exactly one user,
+who is always the creator, so there is no second identity to be a spectator with. The
+backend tests carry that coverage.
 
 ---
 
@@ -187,7 +204,22 @@ Genuinely new work whichever wins:
 
 ## Stage 5 — Stripe, test mode only (1 day, self-contained)
 
-### 11. Built to learn Stripe, never taken live
+### 11a. Tip jar ✅ done
+
+A `VITE_STRIPE_TIP_URL` Payment Link under the league list, absent from the DOM when unset.
+Stripe hosts the payment page, so there is no publishable key in the bundle, no webhook to
+verify, no redirect to trust and nothing about a payment stored here. Anonymous on purpose:
+the app never learns who paid.
+
+**The roadmap said Stripe was hard-blocked until accounts and hosting existed. That was
+written about buy-ins and is wrong for a tip jar** -- a hosted link needs neither. It does
+still want hosting to be *useful*, since nobody can reach the app to click it.
+
+Real money brings back what test mode avoided: Stripe identity verification, a bank
+account, and the fact that tips are taxable income rather than charitable donations. None
+of that is code.
+
+### 11b. Built to learn Stripe, never taken live
 
 Scope follows from that: a Checkout session, a webhook, a boolean on the account. No Connect,
 no payouts, no KYC.
@@ -241,20 +273,33 @@ that returns the whole database is not.
 
 Worth a pass over every remaining GET with that lens rather than trusting the method.
 
+**One already found, and fixed.** `GET /api/pool-size` took no authentication and went
+through no cache, so a single HTTP call made the server issue up to 25 TMDB requests, one
+per page of a 500-film pool.
+
+Two corrections to how that was first written here. MDBList is not involved: `pool.py`
+calls TMDB and nothing else. And the exposure was never only `pool-size` — a public league
+makes `GET /{league_id}/pool` reachable signed out by design, and it carries the same
+amplification, so requiring an identity on one endpoint would have moved the problem
+rather than solved it.
+
+Hence both halves. `pool-size` now needs an identity, which costs nothing because the
+create screen is unreachable signed out. And `fetch_pool` caches for six hours on a
+*bucketed* size, so a caller walking `size=1..500` produces five cache entries for a year
+instead of 500 misses.
+
 ### 15. Small ones
 
 - League names are not unique; two leagues can share a name. Now that leagues are scoped to
   an owner this matters less — you only ever see your own — but two of *your* leagues can
   still share a name.
-- **Retire the legacy unscoped routes** (`PUT /api/movies/{owner}/{round}`,
-  `POST /api/enrich-all`, and the two sibling `/api/movies/...` routes). They act on
-  whichever league is newest, which is wrong with four leagues in the database. They are
-  authorized now, so this is correctness rather than security. Costs ~46 test references
-  plus the no-league path in `App.jsx`.
 - `bo_rank` and `awards` are in the schema and scored by nothing.
-- The favicon 404s on every page load; there is no `frontend/public/` at all.
-- Stray `*:Zone.Identifier` files in `frontend/src/components/` — WSL artifacts from the
-  original Windows copy. Delete them and gitignore the pattern.
+
+**Cleared 22 Aug 2026.** The favicon: `frontend/public/` now holds a theme-aware SVG with
+PNG fallbacks. The stray `*:Zone.Identifier` files: deleted, and the gitignore rule was
+already there. The legacy unscoped `/api/movies/*` routes: already gone, removed with the
+rest of the legacy surface in PR #9 — this entry outlived the work it described, which is
+the argument for checking a backlog against the code before trusting it.
 
 ---
 

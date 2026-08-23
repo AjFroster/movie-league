@@ -1,7 +1,8 @@
 """League creation, drafting, and the movie pool.
 
-Kept out of main.py so the legacy single-league endpoints and the multi-league ones do not
-grow into each other. Everything here is league-scoped by path.
+Kept out of main.py so the routes and the app wiring stay separable. Everything here is
+league-scoped by path, apart from /pool-size, which the create screen asks before a league
+exists.
 """
 import hashlib
 import json
@@ -110,9 +111,11 @@ def post_league(body: CreateLeague, user: str = CurrentUser):
 @router.get("/pool-size")
 async def get_pool_size(year: int = Query(ge=1900, le=2100),
                         size: int = Query(default=pool.DEFAULT_POOL_SIZE, ge=1,
-                                          le=pool.MAX_POOL_SIZE)):
-    """How many films a year offers. Unscoped because the create screen asks before a
-    league exists."""
+                                          le=pool.MAX_POOL_SIZE),
+                        user: str = CurrentUser):
+    """How many films a year offers. Not league-scoped, because the create screen asks
+    before a league exists -- but signed in, because only a signed-in caller can reach that
+    screen, and each call costs up to 25 TMDB requests."""
     try:
         films = await pool.fetch_pool(year, size=size)
     except (ProviderError, httpx.HTTPError) as e:
@@ -217,12 +220,29 @@ def get_draft(league_id: int, request: Request, response: Response,
     `seconds_remaining` is deliberately excluded from the hash. It changes on every request
     by definition, so including it would make every poll a miss and the ETag pointless --
     the browser counts the clock down locally from `clock_started_at` anyway.
+
+    `viewer` says what this caller may do, so the board can offer only what will work.
     """
     with session_scope() as session:
         with http_errors(LookupError=404):
             require_viewer(session, league_id, user)
             state = repo.draft_state(session, league_id)
+            clock = state["on_the_clock"]
+            # What this particular viewer may do. Sent rather than derived in the browser:
+            # a client copy of the rule would drift from require_actor, and the drift would
+            # show up as buttons that 403.
+            state["viewer"] = {
+                "player": repo.slot_held_by(session, league_id, user),
+                "can_pick": repo.can_act_as(session, league_id, user,
+                                            clock["player"] if clock else None),
+                # Any member may ask for an auto-pick, which is what lets a draft advance
+                # when the player on the clock has shut their laptop. A spectator on a
+                # public league may not, and should not be asking every time a clock runs
+                # out only to be refused.
+                "is_member": user is not None and repo.is_member(session, league_id, user),
+            }
 
+    # The tag covers `viewer`, so two people looking at the same board do not share a tag.
     tag = _etag(state)
     response.headers["ETag"] = tag
     # No-store would defeat the point; the ETag is the freshness check.

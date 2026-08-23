@@ -4,21 +4,28 @@ A leaderboard app for tracking your friend group's fantasy movie league.
 
 ## Architecture
 
-- **`backend/`** — FastAPI, serves the league data as JSON and computes the leaderboard.
-  Data lives in `backend/data/league_data.json` — no database, just a file.
-- **`frontend/`** — React (Vite). Landing page is the ranked leaderboard; tap/click an
-  owner to expand their round-by-round picks.
+- **`backend/`** — FastAPI with SQLAlchemy and Alembic. SQLite in WAL mode at
+  `backend/data/league.db`; set `DATABASE_URL` to point it at Postgres instead.
+- **`frontend/`** — React (Vite), plain CSS with design tokens, light and dark.
+
+A league is created for a year with a named set of players, drafted in a snake, and scored
+from ratings and box office as the season runs. Leagues are public or private: a public one
+is readable by anyone including signed-out visitors, a private one 404s to a stranger
+rather than confirming it exists.
 
 ## Running locally
 
-**Backend** (needs Python 3.11+):
+**Backend** (3.12 is what CI runs):
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-**Frontend** (needs Node 18+):
+The migration is not optional on a fresh checkout: nothing creates the schema for you.
+
+**Frontend** (Node 24 in CI):
 ```bash
 cd frontend
 npm install
@@ -51,14 +58,14 @@ own error messages, so a failed request will not echo your key back in a respons
 
 ### 3. Trigger enrichment
 
-One film:
+Every route is scoped to a league. One film:
 ```bash
-curl -X POST http://localhost:8000/api/movies/Andrew/1/enrich
+curl -X POST http://localhost:8000/api/leagues/1/movies/Andrew/1/enrich
 ```
 
-Every film:
+Every film in that league:
 ```bash
-curl -X POST http://localhost:8000/api/enrich-all
+curl -X POST http://localhost:8000/api/leagues/1/enrich-all
 ```
 
 | Query param | Default | Applies to | Meaning |
@@ -68,7 +75,7 @@ curl -X POST http://localhost:8000/api/enrich-all
 
 Example — cap a bulk run at 20 calls:
 ```bash
-curl -X POST http://localhost:8000/api/enrich-all?max_calls=20
+curl -X POST http://localhost:8000/api/leagues/1/enrich-all?max_calls=20
 ```
 
 ### What gets filled in
@@ -91,7 +98,7 @@ Each movie row carries a `sources` object recording where every value came from:
 - **`unknown`** — it predates this tracking and could be either. Refreshable, with the
   original number preserved under `legacy_value` so nothing is lost.
 
-Anything you change via `PUT /api/movies/{owner}/{round}` is automatically marked `manual`.
+Anything you change via `PUT /api/leagues/{id}/movies/{owner}/{round}` is marked `manual`.
 
 ### Caching
 
@@ -161,12 +168,23 @@ no recorded ROI is not treated as having failed to recoup.
 
 ## Editing scores
 
-`PUT /api/movies/{owner}/{round_number}` with a full movie JSON body updates that
-entry (and persists it to the JSON file). There's no scoring-formula code here yet —
-your rating/financial/penalty/watch-point numbers are stored as-is from your
-spreadsheet; wire up the formulas in `app/storage.py` if you want them computed
-instead of entered by hand. Any field you change this way is stamped `manual` in that
-row's `sources` object, so a later enrichment run will leave it alone.
+`PUT /api/leagues/{league_id}/movies/{owner}/{round_number}` with a full movie JSON body
+updates that entry. Any field you change is stamped `manual` in that row's `sources`
+object, so a later enrichment run leaves it alone.
+
+The scores themselves are not editable, because they are not stored decisions — they are
+recomputed from the inputs above on every write.
+
+## Accounts
+
+Optional. With no identity provider configured the app runs as a single local user, with
+every permission check still enforced — and it refuses to start that way if either the
+database or the CORS origin looks like a deployment, so the convenience cannot escape a
+laptop.
+
+To turn accounts on, set `VITE_CLERK_PUBLISHABLE_KEY` in `frontend/.env` and `CLERK_ISSUER`
+in `backend/.env`. There is deliberately no flag that disables authorization; only the
+source of identity changes.
 
 ## Running the tests
 
@@ -178,12 +196,25 @@ uv pip install --python backend/.venv/bin/python -r backend/requirements-dev.txt
 backend/.venv/bin/python -m pytest backend/tests -q
 ```
 
-The suite makes no network calls and needs no API keys: both provider modules are stubbed, and
-`TMDB_API_KEY`/`OMDB_API_KEY` are stripped from the environment for every test.
+The suite makes no network calls and needs no API keys: the provider modules are stubbed,
+and `TMDB_API_KEY`, `OMDB_API_KEY`, `MDBLIST_API_KEY` and `CLERK_*` are stripped from the
+environment for every test. A test that only passes because of a key in your shell is a
+broken test.
+
+Four more layers run in CI, and locally:
+
+| Layer | Command | What only it catches |
+|---|---|---|
+| Smoke | `cd backend && python -m scripts.smoke_test` | Migrations, uvicorn, CORS, JSON over the wire |
+| Browser | `cd frontend && npm run test:e2e` | Anything that renders wrong while every assertion passes |
+| Two players | `cd frontend && npm run test:e2e:multi` | One person's pick reaching another person's screen |
+| Nightly | GitHub Actions | The real provider APIs, which the suite is forbidden from calling. Inert until the three provider keys are added as repo secrets |
 
 ## Deploying later
 
 - Backend: any host that runs a long-lived Python process (Fly.io, Render, a small VPS).
-  Swap the JSON file for a persisted volume or mounted disk.
+  SQLite needs a persistent volume; without one the database is gone on every redeploy.
+  `DATABASE_URL` points at Postgres instead, and nothing above the connection string
+  changes.
 - Frontend: build with `npm run build` and serve the `dist/` folder from
   Netlify/Vercel/Cloudflare Pages, pointing `/api` at your deployed backend URL.

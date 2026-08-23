@@ -1,0 +1,131 @@
+name: Multiplayer
+
+# Its own workflow rather than another job in CI: it boots four servers and takes a couple
+# of minutes, and what it proves is different in kind. CI answers "does the app work"; this
+# answers "does it work when two people are using it at once".
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write        # publishes screenshots to the ci-screenshots branch
+  pull-requests: write
+
+jobs:
+  two-players:
+    name: Two players, one draft
+    runs-on: ubuntu-latest
+    # Not required to merge. Four servers and a shared SQLite file is the most moving parts
+    # of anything here; it should earn a blocking role rather than start with one.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        working-directory: backend
+        run: pip install -r requirements-dev.txt
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # Two backend processes on one database, each with its own LEAGUE_LOCAL_USER, are two
+      # real users -- no Clerk, no secrets, no dependency on anyone else's uptime. The
+      # single-user suite cannot test this: local mode is one identity per process.
+      - name: Two-player draft
+        working-directory: frontend
+        env:
+          E2E_PYTHON: python
+        run: npm run test:e2e:multi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        id: shots
+        with:
+          name: multiplayer-screenshots
+          path: frontend/e2e-screenshots/
+          retention-days: 14
+
+      # Without this a CI-only failure cannot be looked at -- the screenshots above are
+      # the happy path, and the ones that show what actually broke live in test-results.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: multiplayer-failure
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
+
+      - name: Publish the screenshots
+        if: always() && github.event_name == 'pull_request'
+        id: publish
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          test -d frontend/e2e-screenshots || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin ci-screenshots --depth=1 2>/dev/null \
+            && git worktree add ../shots ci-screenshots \
+            || git worktree add --orphan -b ci-screenshots ../shots
+
+          # Path carries the sha: camo caches by URL, so a stable path serves the first
+          # image it ever saw no matter what replaces it.
+          SHA=$(git rev-parse --short HEAD)
+          DIR="pr-$PR/$SHA-multiplayer"
+          rm -rf "../shots/pr-$PR"/*-multiplayer
+          mkdir -p "../shots/$DIR"
+          cp frontend/e2e-screenshots/*.png "../shots/$DIR/"
+
+          cd ../shots
+          git add -A
+          git diff --cached --quiet || {
+            git commit -q -m "ci: multiplayer screenshots for PR #$PR at $SHA"
+            git push -q origin ci-screenshots
+          }
+          echo "base=https://raw.githubusercontent.com/${{ github.repository }}/ci-screenshots/$DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise
+        if: always()
+        working-directory: frontend
+        env:
+          BASE: ${{ steps.publish.outputs.base }}
+        run: |
+          {
+            echo "## Two players, one draft"
+            echo
+            echo "Two backend processes sharing one database, each running as a different"
+            echo "user. Proves what the single-user suite cannot: a pick made by one person"
+            echo "reaching the other's board, and the person whose turn it is not getting"
+            echo "no button."
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in $(ls e2e-screenshots/*.png 2>/dev/null | sort); do
+            case "$(basename "$f")" in 5-*|6-*) ;; *) continue ;; esac
+            name=$(basename "$f" .png | sed 's/^[0-9]*-//; s/-/ /g')
+            {
+              echo "### ${name}"
+              echo
+              [ -n "$BASE" ] && echo "![${name}](${BASE}/$(basename "$f"))" \
+                             || echo "_Published only for pull requests._"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
