@@ -19,7 +19,8 @@ the sequencing feel harder than it is.
 |---|---|---|
 | **Accounts** | **Required before** | 13 mutating endpoints, no auth. Hosted without it, anyone with the URL deletes a league or drains the 1,000/day MDBList quota. |
 | **Live draft** | **Decide before, build either side** | The transport choice constrains the host. Polling runs anywhere; WebSockets rule out plain Lambda. Choosing polling *removes* the constraint. |
-| **Stripe** | **Hard-blocked until both** | Cannot charge an identity that does not exist; webhooks need a stable public HTTPS URL. |
+| **Stripe buy-ins** | **Hard-blocked until both** | Cannot charge an identity that does not exist; webhooks need a stable public HTTPS URL. |
+| **Stripe tip jar** | **Blocked by neither** | A Payment Link is a URL Stripe hosts. No account, no webhook, no backend, no schema. Shipped. |
 
 Auth is also *easier* before hosting, not merely required: it touches every endpoint and
 every call in `api.js`. That belongs on a 30-second reload loop, not a 5-minute deploy loop.
@@ -203,7 +204,22 @@ Genuinely new work whichever wins:
 
 ## Stage 5 — Stripe, test mode only (1 day, self-contained)
 
-### 11. Built to learn Stripe, never taken live
+### 11a. Tip jar ✅ done
+
+A `VITE_STRIPE_TIP_URL` Payment Link under the league list, absent from the DOM when unset.
+Stripe hosts the payment page, so there is no publishable key in the bundle, no webhook to
+verify, no redirect to trust and nothing about a payment stored here. Anonymous on purpose:
+the app never learns who paid.
+
+**The roadmap said Stripe was hard-blocked until accounts and hosting existed. That was
+written about buy-ins and is wrong for a tip jar** -- a hosted link needs neither. It does
+still want hosting to be *useful*, since nobody can reach the app to click it.
+
+Real money brings back what test mode avoided: Stripe identity verification, a bank
+account, and the fact that tips are taxable income rather than charitable donations. None
+of that is code.
+
+### 11b. Built to learn Stripe, never taken live
 
 Scope follows from that: a Checkout session, a webhook, a boolean on the account. No Connect,
 no payouts, no KYC.

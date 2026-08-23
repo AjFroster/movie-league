@@ -484,6 +484,15 @@ body {
 .league-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px;
   gap: var(--space-xl); align-items: start; }
 .league-main { min-width: 0; }
+/* Tip jar. Quiet by design: under the league list rather than in the header, and absent
+   from the DOM entirely unless VITE_STRIPE_TIP_URL is set. */
+.support { margin: var(--space-xl) 0 0; padding-top: var(--space-lg);
+  border-top: 1px solid var(--border); font-family: var(--font-body);
+  font-size: var(--fs-label); line-height: var(--lh-body); color: var(--text-faint);
+  text-align: center; }
+.support-link { color: var(--text-dim); text-decoration: underline;
+  text-underline-offset: 2px; }
+.support-link:hover { color: var(--text); }
 @media (max-width: 900px) {
   .league-layout { grid-template-columns: 1fr; }
   .auth-panel { order: -1; }
