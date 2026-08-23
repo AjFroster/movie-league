@@ -1,58 +1,56 @@
 # Fantasy Movie League
 
-## What This Is
+A fantasy league for films. A group drafts upcoming releases in a snake draft, then scores
+points as those films collect ratings and box office through the season.
 
-A leaderboard app for tracking a friend group's fantasy movie league. Players draft movies into slots (Best Picture, Director, Lead Perf, Screenplay, Craft, Indie Flex, Bench, Vault) and score points from nominations, wins, critics' mentions, and box office. React/Vite frontend, FastAPI backend, single JSON file as the data store.
+Written for one friend group, and built as if it were not: every mutating endpoint is
+authorized, every provider call is cached and redacted, and the whole season round-trips
+through an archive.
 
-## Core Value
+## How it works
 
-Players can see accurate, current rankings and per-movie score breakdowns for their league.
+Someone creates a league for a year and names the players. The draftable pool is the most
+popular theatrical releases of that year from TMDB, ranked by popularity rather than
+filtered by it, because the scale is not comparable between a year that has released and
+one that has not.
 
-## Requirements
+The draft is a snake: the order reverses each round, so whoever picks last also picks first
+in the round that follows. Each player has a clock, and the server owns it. Everyone watches
+the same board from their own device, kept current by polling with conditional GETs.
 
-### Validated
+Scores come from three places. Ratings — IMDb, Letterboxd, Rotten Tomatoes — in tiers.
+Financials — budget, gross, and the ratio between them. And watching: 5 points for watching
+your own pick, 1 for watching someone else's, which is the part that makes people actually
+watch the films.
 
-<!-- Shipped and confirmed valuable, per HANDOFF.md — existing dark "gaming leaderboard" build. -->
+## Stack
 
-- ✓ Leaderboard showing ranked owners
-- ✓ Player card with embedded movie cards, expandable score breakdown
-- ✓ TMDB enrichment (budget/gross/rating auto-fill) via `/enrich` endpoint
-- ✓ Manual score entry via `PUT /api/movies/{owner}/{round}`
+| | |
+|---|---|
+| Backend | FastAPI, SQLAlchemy 2.0, Alembic. SQLite with WAL locally; a connection string away from Postgres |
+| Frontend | React 18, Vite 5, plain CSS with design tokens. Light and dark, following the device by default |
+| Accounts | Clerk. RS256 tokens verified against JWKS. No flag disables authorization — without a provider the app runs as one local identity, and refuses to start that way anywhere that looks hosted |
+| Providers | TMDB for the pool and posters, OMDb and MDBList for ratings and financials. All cached, all redacted from error paths |
 
-### Active
+## What exists
 
-<!-- Current scope: this UI redesign phase. -->
+Leagues are public or private. A public one is readable by anyone, including signed-out
+visitors, who see the standings and the draft board but no controls they cannot use. A
+private one 404s rather than 403s, so its existence is not confirmed to a stranger.
 
-- [ ] Redesign frontend to match new "Movie League" mockups (dark theme, gold accent, serif titles)
-- [ ] Team/roster view (slot table: Best Picture, Director, Lead Perf, etc. with status pill, pts, proj, owned%)
-- [ ] Movie/title detail view (hero header, points ledger with progress bars, campaign tracker timeline, ownership sidebar)
-- [ ] Extract and apply consistent design tokens (color, type, spacing) across the app
+Enrichment carries per-field provenance, and a manual edit is stamped so a later automatic
+pass will not overwrite it. `GET /api/export` produces a whole-database archive that
+`scripts/restore.py` reads back.
 
-### Out of Scope
+540 tests across five layers: unit and journey tests in process, a smoke test against a
+real uvicorn on a real migrated database, browser tests, and a two-process test where two
+people draft against one database from two browsers. CI runs all of them; `master` takes
+pull requests only.
 
-- Backend scoring formula automation — deferred per HANDOFF.md, not part of this UI phase
-- RT/Letterboxd score API integration — no public API, manual entry stays
-- New backend endpoints/data model changes — this phase is UI-only, existing API contract stays as-is
+## Where things are
 
-## Context
+- `.planning/TODO.md` — the live roadmap and the reasoning behind its order
+- `.planning/archive/` — the record of a milestone that finished in August 2026
 
-- Existing app already functional: FastAPI backend + React/Vite frontend, dark "gaming leaderboard" aesthetic already in place (see `.planning/codebase/` for full map).
-- User supplied two Claude-UI-Builder mockup screenshots: a "My Team" roster view and a "Nightfall Country" movie detail view, both for a reskin called "Movie League" — darker/more refined visual system than current build, gold/amber accent, serif display type, mono/condensed caps for labels, color-coded status dots.
-- `.planning/codebase/` already has ARCHITECTURE.md, STACK.md, STRUCTURE.md, CONVENTIONS.md, CONCERNS.md, INTEGRATIONS.md, TESTING.md, REVIEW.md from a prior `/gsd-map-codebase` run.
-- This PROJECT.md/ROADMAP.md/REQUIREMENTS.md/STATE.md scaffold was created manually (minimal, single-phase) to unlock `/gsd-ui-phase`, not via full `/gsd-new-project` — app already exists, only the UI phase machinery was missing.
-
-## Constraints
-
-- **Tech stack**: React 18 + Vite, plain CSS (`styles.css`, no component library, no Tailwind) — keep this stack, don't introduce a new one for this reskin
-- **API contract**: Backend routes/response shapes must not change — this is a frontend-only visual phase
-- **Existing functionality**: Expand/collapse score breakdown, TMDB enrich trigger, data fetching must keep working after redesign
-
-## Key Decisions
-
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Minimal manual planning scaffold instead of full `/gsd-new-project` | App already built and working; only needed enough structure to run `/gsd-ui-phase` for the reskin | — Pending |
-| UI-only phase, no backend changes | Mockups are visual-only; scoring/data model untouched | — Pending |
-
----
-*Last updated: 2026-08-17 after manual scaffold creation for UI redesign phase*
+Everything else is documented in comments beside the code it describes, which is the one
+place documentation cannot drift away from its subject.
