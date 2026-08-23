@@ -35,13 +35,16 @@ from .leagues import (  # noqa: F401
     set_visibility,
 )
 from .members import (  # noqa: F401
+    can_act_as,
     claim_slot,
     is_member,
     release_slot,
+    slot_held_by,
 )
 
 __all__ = [
     "apply_documents",
+    "can_act_as",
     "claim_slot",
     "clock_expired",
     "create_league",
@@ -59,6 +62,7 @@ __all__ = [
     "owner_movies",
     "player_names",
     "release_slot",
+    "slot_held_by",
     "rename_league",
     "rescore_entry",
     "set_pick_seconds",

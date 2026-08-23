@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:css": "node scripts/check-css-coverage.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:multi": "node e2e-multiuser/migrate.js && playwright test --config playwright.multiuser.config.js"
   },
   "dependencies": {
     "@clerk/react": "^6.14.5",

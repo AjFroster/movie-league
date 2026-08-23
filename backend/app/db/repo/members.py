@@ -47,3 +47,28 @@ def is_member(session: Session, league_id: int, user_id: str) -> bool:
     league = get_league(session, league_id)
     return (league.owner_user_id == user_id
             or any(p.user_id == user_id for p in league.players))
+
+
+def can_act_as(session: Session, league_id: int, user_id: str | None,
+               player_name: str | None) -> bool:
+    """Non-raising twin of auth.require_actor, for telling a board what it may offer.
+
+    The rule lives here once. A browser that re-derived it would drift from the server the
+    first time the rule changed, and the drift would show as buttons that 403.
+    """
+    if user_id is None or player_name is None:
+        return False
+    league = get_league(session, league_id)
+    player = next((p for p in league.players if p.name == player_name), None)
+    if player is None:
+        return False
+    return (player.user_id == user_id
+            or (player.user_id is None and league.owner_user_id == user_id))
+
+
+def slot_held_by(session: Session, league_id: int, user_id: str | None) -> str | None:
+    """The player this account has claimed in this league, if any."""
+    if user_id is None:
+        return None
+    league = get_league(session, league_id)
+    return next((p.name for p in league.players if p.user_id == user_id), None)
