@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Movie League">
+  <!-- The header mark, with a play triangle knocked out of it. Letters turn to mush at
+       16px; a triangle does not. Colours are --accent and --accent-ink from styles.css,
+       and the media query mirrors the app's own light/dark split. -->
+  <style>
+    .tile { fill: #9a6206; }
+    .ink  { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #e0a339; }
+      .ink  { fill: #17130a; }
+    }
+  </style>
+  <rect class="tile" width="32" height="32" rx="5"/>
+  <path class="ink" d="M12.5 9.5 L23.5 16 L12.5 22.5 Z"/>
+</svg>
