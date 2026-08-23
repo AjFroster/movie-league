@@ -264,11 +264,3 @@ def load_archive(session: Session, doc: dict) -> list[League]:
             "A legacy {owners, movies} file is read by import_league instead.")
     return [load_league(session, lg) for lg in doc.get("leagues") or []]
 
-
-def dump_archive_to_file(session: Session, path: str | Path) -> Path:
-    """Write a whole-database archive atomically."""
-    path = Path(path)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(dump_archive(session), indent=2))
-    tmp.replace(path)
-    return path

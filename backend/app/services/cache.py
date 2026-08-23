@@ -79,7 +79,7 @@ def load_cache() -> dict:
 
 
 def save_cache(cache: dict) -> None:
-    """Atomic write, same pattern as app/storage.save_data."""
+    """Atomic write: a crash mid-write leaves the previous cache, not a truncated one."""
     with _lock:
         CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         tmp = CACHE_PATH.with_suffix(".tmp")
