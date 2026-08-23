@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <!-- Sets data-theme before the first paint. Inline and synchronous on purpose: a
          deferred or bundled script paints the default palette first, and on a dark-first
-         app that flash is a full white screen. Mirrors src/theme.js. -->
+         app that flash is a full white screen.
+         The only copy of this logic. The key below must match STORAGE_KEY in
+         src/theme.js, which is the one thing here that can silently drift. -->
     <script>
       (function () {
         try {

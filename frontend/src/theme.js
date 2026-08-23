@@ -32,18 +32,3 @@ export function applyPreference(preference) {
     else localStorage.setItem(STORAGE_KEY, preference)
   } catch { /* see storedPreference */ }
 }
-
-/** Kept in sync with the above by hand; it is inlined into index.html as a string.
- *  Deliberately tiny and dependency-free: it runs before the bundle exists. */
-export const THEME_BOOT_SCRIPT = `
-(function () {
-  try {
-    var saved = localStorage.getItem('${STORAGE_KEY}');
-    var dark = saved === 'dark' || (saved !== 'light' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-  } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }
-})();
-`

@@ -1,7 +1,8 @@
 """League creation, drafting, and the movie pool.
 
-Kept out of main.py so the legacy single-league endpoints and the multi-league ones do not
-grow into each other. Everything here is league-scoped by path.
+Kept out of main.py so the routes and the app wiring stay separable. Everything here is
+league-scoped by path, apart from /pool-size, which the create screen asks before a league
+exists.
 """
 import hashlib
 import json

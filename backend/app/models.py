@@ -23,7 +23,3 @@ class Movie(BaseModel):
     total: float = 0
     sources: dict[str, dict] = {}
 
-
-class LeagueData(BaseModel):
-    owners: list[str]
-    movies: list[Movie]
