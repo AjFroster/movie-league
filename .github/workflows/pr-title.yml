@@ -37,8 +37,32 @@ jobs:
         run: |
           types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
           if printf '%s' "$TITLE" | grep -qE "^($types)(\([a-z0-9 ,._/-]+\))?!?: .+"; then
-            echo "OK: $TITLE"
-            exit 0
+            # Format is only half of it. These two catch the register drifting back
+            # towards prose: an em dash in a title is always an aside, and a title that
+            # will not fit in 72 characters is carrying a second clause it does not need.
+            # Both are mechanical, so neither depends on anyone remembering the rule.
+            fail=""
+            if [ "${#TITLE}" -gt 72 ]; then
+              fail="it is ${#TITLE} characters; keep it to 72"
+            elif printf '%s' "$TITLE" | grep -q '—'; then
+              fail="it contains an em dash, which in a title is always an aside"
+            fi
+            if [ -z "$fail" ]; then
+              echo "OK: $TITLE"
+              exit 0
+            fi
+            echo "::error::PR title needs tightening: $fail"
+            cat >&2 <<'STYLE'
+
+          The title states the change; the body tells the story.
+
+            feat(draft): add ETag-conditional polling to the draft board
+            test: add journey, smoke, and browser test layers
+
+          Imperative verb, then object. Name the subsystem in the scope. One clause --
+          a comma or dash introducing commentary means the sentence is doing two jobs.
+          STYLE
+            exit 1
           fi
           echo "::error::PR title is not a Conventional Commit: $TITLE"
           cat >&2 <<'MSG'
