@@ -50,6 +50,7 @@ pull requests only.
 ## Where things are
 
 - `.planning/TODO.md` — the live roadmap and the reasoning behind its order
+- `.planning/hosting.md` — where this runs, and what to set up to put it there
 - `.planning/archive/` — the record of a milestone that finished in August 2026
 
 Everything else is documented in comments beside the code it describes, which is the one

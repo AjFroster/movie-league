@@ -1,0 +1,16 @@
+# The virtualenv is a laptop artifact and would bloat the image with the wrong platform's
+# binaries.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Never ship secrets or a local database into an image.
+.env
+data/
+
+# Not needed to serve traffic. migrations/ is deliberately NOT here -- being able to run
+# alembic from the image is worth the few kilobytes.
+tests/
+scripts/smoke_test.py

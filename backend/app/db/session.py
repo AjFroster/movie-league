@@ -63,7 +63,15 @@ def get_engine():
 
 
 def init_db() -> None:
-    """Create tables if absent. Alembic owns schema *changes*; this is first-run setup."""
+    """First-run setup on SQLite, and deliberately nothing anywhere else.
+
+    On a laptop, creating the tables on boot means a fresh clone runs without ceremony.
+    On a hosted database it is a trap: create_all builds the schema with no row in
+    alembic_version, so the next `alembic upgrade head` tries to create tables that
+    already exist and fails. Anywhere but SQLite, Alembic owns the schema outright.
+    """
+    if not _is_sqlite(database_url()):
+        return
     DEFAULT_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(get_engine())
 

@@ -174,7 +174,13 @@ backend tests carry that coverage.
 
 ---
 
-## Stage 4 — Hosting (decide when stages 1-3 are done)
+## Stage 4 — Hosting ▸ decided 22 Aug 2026
+
+**Cloudflare Pages + Cloud Run + Neon.** The architecture, the console setup order and
+the two traps are in [`hosting.md`](hosting.md); the prep is in the repo already.
+
+The reasoning that produced that choice is below, kept because the next person to ask
+"why not AWS" deserves the answer rather than the conclusion.
 
 Deliberately deferred. Polling means the choice is no longer architecturally forced, so decide
 it on cost and appetite instead:
