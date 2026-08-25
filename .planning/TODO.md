@@ -174,10 +174,11 @@ backend tests carry that coverage.
 
 ---
 
-## Stage 4 — Hosting ▸ decided 22 Aug 2026
+## Stage 4 — Hosting ✅ live 24 Aug 2026
 
-**Cloudflare Pages + Cloud Run + Neon.** The architecture, the console setup order and
-the two traps are in [`hosting.md`](hosting.md); the prep is in the repo already.
+**Cloudflare Pages + Cloud Run + Neon.** Running at
+<https://movie-league-9pp.pages.dev>, at no cost. The architecture, the setup as it was
+actually done, and what the first deploy proved are in [`hosting.md`](hosting.md).
 
 The reasoning that produced that choice is below, kept because the next person to ask
 "why not AWS" deserves the answer rather than the conclusion.
