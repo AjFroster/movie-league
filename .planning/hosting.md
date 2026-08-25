@@ -248,6 +248,75 @@ waved through.
 
 ---
 
+## What the platform gives us that we are not using
+
+Connecting the repo to Pages switched several things on at once. One of them has a
+consequence worth knowing about, and the rest are cheap wins sitting unclaimed.
+
+### Preview deployments are already live, and they read production
+
+Every pull request now builds its own deployment, reachable at a per-commit URL and at a
+stable `<branch>.movie-league-9pp.pages.dev` alias. That is genuinely useful — a reviewer
+can click the change rather than imagine it.
+
+It also means **every open pull request is another public front door to the production
+database.** Confirmed rather than assumed: the preview for the branch that wrote this
+document served the real 2027 league, because Preview inherits `API_ORIGIN` from the
+project and therefore points at the same Cloud Run and the same Neon.
+
+Nothing is leaking today — that league is public, and mutations still need a Clerk session.
+The problem is the shape: a branch carrying a destructive bug can write to the real
+database from a URL nobody is watching, and preview URLs are not secret.
+
+Two fixes, in increasing order of cost.
+
+1. **Cloudflare Access on preview deployments.** Zero Trust is free at this size, and Pages
+   has a one-click toggle to require a login on previews only. Minutes of work, and it
+   closes the front door without changing anything else.
+
+2. **A separate preview stack.** Point Preview's `API_ORIGIN` at a second Cloud Run service
+   whose `DATABASE_URL` is a **Neon branch** rather than the main database. Neon branching
+   is copy-on-write and instant, and the free tier includes several.
+
+The second is the better answer, and it is the same question that came up before hosting
+existed: where should test data live. The conclusion then was a separate database rather
+than separate tables, and this is that conclusion with the platform doing the work — a pull
+request gets a full isolated stack, seeded with a copy of real data, thrown away on merge.
+It pairs with the Postgres CI job on `ci/postgres-parity`, which is still closed.
+
+### Build watch paths
+
+A backend-only or docs-only pull request currently rebuilds the frontend for nothing. Pages
+settings → **Build watch paths** → `frontend/*` stops that. The free tier's 500 builds a
+month is not the constraint; the constraint is how long a reviewer waits and how much noise
+a green tick is worth.
+
+### Rollback, written down before it is needed
+
+Pages keeps every deployment and can promote an older one instantly — no revert commit, no
+rebuild. Cloud Run has the same thing in revisions:
+
+```bash
+gcloud run revisions list --service movie-league --region us-east5
+gcloud run services update-traffic movie-league --region us-east5 --to-revisions <revision>=100
+```
+
+That is the incident procedure for both halves. Worth rehearsing once while nothing is
+wrong.
+
+### Web Analytics
+
+Free, cookie-less, no consent banner needed. For a league app the only metric that matters
+is whether anyone opens it between drafts, and nothing currently answers that.
+
+### Deploy hooks
+
+A webhook URL that triggers a Pages build. Not needed yet; the one plausible use is
+rebuilding after scheduled enrichment changes the data, and that only matters if the site
+ever renders anything at build time. Today it does not.
+
+---
+
 ## Deliberately not done
 
 **No CI deploy step.** Cloudflare Pages already deploys on push once connected. Cloud Run

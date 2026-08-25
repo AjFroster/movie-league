@@ -180,6 +180,16 @@ backend tests carry that coverage.
 <https://movie-league-9pp.pages.dev>, at no cost. The architecture, the setup as it was
 actually done, and what the first deploy proved are in [`hosting.md`](hosting.md).
 
+Follow-ups the platform handed us, in value order, detailed in that same file:
+
+1. **Preview deployments read production.** Every PR is a public URL onto the real
+   database. Close it with Cloudflare Access in minutes, or properly with a preview
+   Cloud Run service pointed at a Neon branch — which is the "separate database for
+   testing" answer, with the platform doing the work.
+2. **Build watch paths** — `frontend/*`, so backend and docs PRs stop rebuilding it.
+3. **Rehearse a rollback** on both halves while nothing is broken.
+4. **Web Analytics** — free, and nothing currently says whether anyone opens the app.
+
 The reasoning that produced that choice is below, kept because the next person to ask
 "why not AWS" deserves the answer rather than the conclusion.
 
