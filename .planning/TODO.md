@@ -187,6 +187,7 @@ Follow-ups the platform handed us, in value order, detailed in that same file:
    Cloud Run service pointed at a Neon branch — which is the "separate database for
    testing" answer, with the platform doing the work.
 2. **Build watch paths** — `frontend/*`, so backend and docs PRs stop rebuilding it.
+   Dashboard only: Pages → the project → Settings → Builds → Build watch paths.
 3. **Rehearse a rollback** on both halves while nothing is broken.
 4. **Web Analytics** — free, and nothing currently says whether anyone opens the app.
 

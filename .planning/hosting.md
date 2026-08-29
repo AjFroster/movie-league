@@ -282,7 +282,7 @@ The second is the better answer, and it is the same question that came up before
 existed: where should test data live. The conclusion then was a separate database rather
 than separate tables, and this is that conclusion with the platform doing the work — a pull
 request gets a full isolated stack, seeded with a copy of real data, thrown away on merge.
-It pairs with the Postgres CI job on `ci/postgres-parity`, which is still closed.
+It pairs with the Postgres CI job, which landed in PR #26.
 
 ### Build watch paths
 
@@ -322,7 +322,12 @@ ever renders anything at build time. Today it does not.
 **No CI deploy step.** Cloudflare Pages already deploys on push once connected. Cloud Run
 should stay manual until the first few deploys have been watched by a human.
 
-**Nothing has verified this application on Postgres.** The suite, the smoke test and the
-browser tests all run on SQLite. Branch `ci/postgres-parity` carries the job that would
-prove it, closed unmerged; it is worth reviving before the first real season rather than
-after.
+**Postgres is now covered in CI**, as of PR #26. A Postgres 16 service container runs the
+whole suite on every pull request, then applies the migrations to an empty database and
+diffs the result against the models. The container dies with the runner, so CI still never
+touches Neon.
+
+The smoke and browser tiers stay on SQLite deliberately. They boot a real server in
+local-identity mode, which `auth._assert_local_mode_is_safe` refuses against a non-SQLite
+database — correctly. What Postgres changes is SQL generation and types; what those tiers
+test is HTTP and UI wiring.
