@@ -47,6 +47,12 @@ real uvicorn on a real migrated database, browser tests, and a two-process test 
 people draft against one database from two browsers. CI runs all of them; `master` takes
 pull requests only.
 
+## Where it runs
+
+<https://movie-league-9pp.pages.dev> — Cloudflare Pages for the built frontend, Cloud Run
+for the API, Neon for the database, Clerk for accounts. Free at this size. `.planning/hosting.md`
+has the whole picture.
+
 ## Where things are
 
 - `.planning/TODO.md` — the live roadmap and the reasoning behind its order
