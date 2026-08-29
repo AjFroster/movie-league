@@ -56,8 +56,80 @@ jobs:
       # that actually break a deployment. This caught `alembic upgrade head` failing on an
       # empty database -- no migration created any table, so a fresh Postgres could not be
       # provisioned at all.
+      # Stays on SQLite deliberately. This tier boots a real uvicorn in local-identity
+      # mode, and `auth._assert_local_mode_is_safe` refuses that against a non-SQLite
+      # database -- correctly. What Postgres changes is SQL generation and types, which
+      # the job below covers; what this tier tests is HTTP wiring, which it does not.
       - name: Smoke test
         run: python -m scripts.smoke_test
+
+  backend-postgres:
+    name: Backend tests (Postgres)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    # Not required to merge yet, for the reason the browser tests were not: nothing has
+    # ever run this application on Postgres, so the first few weeks of surprises belong in
+    # a job that reports rather than one that blocks.
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: league_test
+        ports: ['5432:5432']
+        # Without a health check the steps begin before Postgres accepts connections, and
+        # the first test fails on a refused socket rather than on anything real.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # The container is created for this job and destroyed with the runner, so a test
+      # league here can never reach a hosted database and there is nothing to sweep up
+      # afterwards. That is the property worth keeping when this app is deployed: CI gets
+      # the engine production uses without getting production's data.
+      #
+      # TEST_DATABASE_URL, not DATABASE_URL -- see the comment in tests/conftest.py.
+      - name: Run the suite against Postgres
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/league_test
+        run: pytest -q
+
+      # The other half, and the half that actually breaks a deployment. The suite builds
+      # its schema with create_all; a hosted database is built by Alembic alone. This
+      # applies the migrations to a database that has never seen them and then asks
+      # whether the result matches the models -- the same class of failure as the missing
+      # baseline revision, which passed every test right up until a real deploy.
+      - name: Migrate an empty Postgres from scratch
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/league_migrations
+        run: |
+          python - <<'PY'
+          import psycopg
+          dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
+          with psycopg.connect(dsn, autocommit=True) as conn:
+              conn.execute("DROP DATABASE IF EXISTS league_migrations")
+              conn.execute("CREATE DATABASE league_migrations")
+          PY
+          alembic upgrade head
+          python -m scripts.check_schema_drift
 
   frontend:
     name: Frontend build
